@@ -10,3 +10,20 @@ dependencies {
     testImplementation("junit:junit:4.13.2")
 }
 sourceSets.test { resources.srcDir("../../contracts/v1") }
+
+// Explicit opt-in: a real pinned backend and existing Python runtime are required.
+// The ordinary test task continues to run without a backend checkout.
+tasks.test { exclude("**/BackendIntegrationTest*") }
+tasks.register<Test>("backendIntegrationTest") {
+    description = "Exercise the real HTTPS adapter against a disposable pinned backend"
+    group = "verification"
+    testClassesDirs = sourceSets.test.get().output.classesDirs
+    classpath = sourceSets.test.get().runtimeClasspath
+    include("**/BackendIntegrationTest.class")
+    outputs.upToDateWhen { false }
+    doFirst {
+        require(System.getenv("PHOTOHOUSE_TEST_BACKEND") != null && System.getenv("PHOTOHOUSE_TEST_PYTHON") != null) {
+            "Run android/integration/verify-backend.py with an explicit backend checkout and interpreter"
+        }
+    }
+}

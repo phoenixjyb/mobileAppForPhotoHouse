@@ -1,0 +1,26 @@
+<?xml version='1.0' encoding='utf-8'?>
+<testsuite name="dev.photohouse.fixture.core.FixtureTest" tests="22" skipped="0" failures="0" errors="0" timestamp="2026-09-09T11:26:49" time="0.468">
+  <properties />
+  <testcase name="app02InvalidInvitationStaysSignedOut" classname="dev.photohouse.fixture.core.FixtureTest" time="0.159" />
+  <testcase name="app09TwentyFourHourExpiryLocksOnForeground" classname="dev.photohouse.fixture.core.FixtureTest" time="0.019" />
+  <testcase name="acceptedInvitationRefetchesOnlyOwnSession" classname="dev.photohouse.fixture.core.FixtureTest" time="0.012" />
+  <testcase name="app09BackgroundClearsPrivateStateAndWaitsForRevalidation" classname="dev.photohouse.fixture.core.FixtureTest" time="0.016" />
+  <testcase name="app05MissingPreviewNeverFallsBackAndVideoHasNoPlayer" classname="dev.photohouse.fixture.core.FixtureTest" time="0.032" />
+  <testcase name="app08ObjectDenialChecksSessionExactlyOnceWithoutSigningOutValidAccount" classname="dev.photohouse.fixture.core.FixtureTest" time="0.009" />
+  <testcase name="closedBoundaryDoesNotTryLegacyOrRetry" classname="dev.photohouse.fixture.core.FixtureTest" time="0.007" />
+  <testcase name="app06LateOldLibraryResponseIsDropped" classname="dev.photohouse.fixture.core.FixtureTest" time="0.006" />
+  <testcase name="app07LateLoginCannotRestoreCredentialsAfterLogout" classname="dev.photohouse.fixture.core.FixtureTest" time="0.006" />
+  <testcase name="rejectsWrongLibraryResponsesAndNeverLoadsTheirMedia" classname="dev.photohouse.fixture.core.FixtureTest" time="0.008" />
+  <testcase name="app10EmptyCaptionsAndMarkupRemainLiteralAndSeparateFromUiLanguage" classname="dev.photohouse.fixture.core.FixtureTest" time="0.01" />
+  <testcase name="app03AllUnavailableMembershipsDenyGalleryAndMedia" classname="dev.photohouse.fixture.core.FixtureTest" time="0.023" />
+  <testcase name="app08UnavailableSessionCheckCoversWithoutClaimingRevocation" classname="dev.photohouse.fixture.core.FixtureTest" time="0.007" />
+  <testcase name="app09RevalidationCannotUncoverAfterAnotherBackground" classname="dev.photohouse.fixture.core.FixtureTest" time="0.004" />
+  <testcase name="coveredNavigationCannotBypassRevalidation" classname="dev.photohouse.fixture.core.FixtureTest" time="0.006" />
+  <testcase name="parsesEveryFrozenJsonSuccessAndRetainsWireTypes" classname="dev.photohouse.fixture.core.FixtureTest" time="0.067" />
+  <testcase name="app01InvitedRegistrationGrantsOnlyInvitedLibrary" classname="dev.photohouse.fixture.core.FixtureTest" time="0.01" />
+  <testcase name="app10RateLimitCooldownAndUnavailableRetryDoNotLoop" classname="dev.photohouse.fixture.core.FixtureTest" time="0.016" />
+  <testcase name="app04ApprovedGalleryDetailAndLiteralCaptions" classname="dev.photohouse.fixture.core.FixtureTest" time="0.004" />
+  <testcase name="duplicateIdsAreDeduplicatedOnRefresh" classname="dev.photohouse.fixture.core.FixtureTest" time="0.028" />
+  <testcase name="sessionExpiryStopsForegroundReadsBeforeCallingRepository" classname="dev.photohouse.fixture.core.FixtureTest" time="0.006" />
+  <testcase name="app07LogoutClearsImmediatelyEvenWithLateDataAndFailure" classname="dev.photohouse.fixture.core.FixtureTest" time="0.004" />
+  </testsuite>

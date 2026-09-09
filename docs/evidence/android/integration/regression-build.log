@@ -1,0 +1,181 @@
+PASS frozen contract: 12 operations, 38 ASGI cases, 8 checksummed files
+PASS wrapper SHA-256, no permissions/transport/storage/player, lifecycle/backup source guards
+PASS connected app system TLS trust, no fixture dependencies, no credential/media persistence or logging
+openjdk version "17.0.20.1" 2026-08-18
+OpenJDK Runtime Environment Temurin-17.0.20.1+1 (build 17.0.20.1+1)
+OpenJDK 64-Bit Server VM Temurin-17.0.20.1+1 (build 17.0.20.1+1, mixed mode, sharing)
+
+------------------------------------------------------------
+Gradle 8.10.2
+------------------------------------------------------------
+
+Build time:    2024-09-23 21:28:39 UTC
+Revision:      415adb9e06a516c44b391edff552fd42139443f7
+
+Kotlin:        1.9.24
+Groovy:        3.0.22
+Ant:           Apache Ant(TM) version 1.10.14 compiled on August 16 2023
+Launcher JVM:  17.0.20.1 (Eclipse Adoptium 17.0.20.1+1)
+Daemon JVM:    /Library/Java/JavaVirtualMachines/temurin-17.jdk/Contents/Home (no JDK specified, using current Java home)
+OS:            Mac OS X 26.6.2 aarch64
+
+> Task :core:checkKotlinGradlePluginConfigurationErrors
+> Task :protocol:checkKotlinGradlePluginConfigurationErrors
+> Task :protocol:compileKotlin UP-TO-DATE
+> Task :protocol:compileJava NO-SOURCE
+> Task :core:processResources NO-SOURCE
+> Task :core:processTestResources
+> Task :protocol:processResources NO-SOURCE
+> Task :protocol:classes UP-TO-DATE
+> Task :protocol:jar UP-TO-DATE
+> Task :live-core:checkKotlinGradlePluginConfigurationErrors
+> Task :live-core:compileKotlin UP-TO-DATE
+> Task :live-core:compileJava NO-SOURCE
+> Task :live-core:processResources NO-SOURCE
+> Task :live-core:classes UP-TO-DATE
+> Task :live-core:jar
+> Task :live-core:compileTestKotlin UP-TO-DATE
+> Task :live-core:compileTestJava NO-SOURCE
+> Task :live-core:processTestResources UP-TO-DATE
+> Task :live-core:testClasses UP-TO-DATE
+> Task :core:compileKotlin
+> Task :live-core:test
+> Task :core:compileJava NO-SOURCE
+> Task :core:classes UP-TO-DATE
+> Task :core:jar
+> Task :app:checkKotlinGradlePluginConfigurationErrors
+> Task :app:preBuild UP-TO-DATE
+> Task :app:preDebugBuild UP-TO-DATE
+> Task :app:checkDebugAarMetadata
+> Task :app:generateDebugResValues
+> Task :app:mapDebugSourceSetPaths
+> Task :app:generateDebugResources
+> Task :app:mergeDebugResources
+> Task :app:packageDebugResources
+> Task :app:parseDebugLocalResources
+> Task :app:createDebugCompatibleScreenManifests
+> Task :app:extractDeepLinksDebug
+> Task :app:processDebugMainManifest
+> Task :app:processDebugManifest
+> Task :app:processDebugManifestForPackage
+> Task :core:compileTestKotlin
+> Task :core:compileTestJava NO-SOURCE
+> Task :core:testClasses
+> Task :app:processDebugResources
+> Task :core:test
+> Task :app:javaPreCompileDebug
+> Task :app:preDebugAndroidTestBuild SKIPPED
+> Task :app:generateDebugAndroidTestResValues
+> Task :app:extractProguardFiles
+> Task :app:preDebugUnitTestBuild UP-TO-DATE
+> Task :app:mergeDebugNativeDebugMetadata NO-SOURCE
+> Task :app:mergeDebugShaders
+> Task :app:compileDebugShaders NO-SOURCE
+> Task :app:generateDebugAssets UP-TO-DATE
+> Task :app:mergeDebugAssets
+> Task :app:compressDebugAssets
+> Task :app:desugarDebugFileDependencies
+> Task :app:checkDebugDuplicateClasses
+> Task :app:mergeDebugStartupProfile
+> Task :app:compileDebugKotlin
+> Task :app:compileDebugJavaWithJavac NO-SOURCE
+> Task :app:bundleDebugClassesToCompileJar
+> Task :app:mergeExtDexDebug
+> Task :app:generateDebugAndroidTestLintModel
+> Task :app:generateDebugLintReportModel
+> Task :app:generateDebugUnitTestLintModel
+> Task :app:lintAnalyzeDebugAndroidTest
+> Task :app:lintAnalyzeDebugUnitTest
+> Task :app:dexBuilderDebug
+> Task :app:mergeDebugGlobalSynthetics
+> Task :app:processDebugJavaRes
+> Task :app:mergeDebugJavaResource
+> Task :app:mergeLibDexDebug
+> Task :app:mergeProjectDexDebug
+> Task :app:mergeDebugJniLibFolders
+> Task :app:mergeDebugNativeLibs NO-SOURCE
+> Task :app:stripDebugDebugSymbols NO-SOURCE
+> Task :app:validateSigningDebug
+> Task :app:writeDebugAppMetadata
+> Task :app:writeDebugSigningConfigVersions
+> Task :app:packageDebug
+> Task :app:createDebugApkListingFileRedirect
+> Task :app:assembleDebug
+> Task :connected:checkKotlinGradlePluginConfigurationErrors
+> Task :connected:preBuild UP-TO-DATE
+> Task :connected:preDebugBuild UP-TO-DATE
+> Task :connected:generateDebugBuildConfig
+> Task :connected:checkDebugAarMetadata
+> Task :connected:generateDebugResValues
+> Task :connected:mapDebugSourceSetPaths
+> Task :connected:generateDebugResources
+> Task :connected:mergeDebugResources
+> Task :connected:packageDebugResources
+> Task :connected:parseDebugLocalResources
+> Task :connected:createDebugCompatibleScreenManifests
+> Task :connected:extractDeepLinksDebug
+> Task :connected:processDebugMainManifest
+> Task :connected:processDebugManifest
+> Task :connected:processDebugManifestForPackage
+> Task :connected:processDebugResources
+> Task :connected:compileDebugKotlin
+> Task :connected:javaPreCompileDebug
+> Task :connected:compileDebugJavaWithJavac
+> Task :connected:bundleDebugClassesToCompileJar
+> Task :connected:preDebugAndroidTestBuild SKIPPED
+> Task :connected:generateDebugAndroidTestResValues
+> Task :connected:generateDebugAndroidTestLintModel
+> Task :connected:extractProguardFiles
+> Task :connected:generateDebugLintReportModel
+> Task :connected:preDebugUnitTestBuild UP-TO-DATE
+> Task :connected:generateDebugUnitTestLintModel
+> Task :app:lintAnalyzeDebug
+
+> Task :app:lintReportDebug
+Wrote HTML report to file://<worktree>/android/app/build/reports/lint-results-debug.html
+
+> Task :app:lintDebug
+> Task :connected:lintAnalyzeDebugAndroidTest
+> Task :connected:lintAnalyzeDebugUnitTest
+> Task :connected:mergeDebugNativeDebugMetadata NO-SOURCE
+> Task :connected:mergeDebugShaders
+> Task :connected:compileDebugShaders NO-SOURCE
+> Task :connected:generateDebugAssets UP-TO-DATE
+> Task :connected:mergeDebugAssets
+> Task :connected:compressDebugAssets
+> Task :connected:desugarDebugFileDependencies
+> Task :connected:dexBuilderDebug
+> Task :connected:mergeDebugGlobalSynthetics
+> Task :connected:processDebugJavaRes
+> Task :connected:mergeDebugJavaResource
+> Task :connected:checkDebugDuplicateClasses
+> Task :connected:mergeDebugStartupProfile
+> Task :connected:mergeExtDexDebug
+> Task :connected:mergeLibDexDebug
+> Task :connected:mergeProjectDexDebug
+> Task :connected:mergeDebugJniLibFolders
+> Task :connected:mergeDebugNativeLibs NO-SOURCE
+> Task :connected:stripDebugDebugSymbols NO-SOURCE
+> Task :connected:validateSigningDebug
+> Task :connected:writeDebugAppMetadata
+> Task :connected:writeDebugSigningConfigVersions
+> Task :connected:packageDebug
+> Task :connected:createDebugApkListingFileRedirect
+> Task :connected:assembleDebug
+> Task :connected:lintAnalyzeDebug
+
+> Task :connected:lintReportDebug
+Wrote HTML report to file://<worktree>/android/connected/build/reports/lint-results-debug.html
+
+> Task :connected:lintDebug
+
+BUILD SUCCESSFUL in 1m 4s
+109 actionable tasks: 104 executed, 5 up-to-date
+PASS APK bundles the shared contract and media byte-for-byte
+APK SHA-256: 9895ce539598744a5d5ab155fe019638e4149ce6099816c89452668a04991359
+JVM dev.photohouse.fixture.core.FixtureTest: 22 tests, 0 failures, 0 errors
+JVM dev.photohouse.connected.core.ConnectedStoreTest: 14 tests, 0 failures, 0 errors
+JVM dev.photohouse.connected.core.HttpsApiTest: 13 tests, 0 failures, 0 errors
+Connected APK SHA-256: 259a42051066ae862fe96a311a0fd128607b5cde185d5442d7385d35d3056ab9
+PASS APK has no Internet, storage, camera or microphone permissions; only AndroidX app-internal signature permission
+PASS connected APK has only Internet and AndroidX app-internal permission; no fixture assets

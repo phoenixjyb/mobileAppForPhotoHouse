@@ -75,3 +75,8 @@ do not establish deployed authorization or a real successful sign-in. Test-only
 own-View renders leave `FLAG_SECURE` enabled; ordinary screenshots remain blocked.
 
 Evidence and remaining gates: [RESULT.md](../../docs/evidence/android/connected/RESULT.md).
+
+The optional [actual-backend interoperability suite](../integration/README.md)
+exercises this same Kotlin adapter against the pinned Python application over
+local TLS with temporary migrated SQLite. It is separate from ordinary JVM tests
+and deployed-server/device acceptance.

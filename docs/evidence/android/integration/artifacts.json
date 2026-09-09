@@ -1,0 +1,17 @@
+{
+  "base_commit": "1f42d5d93e273b4a39b09a5f1a121ff4f7fea6a6",
+  "configured_origin": false,
+  "installed_on_device": false,
+  "artifacts": [
+    {
+      "path": "android/app/build/outputs/apk/debug/app-debug.apk",
+      "sha256": "9895ce539598744a5d5ab155fe019638e4149ce6099816c89452668a04991359",
+      "bytes": 8254783
+    },
+    {
+      "path": "android/connected/build/outputs/apk/debug/connected-debug.apk",
+      "sha256": "259a42051066ae862fe96a311a0fd128607b5cde185d5442d7385d35d3056ab9",
+      "bytes": 8772978
+    }
+  ]
+}
