@@ -1,150 +1,223 @@
-# Independent Codex session handoffs
+# PhotoHouse independent session handoffs
 
-Status: **handoffs prepared; standalone sessions not created**. Three temporary
-design subagents completed in the coordinating conversation. The discovered
-Codex list-projects route returned unavailable on this host; no usable replacement
-MCP session-creation tool was exposed. Do not confuse subagents with persistent
-Android/iOS/voice conversations.
+Updated 2026-09-09 after the backend foundation and recovery slices. **Android and
+iOS fixture app work can start directly from the frozen local baseline below.**
+This document prepares assignments; it does not create sessions or start agents.
+No mobile app build, simulator/device result, deployment, push or merge is claimed.
 
-Create four separate local Codex tasks when the app's project/task route is
-available. Use isolated worktrees for repository work. This is consistent with
-the [Codex worktree workflow](https://learn.chatgpt.com/docs/environments/git-worktrees).
-Never launch multiple writers in the same checkout. The present planning branch
-is local only and the remote mobile repository was empty at audit time; publish
-or explicitly select the local planning baseline before relying on a default-
-branch worktree. Do not assume an unpushed branch is remotely available.
+## Shared baseline and launch
 
-All sessions must record actual base SHA/branch/worktree, assigned ownership,
-diff, validation and remaining gate. Use the configured model by default; no model
-switch is implied by these capsules. Shared contracts and final integration remain
-with the coordinator. Each capsule below is a user-visible launch prompt, not a
-command that has already run.
+| Item | Exact baseline |
+| --- | --- |
+| Mobile repository | `phoenixjyb/mobileAppForPhotoHouse` |
+| Mobile frozen ref | Local tag `refs/tags/photohouse-mobile-fixture-v1`; resolve and record its full SHA before working |
+| Coordinator branch | `codex/mobile-foundation-plan`; use the frozen tag, not a moving branch or remote default |
+| Backend source | `phoenixjyb/vlmPhotoHouse`, `codex/mobile-access-foundation`, `1e394f789ff1f7cef6d9930bb541186684f5a9a0` |
+| Consumer contract | `1.0.0-fixture.1`; `contracts/v1/manifest.json` pins backend sources and all fixture/contract checksums |
+| Backend evidence | 198 local security tests; 152 inventory entries, 23 active routes; source/test evidence only |
+| App implementation | Neither platform implemented yet; both can consume the same checked fixtures independently |
 
-## Coordination order
+The tag and backend branch are **local**, not assumed published or available on
+another machine. On this Mac, begin from the mobile checkout, inspect status and
+`git worktree list`, then resolve `git rev-parse refs/tags/photohouse-mobile-fixture-v1`.
+Never reset, clean, stash, overwrite or reuse somebody else's worktree. If an assigned
+branch/path already exists, inspect its owner/base and continue only if it is your
+matching task; otherwise select a fresh isolated path and report it.
 
-1. Coordinator publishes/freezes a synthetic contract baseline after the backend
-   route inventory. Identity provider and live deployment stay approval-gated.
-2. Start Backend Security. Start Android Foundation against the frozen fixtures.
-3. Start iOS Foundation against that same contract immediately afterward.
-4. Voice session can refine contracts/tests in parallel; real implementation uses
-   the merged authorized services. No GPU/runtime work in these first tasks.
+Example commands, from the mobile repository, when those names do not already exist:
 
-## A. Backend Security — first authoritative prerequisite
+```sh
+git worktree add -b codex/android-foundation-auth ../mobileAppForPhotoHouse-android refs/tags/photohouse-mobile-fixture-v1
+git worktree add -b codex/ios-foundation ../mobileAppForPhotoHouse-ios refs/tags/photohouse-mobile-fixture-v1
+```
 
-Project: phoenixjyb/vlmPhotoHouse. Suggested branch: codex/mobile-access-foundation.
-Audited implementation: 752ab3b, same tree as merged master 9322635; refresh refs
-and inspect the actual branch/diff before working. Reference mobile plan from
-phoenixjyb/mobileAppForPhotoHouse; read backend AGENTS and referenced memory docs.
+Create only your assigned worktree. If the tag/files are absent or checksums fail,
+report the missing baseline; never clone an empty remote/default branch and invent
+DTOs. Both sessions first run `python3 scripts/verify-contracts.py`. Neither needs a
+backend service or database. Contract verification is offline and stdlib-only.
 
-**Initial bounded outcome:** commit a complete route/capability inventory and a
-synthetic negative-test harness describing the authentication gap. No live data
-or migration in the first commit. Cover legacy routes, image/video bytes, face
-crops, search seed/results/aggregates, operational endpoints and voice. A route
-missing from the inventory must fail the inventory check. Clearly label expected
-current failures; do not hide them with permanent skips or claim enforcement.
+## Decisions that supersede the initial planning pack
 
-**Next reviewed slices:** verified OIDC principal adapter + account/membership
-schema and explicit migration; common policy/query helpers; closure of all legacy
-route bypasses; web cookie/session/CSRF and mobile token compatibility. Coordinate
-contract fields with the root owner before freezing them. A provider choice or
-security migration requires review; do not implement a bespoke OAuth provider.
+- Owner manually sends a phone-bound invitation. New account registration requires
+  that invitation plus phone/password and grants viewer access **only to that invited
+  library**. Returning login uses phone/password. Phone is unverified; internal account
+  ID is opaque. No OIDC, SMS, WeChat, open signup or first-signup owner in this scope.
+- An invalid invitation is failed registration, not an account awaiting approval.
+  Existing requested/rejected/revoked/empty/expired memberships still need clear UI.
+  Use the server's `available` flag; approved status alone does not permit browsing.
+- The frozen wire format uses offset pages, opaque 24-hour sessions without refresh,
+  numeric membership revisions, decimal-string asset IDs and plain caption text.
+  Do not implement the old cursor, JWT/OIDC, refresh-token or structured-translation
+  proposals. Read `contracts/v1/CONTRACT.md` before designing DTOs.
+- First apps: sign-in/invited registration, library selection, synthetic gallery,
+  detail/captions, EN/ZH interface, privacy/session lifecycle and error states.
+  Only Photos and account/library controls need navigation. Albums/search/voice,
+  uploads, export, persistent offline photos and owner/admin tools are deferred.
+- Real HTTP is disabled throughout both first platform slices. Fixture mode must be
+  visibly labeled and excluded from any production networking implementation. Do not
+  collect real phone numbers/passwords/invitations. No endpoint configuration screen
+  that can silently enable real networking in this first build.
 
-Write scope: backend security tests/inventory first; later explicitly reviewed
-security services, schema/migration, affected routes and web authentication UI in
-this repository only. Do not modify the mobile repo from this worktree.
+## Coordination and routing
 
-Invariants: registration grants zero libraries; no first-signup owner; no localhost
-or VPN auth bypass; object and role checks precede files/providers/writes; synthetic
-test data; no existing IDs/original paths changed. No Windows/Mac mini access,
-models, installation, push, deployment or network exposure in this task.
+Coordinator owns contracts, fixtures, root configuration, cross-platform decisions,
+parity and integration. Android owns its assigned files; iOS owns its own. One writer
+per worktree; neither platform changes shared fixtures/schema or the other platform.
 
-Acceptance for complete foundation: anonymous/unapproved/revoked/cross-library
-denials, approved viewer reads, forbidden mutations, protected Range requests,
-scoped search/counts, migration integrity and web compatibility. Partial source
-work is not deployable. Return exact commits and remaining provider/TLS gate.
+Routing classification: coordinator/integration is `owner`; each app foundation is
+`bounded`. Use the current configured executor/model; availability was not queried
+and no model switch or persistent session creation is implied. Apply the repository's
+`route-codex-work` capsule/return rules. No delegation is required to run these tasks.
 
-## B. Android Foundation — first mobile build loop
+Start Android's first build loop, then iOS immediately from the same tag. iOS does
+not wait for Android completion. Backend recovery/deployment work does not block
+fixture app implementation. Coordinator inspects both returns before any integration.
 
-Project: phoenixjyb/mobileAppForPhotoHouse. Suggested branch:
-codex/android-foundation-auth. Begin from the coordinator's exact contract baseline
-in an isolated worktree. If contracts/v1 and its fixtures are absent/unfrozen,
-return to the coordinator; do not invent production endpoints or independent DTOs.
+## A. Backend continuation — separate from mobile app work
 
-Own android/**, scripts/verify-android.sh and .github/workflows/android.yml only.
-Root owns contracts, shared fixture files and parity integration. Inspect root
-AGENTS, this plan and the Android reference paths. Choose and record compatible
-current toolchain pins; do not copy old versions/signing/cleartext from OpenGroove.
+Task ID: `PH-BACKEND-RECOVERY-REOPEN`. Repository: `vlmPhotoHouse`; existing backend
+branch/worktree at the SHA above. Read its AGENTS, required agent-memory documents,
+`docs/security/OFFLINE_RECOVERY.md` and `OFFLINE_PROVISIONING_APPLY.md` before changes.
+Refresh actual Git identity/status and preserve every existing worktree.
 
-Implement the Compose fixture shell: sign-in/registration entry states, pending
-membership, approved synthetic gallery and detail, English/Chinese resources,
-expired/revoked/error states, generation-isolated session repository and logout.
-Fixture login must be visibly non-production; release real networking remains
-disabled. Keep module count small and dependency additions justified.
+**Already complete locally:** account/invitation admission; common membership/object
+checks; closure of legacy handlers; protected scoped gallery/captions/media/Range;
+web cookie/CSRF UI; explicit migrations/runtime; audited provisioning and restored
+access quarantine. Do not restart the initial route inventory task or add OIDC.
+The 97 retired handlers remain unsafe and unmounted; 32 standalone model/diagnostic
+routes remain separate exposure gaps. Search/albums/voice are closed, not secured
+implementations. The foundation is not deployed or a claim about today's live service.
 
-Acceptance: JVM tests prove registration/pending/revoked cannot fetch media;
-approved synthetic member can browse; logout/account switch rejects late results;
-bad restored state stays locked. Unit tests, lint and debug APK pass. Emulator
-smoke and large-font EN/Chinese render checks are separate observed gates. Record
-toolchain, SHA, APK digest and skipped device/signing checks. No real account,
-media, endpoint, release signing, device installation, store publish or backend
-changes. Stop if shared contract/security choices need alteration.
+**Next bounded outcome:** design/test explicit owner recovery and selective library
+reopening with protected new-password input, membership/original-grant review and
+atomic audit. Never reactivate a restored audience wholesale. Missing post-backup
+revocation history needs independent review. Keep unreviewed accounts/libraries closed.
+This backend assignment does not authorize mobile edits, real credentials/data,
+Windows/Mac mini access, models, listeners, deployment, push or merge.
 
-## C. iOS Foundation — same contract, independent delivery
+Return implementation/tests and remaining operator/deployment gates. Mobile sessions
+continue from the frozen fixture contract; proposed API changes return to coordinator.
 
-Project: phoenixjyb/mobileAppForPhotoHouse. Suggested branch:
-codex/ios-foundation. Use an isolated worktree at the same frozen contract baseline
-as Android; stop for coordinator input if fixtures/schema are not ready.
+## B. Android Foundation — copy into an Android session
 
-Own ios/**, scripts/verify-ios.sh and .github/workflows/ios.yml only. Keep contract
-and parity changes with the coordinator. Use native SwiftUI, a local Swift package,
-Foundation transport boundaries, XcodeGen plus a committed generated project.
-Propose iOS 17/Swift 6; record the actual available build/simulator versions.
-No KMP dependency or new third-party runtime package is required for this slice.
+Task ID: `PH-ANDROID-FIXTURE-01`. Repository: `mobileAppForPhotoHouse`.
+Base: `refs/tags/photohouse-mobile-fixture-v1`; branch `codex/android-foundation-auth`.
+Create/verify your isolated worktree and record the resolved full base SHA and path.
 
-Implement a synthetic fixture gallery/detail and account/membership state shell,
-independent UI/caption language selection, readable EN/Chinese empty/error states,
-session-generation isolation, private UI covering and logout/account switching.
-No real backend networking. Do not copy app IDs, signing teams or network exceptions.
+**Outcome:** runnable Kotlin/Jetpack Compose fixture app for the frozen browsing flow,
+with a reproducible debug build and session/privacy tests. No real backend networking.
 
-Acceptance: package model/session tests, simulator tests and unsigned build;
-synthetic EN/Chinese, large text and accessibility render evidence; late previous-
-account requests never repopulate UI. Record precise SHA/toolchain/results and
-device gates. Physical device signing, provisioning changes, installation,
-TestFlight, permissions to use private media and backend work remain out of scope.
+**Read first:** AGENTS.md, README.md, docs/DEVELOPMENT_PLAN.md, docs/SECURITY_AND_VOICE.md,
+contracts/README.md, contracts/v1/CONTRACT.md, OpenAPI/fixtures/client scenarios,
+manifest and this capsule. Run `python3 scripts/verify-contracts.py` before editing.
+Maximum read scope: this repo and the documented reference source paths when needed
+for architecture/license checks. No live endpoints, databases or private configs.
 
-## D. Voice Interaction — separate backend session
+**Write ownership:** `android/**`, `scripts/verify-android.sh`,
+`.github/workflows/android.yml`, `docs/evidence/android/**` only. Keep Gradle root,
+wrapper, app and modules inside `android/`. Do not modify root AGENTS/README/gitignore,
+shared verifier/fixtures, PARITY.md, iOS, backend or another session's checkout.
 
-Project: phoenixjyb/vlmPhotoHouse. Suggested branch: codex/mobile-voice-foundation.
-Isolated worktree, separate from Backend Security. Read root plan and the merged
-authorization service contract before implementation. Without that prerequisite,
-limit work to design/synthetic adapter tests and return the missing dependency.
+**Implement:**
 
-Outcome: authenticated push-to-talk -> STT -> typed read-only intent -> authorized
-result cards -> optional TTS. Own voice adapter/intent/session modules and focused
-tests, not account schema, shared auth policy or mobile UI. Refactor reusable
-adapters only after checking current routes; repair obsolete Asset-field access.
+1. Inspect available JDK/Android SDK/toolchain. Choose and pin compatible Gradle/AGP/
+   Kotlin/Compose versions using official tooling guidance; verify wrapper checksum.
+   Keep modules/dependencies small. Minimum API 26 is proposed, not a family-device
+   guarantee. Use a clearly development-only app identifier; no borrowed signing IDs.
+2. Parse shared JSON responses into typed models; add an injected fixture repository,
+   memory-only session and generation-bound requests. Do not implement real transport,
+   refresh tokens or independent wire fields. Bundle or deterministically consume the
+   shared fixture assets from this worktree; do not modify/copy-edit their contents.
+3. Build visibly labeled demo sign-in/invited registration, own membership/library
+   selection, gallery/detail, literal captions, missing preview/video-unavailable,
+   empty/error/retry and logout states. Use reserved synthetic demo inputs only.
+4. Implement scenarios APP-01 through APP-10. No gallery/media for unavailable
+   memberships; no original fallback; no HTML captions; no late prior-generation
+   responses; immediate private UI/cache clearing on logout/switch. Cover app-switcher
+   previews, cold-start signed-out behavior and foreground session revalidation.
+5. Supply independent verification script and Linux CI definition using synthetic
+   data only, read-only permissions and pinned action revisions. Commit source locally;
+   defining CI is not a claim that hosted CI ran. No signing secrets or publishing.
 
-Initial intents: search assets/people/person assets, describe asset, help. Bind
-conversations to authenticated account/library/device/session; ignore caller
-identity in transcripts or client_id. Enforce audio bounds, rate/concurrency limits,
-timeouts/cancellation and typed provider errors. No mutations, arbitrary model
-tools, raw-audio persistence by default or cloud processing without an explicit
-privacy choice. Keep provider adapters replaceable and run mocked tests first.
+**Acceptance:** contract check; JVM parser/session/privacy tests; lint; debug APK.
+Record exact toolchain and APK SHA-256. With an already available emulator, run a
+synthetic smoke/render check for EN/ZH, large font and accessible labels; report the
+AVD/API and observed result. Do not install new emulator images or touch a physical
+phone without separate authorization. If no emulator/toolchain is available, retain
+source/unit/build evidence that is possible and report that specific gate as unrun;
+do not claim completion of the unavailable gate or rewrite contracts around it.
 
-Acceptance: EN/Chinese query parity, clarification/no-match, unauthorized asset
-denial before provider output, wrong-account conversation denial, cancellation,
-provider failure and text fallback. Current /voice/command feature gating is not
-user authentication. Do not reuse its optional confirmation token as authority.
+**Stop/escalate:** shared schema/API changes, writes outside ownership, unfamiliar
+user changes, SDK/image/system installation, real networking/data/credentials,
+release signing, physical installation, remote CI operations, push/merge/deployment.
+Continue independent in-scope work and return concrete blockers with the diff intact.
 
-No Windows/Mac mini access, GPU launches, STT/TTS model installation, speakers,
-wake words, ambient capture, public endpoints or deployments. A later benchmark
-must explicitly coordinate GPU budget/heat with ongoing caption/face work. Paired
-speaker design must distinguish device identity from who can hear the response.
+## C. iOS Foundation — copy into an iOS session
 
-## Integration return format
+Task ID: `PH-IOS-FIXTURE-01`. Repository: `mobileAppForPhotoHouse`.
+Base: the same `refs/tags/photohouse-mobile-fixture-v1`; branch `codex/ios-foundation`.
+Create/verify your isolated worktree and record resolved full SHA/path. Do not wait
+for Android implementation or depend on its Gradle build.
 
-Report: task ID; base/branch/worktree; files/commits; contract version; passed and
-skipped checks; synthetic versus live evidence; screenshots/artifact digest if
-applicable; open security gates; next smallest action. Do not merge or change
-another session's files automatically. The coordinator updates PARITY.md after
-inspecting actual evidence, not from a completion claim alone.
+**Outcome:** runnable SwiftUI fixture app with a local Swift package, unsigned
+simulator build and session/privacy tests against the same contract as Android.
+
+**Read first / maximum read scope:** the same shared documents/contracts listed in
+B plus this capsule. Run `python3 scripts/verify-contracts.py` before editing. Read
+only documented reference source when needed; never copy signing/network identities.
+
+**Write ownership:** `ios/**`, `scripts/verify-ios.sh`, `.github/workflows/ios.yml`,
+`docs/evidence/ios/**` only. Root/shared files, PARITY.md, Android and backend remain
+coordinator/other-session owned.
+
+**Implement:**
+
+1. Record installed Xcode, Swift, simulator runtimes and XcodeGen availability. Start
+   from proposed iOS 17/Swift 6 when the installed toolchain supports it. Put the local
+   Swift package, XcodeGen spec and committed generated project under `ios/`; verify
+   generation drift. No signing-team or provisioning changes; no KMP dependency.
+2. Use Swift Codable contract models, injected fixture repository, memory-only session,
+   generation isolation and bundled synthetic assets. No URLSession calls to a real
+   host, refresh-token implementation or persisted password/session in this first slice.
+3. Implement the same flow and APP-01 through APP-10 as Android: labeled fixture sign-in
+   and invited registration; membership/library selection; gallery/detail/literal
+   captions; placeholders and errors; EN/ZH UI; logout and private lifecycle behavior.
+   Preserve unknown timestamp/timezone and unsupported caption-language information.
+4. Add independent Swift package tests and macOS CI definition with read-only
+   permissions, pinned actions and synthetic artifacts. Do not make iOS builds depend
+   on Android tooling or claim hosted CI ran from the workflow definition alone.
+
+**Acceptance:** contract check; Swift package parser/session/privacy tests; generated
+project drift check; unsigned simulator build. On an already installed simulator,
+run synthetic UI smoke/render checks for EN/ZH, Dynamic Type, accessible labels,
+background privacy and late responses. Record Xcode/runtime/device model, commands,
+artifact identity and actual screenshots/results. No physical iPhone installation,
+new simulator runtime, production signing, TestFlight or provisioning changes.
+If a tool/runtime is missing, complete independent source/package work and identify
+that exact unrun build/UI gate; never claim a simulator pass from source tests.
+
+**Stop/escalate:** same boundaries as B. Return contract changes to coordinator;
+keep partial work and evidence. Do not switch model or launch other sessions implicitly.
+
+## D. Voice — deferred, not a mobile foundation prerequisite
+
+Task ID: `PH-VOICE-DESIGN-NEXT`. Repository: `vlmPhotoHouse`, separate worktree.
+The old voice and search endpoints remain closed. Until reviewed authorized search/
+voice contracts exist, limit a separately requested voice session to design and
+synthetic intent/ownership/cancellation/error tests; do not expose an endpoint or
+invent calls in either app. Later scope is explicit push-to-talk EN/Chinese,
+authorized read-only results and optional STT/TTS adapters. No ambient audio,
+speakers, Windows/Mac mini, GPU/model loading, cloud processing or deployment.
+
+## Return format and integration
+
+Every session returns task ID, observed base/ref/full SHA, branch/worktree, result
+commit(s), changed files, contract version/checksum result, exact validation and
+artifact identities, screenshots when rendered, skipped/unavailable gates, scope
+expansions and next smallest step. Separate source, tests, simulator/emulator,
+signed build, installed device, live service and family acceptance.
+
+Keep evidence in your assigned platform directory, never real photos or credentials.
+The coordinator alone reviews diffs, runs the shared checks, integrates compatible
+changes and updates PARITY.md from observed evidence. No automatic push, merge,
+contract revision, model switch or session creation is part of these handoffs.

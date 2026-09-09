@@ -1,8 +1,9 @@
 # Development plan
 
-Date: 2026-09-09. Status: proposed architecture, ready for contract/bootstrap work.
-Three read-only subagents reviewed iOS, Android, and backend/voice. The coordinator
-integrated their findings; no app or backend implementation was performed.
+Updated 2026-09-09: native fixture work is ready from the frozen local tag
+`refs/tags/photohouse-mobile-fixture-v1`. The backend foundation is locally tested
+at `1e394f789ff1f7cef6d9930bb541186684f5a9a0`; mobile apps are not built yet.
+[Session capsules](SESSION_CAPSULES.md) define executable scopes and acceptance.
 
 ## 1. Repository and implementation choices
 
@@ -13,13 +14,13 @@ in vlmPhotoHouse. Do not fork the photo database or create a second mobile-only
 authorization backend beside the existing API.
 
 Use **Kotlin/Jetpack Compose for Android** and **SwiftUI for iOS**. Share versioned
-API schemas, synthetic fixtures, error codes, and behavioral scenarios. Do not
+API schemas, synthetic fixtures, error behavior, and behavioral scenarios. Do not
 introduce Kotlin Multiplatform, Flutter, React Native, or a WebView wrapper in
 the first slice. This follows the native ReCoMo iOS contract pattern and keeps
 the two build loops independent. Reconsider KMP only after stable duplicated
 domain logic demonstrably justifies the Kotlin/Native build coupling.
 
-Proposed layout; only the planning documents exist at this checkpoint:
+Layout; contracts and the shared verifier now exist, platform source is next:
 
 ```text
 android/                    Android wrapper, app, small core modules
@@ -33,25 +34,28 @@ scripts/                    independent verify-android / verify-ios / contract c
 The backend owns the authoritative API schema. The mobile repository consumes a
 versioned snapshot with backend SHA, checksum, and compatibility version. The
 coordinator owns snapshot updates; clients must not invent incompatible endpoints.
-Existing PhotoHouse endpoints are inputs to the design, not an auth-ready API.
+Only the source-pinned subset in contracts/v1 is frozen for fixture clients.
+The running legacy deployment has not been changed or validated.
 
 ## 2. Family product, not an admin console
 
-First useful release: sign in/register, invitation or approval status, one
-authorized family library, timeline/photo grid, albums, text search, photo/video
-detail, bilingual captions, and account/privacy settings. A warm neutral palette,
-generous imagery, clear dates, and accessible controls should make it feel like a
-family album. Keep worker queues, disk paths, model IDs, and GPU operations out of
-the family navigation.
+First working prototype: invitation registration, phone/password sign-in, own
+membership/library selection, photo grid, detail/captions, bilingual interface,
+logout and privacy/error states. Photos and account/library controls are sufficient
+navigation. Use synthetic media and an injected fixture repository with networking
+disabled. A warm neutral palette, generous imagery, clear dates and accessible
+controls should make it feel like a family album.
 
-Use three primary destinations: Photos, Albums, Search; account controls live in
-the profile menu. People filters may appear when backend assignment quality and
-permissions support them. Do not label unconfirmed face matches as relatives.
-Handle empty library, missing caption, missing translation, revoked access,
-offline server, and expired sign-in as distinct states.
+The fuller family release can add albums, text search and authorized video after
+the corresponding backend and native integration contracts pass. Those features
+are not requirements for the first fixture shells. People filters require reviewed
+assignment quality/permissions. Never label an unconfirmed match as a relative.
+Keep worker queues, disk paths, models and GPU operations out of family navigation.
 
 UI languages: system default, English, Simplified Chinese initially. Caption
-language preference is separate. Switching UI language does not rewrite captions
+content is separate; a caption-language selector is deferred until structured
+translation metadata exists in the backend contract. Switching UI language does
+not rewrite captions
 or filter away media with another language. Preserve original text and label AI
 output; do not promise that all older captions are already refreshed.
 
@@ -69,45 +73,37 @@ grant photo access, and GitHub Pages is not a backend or private-media host.
 Choose a stable trusted HTTPS origin and certificate lifecycle before real login.
 No global cleartext exception or accept-any-certificate code in either app.
 
-Recommend a maintained OIDC provider, system-browser authorization code + PKCE,
-and verified identity mapped to local PhotoHouse account/membership records.
-Do not build an OAuth server or copy passwords into both apps. Provider hosting,
-identity recovery, verification delivery, domain, and certificate setup are a
-decision gate; no provider has been selected, installed, or paid for.
+Chosen identity flow: the owner manually sends a phone-bound invitation. A new
+user submits that code, phone and password; valid redemption creates an account
+and viewer membership only in the invited library. Phone is an unverified login
+label; stable account ID is internal/opaque. Returning users sign in by phone and
+password. No OIDC/SMS/WeChat provider, open signup or first-signup ownership.
 
-Registration produces an identity, not permission to the household. Approval is a
-server-owned library membership. The first owner is established by an explicit
-operator bootstrap, never by racing to register first. Begin with one explicitly
-owned family library while designing IDs/queries so a second library cannot leak.
+The backend returns an opaque revocable 24-hour native bearer session, without a
+refresh endpoint. Initial fixture apps keep it in memory and restart signed out.
+Web cookies/CSRF remain a separate transport to the same authorization services.
+Explicit offline operator provisioning/recovery exists locally; live owner setup,
+restoration/reopening, stable HTTPS and host deployment remain independent gates.
 
-Public internet access is deferred until authorization, rate limits, recovery,
-TLS, monitoring, proxy controls, and the deployment rehearsal pass. No planned
-mobile work changes today's Windows listener or existing private tunnel.
-
-Native authorization follows [RFC 8252](https://www.rfc-editor.org/rfc/rfc8252.html)
-and the [OAuth security BCP](https://www.rfc-editor.org/rfc/rfc9700.html). Concrete
-provider integration must validate issuer, audience, token type/signature/expiry,
-redirect bindings, and refresh/revocation behavior; client secrets cannot be kept
-secret in distributed mobile apps.
+Public internet access is deferred until authorization, recovery, TLS, rate limits,
+monitoring and deployment rehearsal pass. Network/VPN access alone grants nothing.
+No mobile task changes today's Windows listener or private tunnel.
 
 ## 4. Implementation sequence and gates
 
 | Phase | Work | Exit evidence |
 | --- | --- | --- |
-| P0 | Contract draft, capability/route inventory, privacy threat model, synthetic fixtures | Coordinator approves schemas and negative scenarios; no production network |
-| P1 | Backend account/membership and all legacy-route closure; Android fixture foundation; iOS fixture foundation | Server denial matrix plus native tests and simulator/emulator evidence; no live access yet |
-| P2 | Approved identity provider and TLS staging integration; update web UI to use same policy | Two-account/cross-library/revocation/media-range/end-to-end tests on synthetic data |
-| P3 | Small authorized real-library read-only pilot on both platforms | Exact signed build, installed device, pagination/video/performance/logout and family acceptance |
-| P4 | Push-to-talk voice with read-only authorized intents | EN/Chinese tests, ownership/cancel/error/privacy tests, measured provider latency and resource budget |
-| P5 | Curated albums, controlled uploads/offline/export; paired room devices | Separate product/privacy and deployment approval for each capability |
+| P0 | Freeze native consumer snapshot and synthetic cases | Done in this handoff: pinned schema/fixtures/shared offline check; no production network |
+| P1 | Android and iOS fixture shells; backend security foundation | Backend: 198 local security tests. Apps: implement capsules B/C and record independent build/UI evidence |
+| P2 | Explicit host/TLS staging and native authenticated transport | Synthetic two-account/cross-library/revocation/Range integration; no TLS bypass |
+| P3 | Small authorized real-library read-only pilot | Exact signed/installed builds, privacy/logout/video/performance and family acceptance |
+| P4 | Scoped search/albums, then push-to-talk voice | Separate authorized contracts, EN/ZH scenarios, ownership/cancel/privacy and provider budgets |
+| P5 | Upload/offline/export and paired room devices | Separate product/privacy/deployment review for each capability |
 
-Start backend security before live mobile work. **Android leads the first technical
-slice** because a Linux CI/debug APK path gives a cheap reproducible contract loop.
-Start iOS immediately after the fixture contract is fixed, in a separate worktree;
-do not wait for Android product completion. This sequencing does not assume the
-family prefers Android. The iOS app should be available for an early Mac/iPhone
-feedback loop. Voice design can proceed in parallel, but its implementation uses
-the merged authorization services rather than inventing a second policy.
+Android leads the first build loop; iOS starts immediately from the same frozen
+tag, without waiting for Android completion. Neither depends on additional offline
+recovery work to build its fixture shell. Voice remains deferred until reviewed
+search/voice services exist; no standalone model session is implied.
 
 ## 5. Development infrastructure
 
@@ -138,22 +134,23 @@ identities and increasing build numbers. Never commit keys or export real-photo
 screenshots in public CI. TestFlight/Play distribution, store privacy disclosures,
 device registration, and installation each need their own authorization/evidence.
 
-Account creation also requires an account-deletion experience before store
-distribution; Apple requires an in-app initiation path, and Google Play requires
-both in-app and outside-app request paths. Define deletion of account data,
-identity-provider records, membership, caches and relevant retained data, including
-shared-library ownership transfer, without silently deleting everybody's photos.
-See [Apple](https://developer.apple.com/support/offering-account-deletion-in-your-app/)
-and [Google Play](https://support.google.com/googleplay/android-developer/answer/13327111).
-Review the applicable policy again at release; this plan is not store approval.
+Before store distribution, separately review account deletion, session/data removal,
+shared-library ownership transfer and the current platform requirements. No deletion
+endpoint is included in the fixture contract. Consult [Apple's account-deletion
+guidance](https://developer.apple.com/support/offering-account-deletion-in-your-app/)
+and [Google Play's account-deletion guidance](https://support.google.com/googleplay/android-developer/answer/13327111)
+at release time; this planning pack is not store approval.
 
-## 6. Decisions still open
+## 6. Decisions and remaining gates
 
-- Confirm private-network pilot versus internet-without-VPN requirement.
-- Confirm invitation/approval membership policy; do not weaken it implicitly.
-- Choose maintained identity provider, recovery method, verified domain and TLS.
-- Inventory target devices; finalize minimum OS versions and app identifiers.
-- Decide explicit export/offline retention and shared-room disclosure policy later.
+The invitation plus phone/password policy and native Kotlin/Compose + SwiftUI
+approach are settled for this scope. The following remain open for live delivery:
 
-None prevents synthetic contract/UI work. They do prevent claims of a production
-login setup or permission to expose the live library.
+- Stable trusted HTTPS origin and private-network pilot versus internet requirement.
+- Reviewed operator recovery/reopening, deployment/migration and backup rehearsal.
+- Family device inventory, minimum OS support and production app identities/signing.
+- Persistent sign-in lifecycle, account deletion/owner transfer, later media retention.
+- Scoped search/albums and eventual voice/provider contracts.
+
+None blocks the current fixture app assignments. No production service, store
+acceptance or installed-device behavior is claimed by source or fixture tests.

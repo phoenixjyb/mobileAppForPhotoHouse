@@ -1,5 +1,10 @@
 # Read-only reference audit
 
+Historical initial-planning audit. Backend source findings below describe the old
+checkpoint; see [current session handoffs](SESSION_CAPSULES.md) and the
+[frozen contract](../contracts/README.md) for the implemented local foundation.
+Remote repository, toolchain and deployment observations remain point-in-time.
+
 Date: 2026-09-09. Three design subagents plus coordinator; no reference-repository
 edits, builds, device access, model loads, database reads or live Windows checks.
 Paths below are repository-relative; no private connection configuration is needed.

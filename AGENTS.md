@@ -22,8 +22,10 @@ contracts/README.md, and your assigned capsule before implementation.
   voice recordings, biometric embeddings, databases, or model weights.
 - Use synthetic fixtures. A fixture authorization state is not real access
   control. Keep real networking disabled in the first platform slices.
-- Registration never grants library membership. No debug/localhost/VPN bypass
-  may enter the protected production API.
+- Registration without a valid owner-issued, phone-bound invitation is denied.
+  Valid invited registration grants viewer membership only in that invited library;
+  no open signup or implicit household access. No debug/localhost/VPN bypass may
+  enter the protected production API.
 - Do not copy application identifiers, signing configuration, runtime endpoints,
   cleartext exceptions, or public-media caching policies from reference apps.
 - Check source licenses before copying reference implementation code; borrow

@@ -1,0 +1,27 @@
+{
+  "contract_version": "1.0.0-fixture.1",
+  "backend_repository": "phoenixjyb/vlmPhotoHouse",
+  "backend_commit": "1e394f789ff1f7cef6d9930bb541186684f5a9a0",
+  "backend_sources": {
+    "backend/app/main.py": "451e41dd5863ec5b4035bf25afff92f918cd6f1c62cc6d84c0fe9f7375bfb26a",
+    "backend/app/access/transport.py": "3df4fcfe6797ddee2a26ea34adc202c9aa92b88cf51439ad5c53bc7be37e2e87",
+    "backend/app/access/service.py": "c1fc33b39207512fe6f32f52f0564dce8da855f1dd9aee1fd012c4984ab99881",
+    "backend/app/access/credentials.py": "29af47d7cdc18a5347d635ee9c2e53dc9475aedbf4141c451478cf9fed7d4b2f",
+    "backend/app/access/library.py": "2f373de0698470a1e1cd51bba5ff3706c5a079b89346e32f31190208ba501afc",
+    "backend/app/access/media.py": "ed3aa21e138b1959659027cf61b80f44eb90970c3b18606fdca2ee0c22438a95",
+    "backend/app/access/boundary.py": "0e11c1ff560429fa093ddd91c5ee2ee3297e530eee6ddeb5d181c81c66f8d599",
+    "backend/app/access/runtime.py": "b2b7c0695a3e243a67a8156028b0d038a5d6eb4263ec5affa3fe78266a4760e9",
+    "tests/security/test_library_reads.py": "d4c65df6bc862fa83084b894db8e918f473fb07dbecefaadbf893c3c04e28ce0",
+    "tests/security/test_orm_migrations.py": "77c3b999d1c67e46691496e90f7dcf19468fa4aa7083195c2d28787b8da15076"
+  },
+  "files": {
+    "CONTRACT.md": "cb0078ffbfa39e1f306a1bdc213e48faf565edbc6d3d1d84da06726638abe09d",
+    "client-scenarios.json": "893b20887e1427497dadf47abda5cb9401d0feb627adc80eb40fb8f48df02bee",
+    "fixtures.json": "146ccc3885fab73ae2dbfa57166027ed1235c658ce35b166889e44e5681da6a1",
+    "media/amber.png": "4de87cd21c6c2078583b97998902e66918b5dddea43a2be35524ff3a6d745be1",
+    "media/amber.svg": "0c8762afc9150632f99d62ee0b65ee3c8687eff7e9fb7c8d44d6364c5d7e803b",
+    "media/blue.png": "77b997ec08452046d7f9930ab953feddddd03179ed4240d4ee2b3aa7ee7d567c",
+    "media/blue.svg": "6b46cd8cd422ae5bd8f8625b0b29e3963c429ec10f795ca65c5426803c3bd40a",
+    "openapi.json": "91f7a45af67d0233de54f549188be95cc68d8ed2a3be250defcaf5b5d154fdd2"
+  }
+}

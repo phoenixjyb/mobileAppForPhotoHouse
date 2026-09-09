@@ -1,9 +1,10 @@
 # Security and voice design
 
-Proposed controls, not implemented protections. Audit date: 2026-09-09.
-The current PhotoHouse source is a trusted-network application without inbound
-user accounts or library authorization. Its runtime network exposure was not
-re-audited in this planning phase. Do not expose it more broadly.
+Updated 2026-09-09. The separate backend foundation at
+`1e394f789ff1f7cef6d9930bb541186684f5a9a0` implements locally tested account/membership,
+protected browsing and offline recovery. Its 97 retired handlers remain unmounted;
+32 standalone services/routes still need separate isolation review. Live runtime
+exposure is unchanged/unverified. This mobile repository has fixture contracts only.
 
 ## 1. Threat model and server policy
 
@@ -12,15 +13,18 @@ library counts, search results, conversations, and operational metadata from
 anonymous visitors, unapproved registrants, another library's members, revoked
 sessions, leaked credentials/links, shared-device residue, and public CI artifacts.
 
-Recommended records: Account keyed by verified OIDC issuer/subject; Library;
+Implemented records: opaque Account ID with unverified phone login/password; Library;
 Membership(account, library, status, role, revision, approver); revocable app
-session/device records as needed. Person/face records are subjects in photos,
+session records. Device-session management remains deferred. Person/face records
+are subjects in photos,
 not login identities. Matching a face or a voice never grants account access.
 
-Membership status is separate from identity session state. Proposed memberships:
+Membership status is separate from identity session state. Implemented membership states:
 requested, approved, rejected, revoked. An authenticated user may have no library.
-Owner invitation must be short-lived, single-use and explicitly accepted by the
-correct authenticated principal; no bearer invitation becomes a photo URL.
+Owner invitations are short-lived, single-use and phone-bound. Valid new-account
+redemption creates viewer membership in that library; invalid redemption creates no
+account. Existing-account acceptance requires that account session. No invitation
+becomes a photo URL. No open signup, OIDC, SMS or WeChat is used in this scope.
 
 | Capability | Viewer | Contributor | Library owner | System operator |
 | --- | --- | --- | --- | --- |
@@ -30,7 +34,9 @@ correct authenticated principal; no bearer invitation becomes a photo URL.
 | GPU jobs / server configuration / ingest filesystem paths | No | No | Not implicit | Yes |
 | Original download/export | Separate library capability, not automatic from role | Same | Configurable | Not implicit |
 
-This matrix is a design input; v1 mobile exposes browse only. Viewing original
+This matrix includes future capabilities; the current v1 snapshot exposes browsing
+and session/invitation acceptance only. Search/voice and other mutations remain
+closed. Viewing original
 bytes permits saving them. Export restrictions are not DRM, and already saved
 copies cannot be remotely recalled. No account/role/library supplied in a request
 is trusted without independent server-side verification.
@@ -43,10 +49,10 @@ Search needs library partitions or truly scoped retrieval, not merely filtering
 unauthorized rows from a global top-k response. Deduplication must not reveal a
 foreign library's existing object IDs or associate that data without authority.
 
-Unknown routes default to protected. Only carefully inventoried minimal health,
-non-sensitive UI assets, and authentication entrypoints may be anonymous. A
-registered user awaiting approval can see their own profile/request state, not
-library data. Use controlled 401/403 states and non-enumerating inaccessible-object
+Unknown routes are denied. Only inventoried non-sensitive UI assets and login/
+registration entrypoints are public in the current application. Operational health
+is closed. An existing account with unavailable membership sees its own profile/
+status, not library data. Use controlled 401/403 states and non-enumerating inaccessible-object
 responses; sanitize exceptions and private filesystem paths.
 
 Implement policy in shared services as well as HTTP boundaries: voice code can
@@ -62,13 +68,14 @@ safe substitute. Assign legacy data to one explicitly designated household
 library without moving originals or changing their IDs; validate all parent/child
 links and close access until owner bootstrap succeeds. Never grant first signup
 ownership automatically. Recheck current account/membership state for each
-protected request and delayed task; JWT validity alone does not prove current
-membership. Session revocation and refresh rotation need explicit tests.
+protected request and delayed task; an opaque session alone does not prove current
+membership. Session revocation is tested; no refresh endpoint or credential exists.
 
-The existing web UI must move to the same policy before enforcement cutover:
+The local replacement web UI already uses the same policy; live enforcement
+cutover remains unverified:
 server-managed secure HttpOnly session cookies, CSRF defense for mutations,
 login/expired/access-pending states, authenticated image/video requests. Mobile
-uses bearer access tokens, never URL query credentials. Authorization-provider
+uses bearer access tokens, never URL query credentials. Authentication/storage
 failure must fail closed, not restore the old anonymous mode.
 
 Negative matrix: anonymous; signed-in unapproved; revoked; wrong library; viewer
@@ -82,15 +89,18 @@ and unchanged authorized web behavior too. A partial security patch cannot deplo
 
 Production HTTPS with normal certificate validation. Pin trusted configured
 origins; do not send tokens to arbitrary image URLs or cross-host redirects.
-Access token in memory. iOS refresh credential in Keychain with device-local
-accessibility; Android encrypted private storage with a Keystore-protected key
-(Keystore stores keys, not arbitrary token strings). No passwords/tokens in
-logs, preferences, URLs, screenshots, analytics, crash reports, or fixtures.
+First fixture apps keep the opaque session in memory and cold-start signed out.
+Persistent sign-in is a later reviewed slice: use device-local Keychain on iOS and
+Keystore-protected private storage on Android if approved. Do not invent refresh
+credentials or persist a password; Keystore stores keys, not arbitrary token strings.
+No real passwords/tokens in logs, preferences, URLs, screenshots, analytics, crash
+reports or fixtures. Committed fixture token placeholders are inert synthetic data.
 
 Version one has no persistent offline photo library: bounded memory caches,
 ephemeral requests, explicit disabling of image-library disk caches. Exclude
 sensitive files from backup/device-transfer rules. Partition all temporary state
-by server, account, library and session generation, plus asset variant/revision.
+by server, account, library and session generation, plus asset ID/variant. Use a
+revision only where actually supplied; do not invent a wire field.
 Test native video loaders separately: byte-range retries must authenticate and
 must not secretly create reusable public links or persistent media caches.
 
@@ -126,7 +136,8 @@ unavailable captions stay unavailable. No arbitrary SQL, shell, open-ended tool
 execution, external URL fetching, rename/merge/delete, sharing or administrative
 commands. Reuse authorized service functions; never call unguarded legacy routes.
 
-Existing voice adapters are not ready-made secure mobile endpoints. The source
+The following voice findings describe retained legacy code; its routes are closed
+in the current entry point. Existing voice adapters are not secure mobile endpoints. The source
 does have a feature-enable check on /voice/command, but no inbound user identity.
 Confirmation storage is caller-client-ID based and accepts an omitted token;
 provider conversation IDs lack local account ownership. Some voice-photo handlers
