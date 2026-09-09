@@ -1,0 +1,89 @@
+{
+  "task_id": "PH-ANDROID-FIXTURE-01",
+  "base_ref": "refs/tags/photohouse-mobile-fixture-v1",
+  "base_sha": "5db14f38d3ff7872420f4c5ed16ff54b2cf9b4ac",
+  "branch": "codex/android-foundation-auth",
+  "contract_version": "1.0.0-fixture.1",
+  "contract_manifest_sha256": "12bb28062d6ef1c2ae764bf0344debfc2f5377d267ffe455b0a0c861adfbc678",
+  "app_id": "dev.photohouse.fixture",
+  "apk": {
+    "path": "android/app/build/outputs/apk/debug/app-debug.apk",
+    "sha256": "652991721ca085242fea2c57d8b3efba96b2d53a5b7aa8a55afac922d7d64eb4",
+    "bytes": 8360843,
+    "signing": "local Android debug signing only"
+  },
+  "test_apk": {
+    "path": "android/app/build/outputs/apk/androidTest/debug/app-debug-androidTest.apk",
+    "sha256": "16d57f35604c886d73d5d756c17b14768e39c369cb921dcebe7058ff206aab1f"
+  },
+  "toolchain": {
+    "host": "macOS 26.6.2 arm64",
+    "jdk": "Temurin 17.0.20.1+1",
+    "gradle": "8.10.2",
+    "agp": "8.5.2",
+    "kotlin": "1.9.24",
+    "compose_compiler": "1.5.14",
+    "compose_bom": "2024.06.00",
+    "compile_sdk": 34,
+    "target_sdk": 34,
+    "build_tools": "34.0.0",
+    "min_sdk": 26
+  },
+  "emulator": {
+    "avd": "Medium_Phone_API_36.0",
+    "serial": "emulator-5580",
+    "api": 36,
+    "model": "sdk_gphone64_arm64",
+    "emulator_version": "35.6.11.0 (13610412)",
+    "font_scales": [
+      1.0,
+      2.0
+    ],
+    "tests_per_scale": 6,
+    "mode": "existing image; read-only AVD; no snapshot save",
+    "installed_apk_sha256": "652991721ca085242fea2c57d8b3efba96b2d53a5b7aa8a55afac922d7d64eb4"
+  },
+  "jvm_tests": {
+    "tests": 22,
+    "failures": 0,
+    "errors": 0,
+    "skipped": 0
+  },
+  "lint": {
+    "errors": 0,
+    "warnings": [
+      "OldTargetApi"
+    ]
+  },
+  "screenshots": {
+    "manual/secure-foreground.png": "c35bacdb98b522206335afa5b9baffd2e4e3352a40749bb747e469cd403af514",
+    "manual/secure-recents.png": "25a8d41e53934befc6a1ccb18adeba5cce230819db12def96dbfed0b2895a627",
+    "screenshots/large/caption-en.png": "76ed8efcc32da40b0bcf9934a535c7a07385f86884b40c77d0c85a5bf263bf75",
+    "screenshots/large/caption-zh.png": "55713fe1e57a4f1eada422e181111788ef7dfe354e448eeaa6c58d85daeae518",
+    "screenshots/large/covered-unavailable.png": "de8a0fe99e0c723e70ec8e2edc52f9d22dae4074eed414416fc5d3b0883a4bd6",
+    "screenshots/large/empty-page.png": "8f4bdf7d8d20b0da1100756cf00e6bd513e9aa0a23057cf13bbd9e0fc235da04",
+    "screenshots/large/gallery-en.png": "0a12ea542e8922c630d003bc2a56d59556b5e189d7054343b2168a8475f5d36f",
+    "screenshots/large/gallery-zh.png": "44854544e6a0bfc7641ad2ecad418077ba0ee5cbb70c29240480278d57b8619c",
+    "screenshots/large/missing-previews.png": "e4556b2f1067bb9bf69bfa45865e03e317652d183a6bfb4244480899a095f83e",
+    "screenshots/large/signedout-zh.png": "f7efff3039cf2353849a113c53dd0b033b0c607972b6e9a4fe93bcb450c75e13",
+    "screenshots/large/signin-en.png": "2c01f5a2d29c0f11e4bdaceb6aafb2624f701b6a9c687fd503663c50bfe54df1",
+    "screenshots/large/video-literal-caption.png": "5dff1cf6347aca34077932a362aeeb23663f3be4f162a19e5384bc256aba98d9",
+    "screenshots/normal/caption-en.png": "79f0872d91a63455ac1b1920ed007432af0a7624a647cc6cf7e4bcbd121e525f",
+    "screenshots/normal/caption-zh.png": "7f4d332217c54c2ddb0d00258c42469e05aea8ef29efd4f7ab6113d53868fa02",
+    "screenshots/normal/covered-unavailable.png": "b956ef7b13e5ffa0405bed0df33d099919af5b1849b147b2c74b768d3d212b34",
+    "screenshots/normal/empty-page.png": "d949ca75cc2ea248ef88e545f0f33c23a5c01410bbab801663712dbe4b0fd2aa",
+    "screenshots/normal/gallery-en.png": "58f6a886f1f3190ece52869f079fddc7f9ac7566ce0794a5a332bfb0de603a14",
+    "screenshots/normal/gallery-zh.png": "79064a2b7e355235de0f14ff4f5eaca5e1c5d85e97f49986276e7bcffc3a308f",
+    "screenshots/normal/missing-previews.png": "01f1dc91ade938054a4627c1ef1a549924dbe91f690118d2df3f50dcf899e481",
+    "screenshots/normal/signedout-zh.png": "5b557367c6f4d7cf73dfac9b5b05935ac1d5e969fe8476150841e66724d2a244",
+    "screenshots/normal/signin-en.png": "6de40f4c6408e20176209169848802151103e04c2664a2ef66e277eea7f85804",
+    "screenshots/normal/video-literal-caption.png": "a552b55fe4eb329e7539b669e2a96cd82ac8cfd798c17dd5a87a86b655c2b26f"
+  },
+  "wrapper": {
+    "jar_sha256": "2db75c40782f5e8ba1fc278a5574bab070adccb2d21ca5a6e5ed840888448046",
+    "distribution_sha256": "31c55713e40233a8303827ceb42ca48a47267a0ad4bab9177123121e71524c26",
+    "official_distribution_checksum_verified": true,
+    "verification_command": "scripts/verify-android.sh --offline",
+    "result": "PASS"
+  }
+}

@@ -1,0 +1,3 @@
+PASS cold start, UI-tree-driven login/gallery, foreground revalidation and process-death sign-out.
+System foreground secure-window screenshot captured; inspect image separately.
+System recents screenshot captured; inspect image separately.
