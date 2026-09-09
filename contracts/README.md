@@ -1,9 +1,15 @@
 # Shared mobile contract
 
-**Frozen for fixture app development:** `1.0.0-fixture.1`, consuming backend commit
-`1e394f789ff1f7cef6d9930bb541186684f5a9a0` on `codex/mobile-access-foundation`.
+**Fixture wire format:** `1.0.0-fixture.1`, consuming reviewed backend commit
+`87a60b475b37b1d6873cd977bcb6e7254472da7e` from `codex/backend-android-readiness`.
 This is a native browsing subset of locally implemented behavior, not a deployed
 service, complete backend API export or promise of production compatibility.
+
+The coordinated backend repin adds the complete 512 KiB encoded caption-response
+budget. Fields, operations and synthetic fixture bytes are unchanged; the original
+`photohouse-mobile-fixture-v1` Git tag remains at its historical commit. The manifest
+and its checksums identify this updated source snapshot within the same wire format.
+See [review and replay evidence](../docs/evidence/android/repin/RETURN.md).
 
 Start with [the behavioral contract](v1/CONTRACT.md), [OpenAPI snapshot](v1/openapi.json),
 [synthetic responses](v1/fixtures.json), [client scenarios](v1/client-scenarios.json)

@@ -18,7 +18,7 @@ from unittest.mock import patch
 
 ROOT = Path(__file__).resolve().parents[1]
 CONTRACT = ROOT / 'contracts/v1'
-BACKEND_SHA = '1e394f789ff1f7cef6d9930bb541186684f5a9a0'
+BACKEND_SHA = '87a60b475b37b1d6873cd977bcb6e7254472da7e'
 
 
 def read(name): return json.loads((CONTRACT / name).read_text())

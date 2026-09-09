@@ -5,7 +5,7 @@
     "version": "1.0.0-fixture.1",
     "description": "Hand-authored consumer subset verified against pinned backend source and synthetic ASGI. Not a deployed server or complete API export."
   },
-  "x-backend-commit": "1e394f789ff1f7cef6d9930bb541186684f5a9a0",
+  "x-backend-commit": "87a60b475b37b1d6873cd977bcb6e7254472da7e",
   "x-real-networking-enabled": false,
   "security": [
     {
@@ -1702,7 +1702,8 @@
             "description": "Positive int64 decimal; retain as a string."
           },
           "has_more": {
-            "type": "boolean"
+            "type": "boolean",
+            "description": "True when rows are omitted by the 20-row or 524288-byte response limit; independent of per-item text truncation."
           },
           "items": {
             "type": "array",
@@ -1717,7 +1718,8 @@
           "has_more",
           "items"
         ],
-        "additionalProperties": false
+        "additionalProperties": false,
+        "description": "Complete encoded UTF-8 JSON response is at most 524288 bytes including envelope and escaping; ordered prefix of up to 20 whole rows. No caption pagination endpoint."
       },
       "Ok": {
         "type": "object",

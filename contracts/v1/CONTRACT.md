@@ -1,8 +1,9 @@
 # PhotoHouse native browsing contract 1.0.0-fixture.1
 
-Source: backend `1e394f789ff1f7cef6d9930bb541186684f5a9a0`. OpenAPI is a hand-authored
+Source: backend `87a60b475b37b1d6873cd977bcb6e7254472da7e`. OpenAPI is a hand-authored
 consumer subset checked against source and synthetic ASGI responses. No server URL
-or live account is configured. The version identifies this snapshot; the backend
+or live account is configured. The version identifies the fixture wire format and
+the manifest pins this source snapshot; the backend
 has no version-negotiation endpoint/header. Platform sessions consume it unchanged.
 
 ## Identity and membership
@@ -51,6 +52,14 @@ UI language (system/English/Simplified Chinese) is independent of captions. Rend
 caption text literally, including bilingual text and markup-like strings. Do not
 regex-split translations, execute HTML or claim translation availability. A caption
 language setting may be deferred until a structured backend contract exists.
+
+The complete encoded UTF-8 caption JSON response, including the envelope and JSON
+escaping, is at most 524288 bytes (512 KiB). It contains an ordered prefix of up to
+20 whole rows. `has_more=true` means rows were omitted by either the row or byte
+limit. `truncated` independently marks a stored caption whose text exceeds 8192
+Unicode code points; it does not indicate omitted rows. Exact-budget responses are
+allowed. There is no caption cursor or pagination route to retrieve omitted rows.
+This aggregate budget applies to captions; it is not a new limit on every endpoint.
 
 ## Media and lifecycle
 
