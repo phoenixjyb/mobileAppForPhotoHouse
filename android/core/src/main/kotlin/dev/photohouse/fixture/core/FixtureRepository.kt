@@ -1,5 +1,6 @@
 package dev.photohouse.fixture.core
 
+import dev.photohouse.protocol.*
 import kotlinx.coroutines.delay
 
 /** The only adapter in this project. Case IDs are local demo controls, never API fields. */

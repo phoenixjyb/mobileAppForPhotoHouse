@@ -1,0 +1,139 @@
+package dev.photohouse.connected.core
+
+import dev.photohouse.protocol.*
+import kotlinx.coroutines.suspendCancellableCoroutine
+import kotlinx.serialization.KSerializer
+import okhttp3.*
+import okhttp3.HttpUrl.Companion.toHttpUrl
+import okhttp3.MediaType.Companion.toMediaType
+import okhttp3.RequestBody.Companion.toRequestBody
+import java.io.ByteArrayOutputStream
+import java.io.IOException
+import java.util.concurrent.TimeUnit
+import javax.net.ssl.SSLException
+import kotlin.coroutines.resume
+import kotlin.coroutines.resumeWithException
+
+class TrustedOrigin private constructor(internal val url: HttpUrl) {
+    override fun toString() = "TrustedOrigin([configured])"
+    companion object {
+        fun parse(raw: String): TrustedOrigin {
+            require(raw == raw.trim() && raw.none { it.isWhitespace() || it == '\\' })
+            val url = raw.toHttpUrl()
+            require(url.scheme == "https" && url.username.isEmpty() && url.password.isEmpty())
+            require(url.encodedPath == "/" && url.query == null && url.fragment == null) { "Configure an HTTPS origin without credentials, path, query or fragment" }
+            return TrustedOrigin(url)
+        }
+    }
+}
+
+/** Application construction always uses platform trust and hostname validation.
+ * The internal overload is visible only to this module's JVM test friend source set.
+ */
+class HttpsPhotoHouseApi internal constructor(private val origin: TrustedOrigin, client: OkHttpClient) : PhotoHouseApi {
+    constructor(origin: TrustedOrigin) : this(origin, OkHttpClient())
+    private val client = client.newBuilder()
+        .followRedirects(false).followSslRedirects(false).retryOnConnectionFailure(false)
+        .cookieJar(CookieJar.NO_COOKIES).cache(null)
+        .authenticator(Authenticator.NONE).proxyAuthenticator(Authenticator.NONE)
+        .connectionSpecs(listOf(ConnectionSpec.MODERN_TLS))
+        .connectTimeout(10, TimeUnit.SECONDS).readTimeout(15, TimeUnit.SECONDS).callTimeout(20, TimeUnit.SECONDS)
+        .build()
+    private data class Packet(val code: Int, val contentType: String?, val bytes: ByteArray)
+
+    private fun url(path: String, library: String? = null, page: Int? = null): HttpUrl {
+        require(path.startsWith('/') && !path.startsWith("//"))
+        return origin.url.newBuilder().encodedPath(path).apply {
+            library?.let { require(it.isNotBlank() && it.length <= 256); addQueryParameter("library", it) }
+            page?.let { require(it in 1..100000); addQueryParameter("page", it.toString()); addQueryParameter("page_size", "50") }
+        }.build()
+    }
+    private fun assetId(id: String): String {
+        require(id.matches(Regex("[1-9][0-9]{0,18}")) && id.toLongOrNull() != null)
+        return id
+    }
+    private suspend fun packet(url: HttpUrl, token: Bearer?, body: String? = null, limit: Int = JSON_LIMIT, missingAllowed: Boolean = false): Packet {
+        require(url.scheme == "https" && url.host == origin.url.host && url.port == origin.url.port)
+        val bytes = body?.toByteArray(Charsets.UTF_8)
+        if (bytes != null && bytes.size > 2048) throw ApiFailure(FailureKind.INVALID_INPUT)
+        val request = Request.Builder().url(url).header("Accept", if (limit == IMAGE_LIMIT) "image/*" else "application/json")
+            .header("Cache-Control", "no-store")
+            .apply { token?.let { header("Authorization", it.header()) } }
+            .apply { if (bytes != null) post(bytes.toRequestBody("application/json; charset=utf-8".toMediaType())) }
+            .build()
+        return suspendCancellableCoroutine { continuation ->
+            val call = client.newCall(request)
+            continuation.invokeOnCancellation { call.cancel() }
+            call.enqueue(object : Callback {
+                override fun onFailure(call: Call, e: IOException) {
+                    if (continuation.isActive) continuation.resumeWithException(ApiFailure(if (e is SSLException) FailureKind.TLS else FailureKind.OFFLINE))
+                }
+                override fun onResponse(call: Call, response: Response) {
+                    try {
+                        val result = response.use {
+                            if (it.code !in 200..299 && !(missingAllowed && it.code == 404)) {
+                                throw ApiFailure(FailureKind.HTTP, it.code, if (it.code == 429) retryAfterMillis(it.header("Retry-After")) else 0)
+                            }
+                            if (it.code == 404) return@use Packet(404, null, byteArrayOf())
+                            val responseBody = it.body ?: throw ApiFailure(FailureKind.INVALID_RESPONSE)
+                            if (responseBody.contentLength() > limit) throw ApiFailure(FailureKind.TOO_LARGE)
+                            val out = ByteArrayOutputStream()
+                            responseBody.byteStream().use { stream ->
+                                val buffer = ByteArray(8192)
+                                while (true) {
+                                    val count = stream.read(buffer)
+                                    if (count < 0) break
+                                    if (out.size() + count > limit) throw ApiFailure(FailureKind.TOO_LARGE)
+                                    out.write(buffer, 0, count)
+                                }
+                            }
+                            Packet(it.code, it.header("Content-Type"), out.toByteArray())
+                        }
+                        if (continuation.isActive) continuation.resume(result)
+                    } catch (e: Exception) {
+                        if (continuation.isActive) continuation.resumeWithException(when (e) {
+                            is ApiFailure -> e
+                            is SSLException -> ApiFailure(FailureKind.TLS)
+                            is IOException -> ApiFailure(FailureKind.OFFLINE)
+                            else -> ApiFailure(FailureKind.INVALID_RESPONSE)
+                        })
+                    }
+                }
+            })
+        }
+    }
+    private suspend fun <T> json(url: HttpUrl, serializer: KSerializer<T>, token: Bearer? = null, body: String? = null): T {
+        val packet = packet(url, token, body)
+        if (packet.contentType?.substringBefore(';')?.trim()?.lowercase() != "application/json") throw ApiFailure(FailureKind.INVALID_RESPONSE)
+        return try { Wire.json.decodeFromString(serializer, packet.bytes.toString(Charsets.UTF_8)) }
+        catch (_: Exception) { throw ApiFailure(FailureKind.INVALID_RESPONSE) }
+    }
+    override suspend fun login(phone: String, password: String): SessionToken {
+        Admission.password(password)
+        return json(url("/auth/login"), SessionToken.serializer(), body = Wire.json.encodeToString(LoginRequest.serializer(), LoginRequest(Admission.phone(phone), password)))
+    }
+    override suspend fun register(phone: String, password: String, code: String): SessionToken {
+        Admission.password(password); require(code.isNotBlank())
+        return json(url("/auth/register"), SessionToken.serializer(), body = Wire.json.encodeToString(RegisterRequest.serializer(), RegisterRequest(Admission.phone(phone), password, code)))
+    }
+    override suspend fun session(token: Bearer) = json(url("/auth/session"), Session.serializer(), token)
+    override suspend fun acceptInvitation(token: Bearer, code: String) {
+        require(code.isNotBlank())
+        if (!json(url("/auth/invitations/accept"), Ok.serializer(), token, Wire.json.encodeToString(AcceptRequest.serializer(), AcceptRequest(code))).ok) throw ApiFailure(FailureKind.INVALID_RESPONSE)
+    }
+    override suspend fun logout(token: Bearer) { if (!json(url("/auth/logout"), Ok.serializer(), token, "{}").ok) throw ApiFailure(FailureKind.INVALID_RESPONSE) }
+    override suspend fun gallery(token: Bearer, library: String, page: Int) = json(url("/assets", library, page), Gallery.serializer(), token)
+    override suspend fun detail(token: Bearer, library: String, assetId: String) = json(url("/assets/detail/${assetId(assetId)}", library), Detail.serializer(), token)
+    override suspend fun captions(token: Bearer, library: String, assetId: String) = json(url("/assets/${assetId(assetId)}/captions", library), Captions.serializer(), token)
+    override suspend fun thumbnail(token: Bearer, library: String, asset: Asset): ByteArray? {
+        val expected = url("/assets/${assetId(asset.id)}/thumbnail", library)
+        // A response cannot turn a bearer-protected thumbnail into an arbitrary URL.
+        require(asset.thumbnail_url.startsWith('/') && !asset.thumbnail_url.startsWith("//") && '\\' !in asset.thumbnail_url)
+        require(origin.url.resolve(asset.thumbnail_url) == expected) { "Unexpected scoped thumbnail reference" }
+        val packet = packet(expected, token, limit = IMAGE_LIMIT, missingAllowed = true)
+        if (packet.code == 404) return null
+        if (packet.contentType?.substringBefore(';')?.lowercase() !in setOf("image/jpeg", "image/png", "image/webp")) throw ApiFailure(FailureKind.INVALID_RESPONSE)
+        return packet.bytes
+    }
+    companion object { const val JSON_LIMIT = 524288; const val IMAGE_LIMIT = 1048576 }
+}

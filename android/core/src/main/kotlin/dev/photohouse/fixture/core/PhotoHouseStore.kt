@@ -1,5 +1,6 @@
 package dev.photohouse.fixture.core
 
+import dev.photohouse.protocol.*
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Job

@@ -1,5 +1,6 @@
 package dev.photohouse.fixture
 
+import dev.photohouse.protocol.*
 import android.graphics.BitmapFactory
 import androidx.activity.compose.BackHandler
 import androidx.compose.foundation.Image

@@ -1,4 +1,4 @@
-name: Android synthetic fixture
+name: Android local verification
 on:
   pull_request:
     paths: ['android/**', 'contracts/**', 'scripts/verify-android.sh', 'scripts/verify-contracts.py', '.github/workflows/android.yml']
@@ -19,7 +19,7 @@ jobs:
         with:
           distribution: temurin
           java-version: '17'
-      - name: Verify synthetic contract, JVM scenarios, lint and debug APK
+      - name: Verify contract, fixture and local TLS scenarios, lint and debug APKs
         run: scripts/verify-android.sh
       - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
         if: always()
@@ -31,3 +31,6 @@ jobs:
             android/app/build/outputs/apk/debug/*.apk
             android/app/build/reports/lint-results-debug.*
             android/core/build/test-results/test/*.xml
+            android/live-core/build/test-results/test/*.xml
+            android/connected/build/outputs/apk/debug/*.apk
+            android/connected/build/reports/lint-results-debug.*

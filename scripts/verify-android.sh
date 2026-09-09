@@ -4,6 +4,7 @@ repo_dir="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 cd "$repo_dir"
 python3 scripts/verify-contracts.py
 python3 android/verify-fixture-boundaries.py
+python3 android/verify-connected-boundaries.py
 if [[ -z "${JAVA_HOME:-}" && "$(uname -s)" == Darwin ]]; then
   export JAVA_HOME="$(/usr/libexec/java_home -v 17)"
 fi
@@ -20,7 +21,7 @@ if [[ -z "$sdk_dir" || ! -f "$sdk_dir/platforms/android-34/android.jar" || ! -d 
 fi
 printf '%s\n' "$java_version"
 android/gradlew -p android --version
-android/gradlew -p android :core:test :app:lintDebug :app:assembleDebug --console=plain "$@"
+android/gradlew -p android :core:test :live-core:test :app:lintDebug :app:assembleDebug :connected:lintDebug :connected:assembleDebug --console=plain "$@"
 python3 - <<'PY'
 import hashlib, pathlib, zipfile, xml.etree.ElementTree as ET
 root = pathlib.Path('.')
@@ -32,12 +33,16 @@ with zipfile.ZipFile(apk) as z:
             assert z.read(name) == p.read_bytes(), f'Bundled fixture drift: {name}'
 print('PASS APK bundles the shared contract and media byte-for-byte')
 print('APK SHA-256:', hashlib.sha256(apk.read_bytes()).hexdigest())
-reports = sorted((root/'android/core/build/test-results/test').glob('TEST-*.xml'))
+reports = sorted((root/'android/core/build/test-results/test').glob('TEST-*.xml')) + sorted((root/'android/live-core/build/test-results/test').glob('TEST-*.xml'))
 assert reports, 'No JVM test reports'
 for p in reports:
     s = ET.parse(p).getroot()
     assert s.attrib['failures'] == '0' and s.attrib['errors'] == '0', p
-    print(f"JVM: {s.attrib['tests']} tests, {s.attrib['failures']} failures, {s.attrib['errors']} errors")
+    print(f"JVM {s.attrib['name']}: {s.attrib['tests']} tests, {s.attrib['failures']} failures, {s.attrib['errors']} errors")
+connected = root / 'android/connected/build/outputs/apk/debug/connected-debug.apk'
+with zipfile.ZipFile(connected) as z:
+    assert not any(n.startswith('assets/') for n in z.namelist()), 'Connected app must not bundle fixtures'
+print('Connected APK SHA-256:', hashlib.sha256(connected.read_bytes()).hexdigest())
 PY
 "$sdk_dir/build-tools/34.0.0/aapt" dump permissions android/app/build/outputs/apk/debug/app-debug.apk > android/app/build/outputs/apk/debug/permissions.txt
 python3 - <<'PY_PERMISSIONS'
@@ -48,3 +53,13 @@ permissions = set(re.findall(r"uses-permission: name='([^']+)'", text))
 assert permissions <= {'dev.photohouse.fixture.DYNAMIC_RECEIVER_NOT_EXPORTED_PERMISSION'}, permissions
 print('PASS APK has no Internet, storage, camera or microphone permissions; only AndroidX app-internal signature permission')
 PY_PERMISSIONS
+
+"$sdk_dir/build-tools/34.0.0/aapt" dump permissions android/connected/build/outputs/apk/debug/connected-debug.apk > android/connected/build/outputs/apk/debug/permissions.txt
+python3 - <<'PY_CONNECTED_PERMISSIONS'
+from pathlib import Path
+import re
+text = Path('android/connected/build/outputs/apk/debug/permissions.txt').read_text()
+permissions = set(re.findall(r"uses-permission: name='([^']+)'", text))
+assert permissions == {'android.permission.INTERNET', 'dev.photohouse.connected.DYNAMIC_RECEIVER_NOT_EXPORTED_PERMISSION'}, permissions
+print('PASS connected APK has only Internet and AndroidX app-internal permission; no fixture assets')
+PY_CONNECTED_PERMISSIONS

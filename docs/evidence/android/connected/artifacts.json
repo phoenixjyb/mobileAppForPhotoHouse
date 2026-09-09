@@ -1,0 +1,28 @@
+{
+  "task": "PH-ANDROID-CONNECTED-01",
+  "base": "2d0382d22ad3ef1e15a55931765ad43e0cbd3ec7",
+  "contract_version": "1.0.0-fixture.1",
+  "configured_origin": false,
+  "artifacts": [
+    {
+      "path": "android/connected/build/outputs/apk/debug/connected-debug.apk",
+      "sha256": "9c64d786095773aec870c2f6aa95e482a4957dfe4a18710e031c05156274719c",
+      "bytes": 8819036
+    },
+    {
+      "path": "android/connected/build/outputs/apk/androidTest/debug/connected-debug-androidTest.apk",
+      "sha256": "23673170f2fd695849576f4c8edc5b0a9164b689a9200073852fdcf0c1a841fe",
+      "bytes": 1042008
+    },
+    {
+      "path": "android/app/build/outputs/apk/debug/app-debug.apk",
+      "sha256": "2e757622d7bb70fd0419f9701ba9dcd6bdf28713ec127c18ca3b735be959471f",
+      "bytes": 8279476
+    },
+    {
+      "path": "android/app/build/outputs/apk/androidTest/debug/app-debug-androidTest.apk",
+      "sha256": "b54875b92add0564c3ec51cfb8e48afff1104be25d2b9ce12edb9a103c3c3943",
+      "bytes": 1038958
+    }
+  ]
+}

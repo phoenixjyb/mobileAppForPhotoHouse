@@ -1,5 +1,6 @@
 package dev.photohouse.fixture.core
 
+import dev.photohouse.protocol.*
 import kotlinx.coroutines.*
 import org.junit.Assert.*
 import org.junit.Test

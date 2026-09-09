@@ -1,4 +1,12 @@
-# Android PhotoHouse fixture
+# Android PhotoHouse development apps
+
+Two separate application modules are available. `app` remains the offline fixture
+APK described below. `connected` implements HTTPS authentication and browsing; see
+[connected/README.md](connected/README.md) for scope, configuration and evidence.
+The shared `protocol` module has wire DTOs only, with no transport dependencies.
+The verification script builds and tests both apps.
+
+## Offline fixture app
 
 Task `PH-ANDROID-FIXTURE-01`: a development-only Kotlin/Compose app consuming the
 unchanged `1.0.0-fixture.1` shared pack. App ID: `dev.photohouse.fixture`.
@@ -39,7 +47,7 @@ Official compatibility/checksum sources consulted:
 
 ## Structure and privacy
 
-`core` contains strictly decoded wire DTOs, the injected local fixture repository,
+`protocol` contains strictly decoded wire DTOs. `core` contains the injected local fixture repository,
 and the memory-only `PhotoHouseStore`. `app` owns Compose UI, image decoding and
 Activity lifecycle. Both JVM resources and APK assets point directly to
 `contracts/v1`; no platform-maintained fixture copies are edited.

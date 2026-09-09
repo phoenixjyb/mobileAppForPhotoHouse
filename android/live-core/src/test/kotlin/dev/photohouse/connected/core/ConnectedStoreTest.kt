@@ -1,0 +1,153 @@
+package dev.photohouse.connected.core
+
+import dev.photohouse.protocol.*
+import kotlinx.coroutines.*
+import kotlinx.coroutines.test.*
+import org.junit.Assert.*
+import org.junit.Test
+
+@OptIn(ExperimentalCoroutinesApi::class)
+class ConnectedStoreTest {
+    private val asset = Asset("1", "image", 256, 256, null, null, "/assets/1/thumbnail?library=family")
+    private fun membership(id: String, available: Boolean = true) = Membership(id, "approved", "viewer", 1, null, 0, available)
+    private inner class FakeApi : PhotoHouseApi {
+        var currentSession = Session("account-a", "+12025550123", listOf(membership("family"), membership("second"), membership("closed", false)))
+        var sessionReads = 0; var galleryReads = 0; var imageReads = 0; var logouts = 0; var accepts = 0; var logins = 0
+        var sessionError: Exception? = null
+        var galleryError: Exception? = null
+        var logoutError: Exception? = null
+        var loginGate: CompletableDeferred<Unit>? = null
+        var galleryGate: CompletableDeferred<Unit>? = null
+        var sessionGate: CompletableDeferred<Unit>? = null
+        var logoutGate: CompletableDeferred<Unit>? = null
+        var images: ByteArray? = byteArrayOf(1, 2, 3)
+        var assets = listOf(asset)
+        var lastRegistration: String? = null
+        override suspend fun login(phone: String, password: String): SessionToken {
+            logins++; loginGate?.let { withContext(NonCancellable) { it.await() } }
+            return SessionToken(86400, "T".repeat(43), "Bearer")
+        }
+        override suspend fun register(phone: String, password: String, code: String): SessionToken { lastRegistration = code; return login(phone, password) }
+        override suspend fun session(token: Bearer): Session {
+            sessionReads++; val response = currentSession
+            sessionGate?.let { withContext(NonCancellable) { it.await() } }
+            sessionError?.let { throw it }; return response
+        }
+        override suspend fun acceptInvitation(token: Bearer, code: String) { accepts++ }
+        override suspend fun logout(token: Bearer) { logouts++; logoutGate?.let { withContext(NonCancellable) { it.await() } }; logoutError?.let { throw it } }
+        override suspend fun gallery(token: Bearer, library: String, page: Int): Gallery {
+            galleryReads++; val response = Gallery(library, page, 50, 100, false, assets)
+            galleryGate?.let { withContext(NonCancellable) { it.await() } }
+            galleryError?.let { throw it }; return response
+        }
+        override suspend fun detail(token: Bearer, library: String, assetId: String) = Detail(library, false, asset)
+        override suspend fun captions(token: Bearer, library: String, assetId: String) = Captions(library, assetId, false, listOf(Caption("c1", "<b>原文 literal</b>", false, false, null, null)))
+        override suspend fun thumbnail(token: Bearer, library: String, asset: Asset): ByteArray? { imageReads++; return images }
+    }
+    private fun TestScope.store(api: FakeApi) = ConnectedStore(api, backgroundScope) { testScheduler.currentTime }
+    private fun TestScope.signIn(store: ConnectedStore) { store.authenticate("+12025550123", "synthetic-password-only"); runCurrent(); assertNotNull(store.state.value.session) }
+
+    @Test fun signInRechecksOwnSessionAndClosedMembershipNeverReads() = runTest {
+        val api = FakeApi(); val store = store(api); signIn(store)
+        assertEquals(1, api.sessionReads)
+        store.selectLibrary("closed"); runCurrent()
+        assertEquals(0, api.galleryReads); assertEquals(Message.ACCESS_DENIED, store.state.value.problem?.message)
+        store.selectLibrary("second"); runCurrent()
+        assertEquals("second", store.state.value.gallery?.library_id)
+    }
+    @Test fun missingThumbnailAndLiteralCaptionsAreNotOriginalOrHtmlFallbacks() = runTest {
+        val api = FakeApi().apply { images = null }; val store = store(api); signIn(store)
+        store.selectLibrary("family"); runCurrent(); assertTrue(store.state.value.previews.isEmpty())
+        store.openAsset(asset); runCurrent()
+        assertEquals("<b>原文 literal</b>", store.state.value.captions?.items?.single()?.text)
+        assertEquals(false, store.state.value.detail?.originals_allowed)
+    }
+    @Test fun galleryPagesDeduplicateAndBoundMemory() = runTest {
+        val api = FakeApi().apply { assets = (1..10).map { asset.copy(id = it.toString()) } + asset; images = ByteArray(1024 * 1024) }
+        val store = store(api); signIn(store); store.selectLibrary("family"); runCurrent()
+        assertEquals(10, store.state.value.gallery?.items?.size)
+        assertEquals(ConnectedStore.CACHE_LIMIT, store.cachedBytes)
+        store.loadPage(2); runCurrent(); assertEquals(2, store.state.value.gallery?.page)
+        store.libraries(); assertEquals(0, store.cachedBytes); assertNull(store.state.value.gallery)
+    }
+    @Test fun backgroundClearsPrivateStateAndRevalidatesBeforeUncovering() = runTest {
+        val api = FakeApi(); val store = store(api); signIn(store); store.selectLibrary("family"); runCurrent()
+        store.background(); assertTrue(store.state.value.covered); assertNull(store.state.value.session); assertEquals(0, store.cachedBytes)
+        api.sessionGate = CompletableDeferred()
+        store.foreground(); runCurrent(); assertTrue(store.state.value.covered)
+        api.sessionGate!!.complete(Unit); runCurrent()
+        assertFalse(store.state.value.covered); assertNull(store.state.value.gallery); assertEquals(2, api.sessionReads)
+    }
+    @Test fun lateGalleryCannotCrossLibraryOrLogoutGeneration() = runTest {
+        val api = FakeApi(); val store = store(api); signIn(store)
+        val oldGate = CompletableDeferred<Unit>(); api.galleryGate = oldGate
+        store.selectLibrary("family"); runCurrent()
+        api.galleryGate = null; store.selectLibrary("second"); runCurrent()
+        oldGate.complete(Unit); runCurrent(); assertEquals("second", store.state.value.gallery?.library_id)
+        val logoutGate = CompletableDeferred<Unit>(); api.galleryGate = logoutGate
+        store.loadPage(2); runCurrent(); store.logout(); logoutGate.complete(Unit); runCurrent()
+        assertNull(store.state.value.session); assertNull(store.state.value.gallery); assertEquals(0, store.cachedBytes)
+    }
+    @Test fun lateAuthenticationCannotUncoverAfterBackground() = runTest {
+        val api = FakeApi().apply { loginGate = CompletableDeferred() }; val store = store(api)
+        store.authenticate("+12025550123", "synthetic-password-only"); runCurrent(); store.background()
+        api.loginGate!!.complete(Unit); runCurrent()
+        assertFalse(store.hasSession); assertNull(store.state.value.session); assertEquals(0, api.sessionReads)
+    }
+    @Test fun expiryClearsWithoutWaitingForAnotherUserAction() = runTest {
+        val api = FakeApi(); val store = store(api); signIn(store); store.selectLibrary("family"); runCurrent()
+        advanceTimeBy(86400_000); runCurrent()
+        assertFalse(store.hasSession); assertEquals(0, store.cachedBytes)
+        assertEquals(Message.SESSION_ENDED, store.state.value.problem?.message)
+    }
+    @Test fun object401RechecksOnceWithoutRetryingForeignRead() = runTest {
+        val api = FakeApi().apply { galleryError = ApiFailure(FailureKind.HTTP, 401) }; val store = store(api); signIn(store)
+        store.selectLibrary("family"); runCurrent()
+        assertEquals(2, api.sessionReads); assertEquals(1, api.galleryReads)
+        assertTrue(store.hasSession); assertNull(store.state.value.library); assertFalse(store.canRetry())
+    }
+    @Test fun session401SignsOutAnd503KeepsCoverForExplicitRetry() = runTest {
+        val api = FakeApi(); val store = store(api); signIn(store)
+        store.background(); api.sessionError = ApiFailure(FailureKind.HTTP, 503); store.foreground(); runCurrent()
+        assertTrue(store.hasSession); assertTrue(store.state.value.covered); assertTrue(store.canRetry())
+        api.sessionError = ApiFailure(FailureKind.HTTP, 401); store.retry(); runCurrent()
+        assertFalse(store.hasSession); assertEquals(Message.SESSION_ENDED, store.state.value.problem?.message)
+    }
+    @Test fun rateLimitSurvivesNavigationAndRequiresExplicitRetry() = runTest {
+        val api = FakeApi().apply { galleryError = ApiFailure(FailureKind.HTTP, 429, 7000) }; val store = store(api); signIn(store)
+        store.selectLibrary("family"); runCurrent(); assertFalse(store.canRetry())
+        store.loadPage(); store.selectLibrary("second"); runCurrent(); assertEquals(1, api.galleryReads)
+        advanceTimeBy(7000); runCurrent(); assertEquals(1, api.galleryReads)
+        api.galleryError = null; store.retry(); runCurrent(); assertEquals(2, api.galleryReads)
+    }
+    @Test fun logoutFailureIsLocalAndLateAcknowledgementCannotReplaceNewAccount() = runTest {
+        val api = FakeApi(); val store = store(api); signIn(store)
+        api.logoutError = ApiFailure(FailureKind.OFFLINE); store.logout(); runCurrent()
+        assertEquals(Message.SIGNED_OUT_LOCAL, store.state.value.problem?.message); assertFalse(store.hasSession)
+        signIn(store); api.logoutError = null; api.logoutGate = CompletableDeferred(); store.logout(); runCurrent()
+        api.currentSession = api.currentSession.copy(account_id = "account-b"); signIn(store)
+        api.logoutGate!!.complete(Unit); runCurrent()
+        assertEquals("account-b", store.state.value.session?.account_id); assertNull(store.state.value.problem)
+    }
+    @Test fun invitationAcceptanceRefetchesMembershipAndDoesNotReplayMutation() = runTest {
+        val api = FakeApi(); val store = store(api); signIn(store)
+        api.sessionError = ApiFailure(FailureKind.HTTP, 503)
+        store.acceptInvitation("synthetic-invitation"); runCurrent(); assertEquals(1, api.accepts)
+        api.sessionError = null; store.retry(); runCurrent()
+        assertEquals(1, api.accepts); assertNotNull(store.state.value.session); assertFalse(store.state.value.covered)
+    }
+    @Test fun malformedIdentityOnForegroundRemainsCovered() = runTest {
+        val api = FakeApi(); val store = store(api); signIn(store); store.background()
+        api.currentSession = api.currentSession.copy(account_id = "unexpected-account")
+        store.foreground(); runCurrent()
+        assertTrue(store.state.value.covered); assertNull(store.state.value.session)
+        assertEquals(Message.INVALID_RESPONSE, store.state.value.problem?.message)
+    }
+    @Test fun invitedRegistrationAndColdStartAreIndependentOfFixtureState() = runTest {
+        val api = FakeApi(); val store = store(api)
+        assertFalse(store.hasSession); assertNull(store.state.value.session)
+        store.authenticate("+12025550123", "synthetic-password-only", "synthetic-invitation"); runCurrent()
+        assertEquals("synthetic-invitation", api.lastRegistration); assertNotNull(store.state.value.session)
+        val restarted = store(api); assertFalse(restarted.hasSession); assertNull(restarted.state.value.session)
+    }
+}

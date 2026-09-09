@@ -18,7 +18,7 @@ ns = '{http://schemas.android.com/apk/res/android}'
 assert app.get(ns + 'allowBackup') == 'false'
 assert app.get(ns + 'usesCleartextTraffic') == 'false'
 assert app.get(ns + 'fullBackupContent') == 'false'
-for source in list((root / 'app/src/main').rglob('*.kt')) + list((root / 'core/src/main').rglob('*.kt')):
+for source in list((root / 'app/src/main').rglob('*.kt')) + list((root / 'core/src/main').rglob('*.kt')) + list((root / 'protocol/src/main').rglob('*.kt')):
     text = source.read_text()
     for forbidden in ('import java.net.', 'import okhttp3.', 'import retrofit2.', 'WebView(', 'SharedPreferences', 'SavedStateHandle', 'rememberSaveable', 'FileOutputStream', 'MediaPlayer(', 'ExoPlayer'):
         assert forbidden not in text, f'Unexpected transport/storage/player in {source.name}: {forbidden}'
@@ -28,3 +28,8 @@ rules = ET.parse(root / 'app/src/main/res/xml/data_extraction_rules.xml').getroo
 for section in ('cloud-backup', 'device-transfer'):
     assert {e.attrib['domain'] for e in rules.find(section).findall('exclude')} == {'root', 'file', 'database', 'sharedpref', 'external'}
 print('PASS wrapper SHA-256, no permissions/transport/storage/player, lifecycle/backup source guards')
+
+for module in ('app', 'core', 'protocol'):
+    config = (root / module / 'build.gradle.kts').read_text()
+    for forbidden in ('okhttp', 'retrofit', ':live-core', ':connected'):
+        assert forbidden not in config, f'Fixture module {module} depends on real transport'
