@@ -9,18 +9,18 @@ import androidx.activity.viewModels
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.ViewModelProvider
 import androidx.lifecycle.viewModelScope
-import dev.photohouse.connected.core.*
+import dev.photohouse.home.*
 
-class TvViewModel(api: PhotoHouseApi?) : ViewModel() {
-    val store = api?.let { ConnectedStore(it, viewModelScope) }
+class TvViewModel(api: HomeApi?) : ViewModel() {
+    val store = api?.let { HomeStore(it, viewModelScope) }
 }
 class MainActivity : ComponentActivity() {
     private val model by viewModels<TvViewModel> {
         object : ViewModelProvider.Factory {
             @Suppress("UNCHECKED_CAST")
             override fun <T : ViewModel> create(modelClass: Class<T>): T {
-                val origin = runCatching { TrustedOrigin.parse(BuildConfig.PHOTOHOUSE_ORIGIN) }.getOrNull()
-                return TvViewModel(origin?.let { HttpsPhotoHouseApi(it, detailPreviewSize = 1024) }) as T
+                val origin = runCatching { HomeOrigin.parse(BuildConfig.PHOTOHOUSE_ORIGIN) }.getOrNull()
+                return TvViewModel(origin?.let { HttpsHomeApi(it) }) as T
             }
         }
     }

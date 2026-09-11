@@ -4,4 +4,4 @@ dependencyResolutionManagement {
     repositories { google(); mavenCentral() }
 }
 rootProject.name = "PhotoHouseFixture"
-include(":protocol", ":core", ":app", ":live-core", ":connected", ":tv")
+include(":protocol", ":core", ":app", ":live-core", ":connected", ":tv", ":home-core")

@@ -20,12 +20,13 @@ assert categories == {'android.intent.category.LAUNCHER', 'android.intent.catego
 for name in ['network_security_config.xml', 'data_extraction_rules.xml']:
     assert (main/'res/xml'/name).read_bytes() == (root/'connected/src/main/res/xml'/name).read_bytes()
 source = '\n'.join(p.read_text() for p in (main/'java').rglob('*.kt'))
-for forbidden in ['SharedPreferences', 'rememberSaveable', 'SavedStateHandle', 'FileOutputStream', 'WebView', 'hostnameVerifier', 'sslSocketFactory', 'android.util.Log', 'java.io.File', 'MediaStore', 'dev.photohouse.fixture', 'OutlinedTextField', 'store.authenticate(']:
+for forbidden in ['SharedPreferences', 'rememberSaveable', 'SavedStateHandle', 'FileOutputStream', 'WebView', 'hostnameVerifier', 'sslSocketFactory', 'android.util.Log', 'java.io.File', 'MediaStore', 'dev.photohouse.fixture', 'OutlinedTextField', 'store.authenticate(', 'dev.photohouse.connected', 'originalPhoto', 'viewingOriginal', 'state.session', 'Bearer']:
     assert forbidden not in source, forbidden
-for required in ['FLAG_SECURE', 'store?.background()', 'store?.foreground()', 'TrustedOrigin.parse', 'detailPreviewSize = 1024', 'state.detail', 'originals_allowed']:
+for required in ['FLAG_SECURE', 'store?.background()', 'store?.foreground()', 'HomeOrigin.parse', 'HttpsHomeApi(it)', 'state.display', 'state.feed']:
     assert required in source, required
 build = (root/'tv/build.gradle.kts').read_text()
-assert 'photohouseTvOrigin' in build and 'project(":live-core")' in build
+assert 'photohouseTvOrigin' in build and 'project(":home-core")' in build
+assert 'project(":live-core")' not in build
 assert 'project(":core")' not in build and 'project(":app")' not in build
 assert 'it.enable = false' in build
 print('PASS TV launcher/no-touch, system TLS, privacy lifecycle, no fixture or persistent storage, separate origin and debug-only build')

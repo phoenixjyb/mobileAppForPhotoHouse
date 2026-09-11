@@ -26,9 +26,9 @@ python3 - "$evidence/instrumentation-$scale.log" <<'PY'
 import re,sys
 from pathlib import Path
 s=Path(sys.argv[1]).read_text()
-assert re.search(r'OK \(7 tests\)',s) and 'FAILURES!!!' not in s, 'TV component tests failed'
+assert re.search(r'OK \(8 tests\)',s) and 'FAILURES!!!' not in s, 'TV component tests failed'
 PY
-for name in setup connection-needed grid-en grid-zh detail-en fullscreen covered original-caption; do
+for name in setup connection-needed grid-en grid-zh detail-en fullscreen covered display-caption denied empty; do
     "$adb" -s "$serial" exec-out run-as dev.photohouse.tv cat "files/$name.png" > "$evidence/screenshots/$scale/$name.png"
     "$adb" -s "$serial" shell run-as dev.photohouse.tv rm "files/$name.png"
 done
