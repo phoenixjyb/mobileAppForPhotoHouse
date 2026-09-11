@@ -49,6 +49,10 @@ private val Gold = Color(0xFFEBC384)
     val viewer = state.asset != null
     var playing by remember(state.feed?.id) { mutableStateOf(false) }
     var immersive by remember { mutableStateOf(false) }
+    var transform by remember(state.selected, state.feed?.revision, state.covered) { mutableStateOf(PhotoTransform()) }
+    var hintTick by remember { mutableStateOf(0) }
+    var showHint by remember { mutableStateOf(true) }
+    LaunchedEffect(immersive, hintTick) { showHint = true; if (immersive) { delay(4000); showHint = false } }
     var captions by remember { mutableStateOf(false) }
     var lastAsset by remember(state.feed?.id) { mutableStateOf<Int?>(null) }
     val first = remember { FocusRequester() }
@@ -83,7 +87,7 @@ private val Gold = Color(0xFFEBC384)
         }
     }
     fun back() { playing = false; store?.backToPhotos() }
-    BackHandler(viewer && !state.covered) { if (immersive) immersive = false else back() }
+    BackHandler(viewer && !state.covered) { if (transform.zoom > 1f) transform = PhotoTransform() else if (immersive) immersive = false else back() }
     MaterialTheme(colorScheme = darkColorScheme(primary = Gold, background = Ink, surface = Ink, onBackground = Cream, onSurface = Cream)) {
         if (captions && viewer && !state.covered) {
             val closeFocus = remember { FocusRequester() }
@@ -104,19 +108,27 @@ private val Gold = Color(0xFFEBC384)
                 Box(Modifier.fillMaxSize().background(Color.Black).testTag("immersive")
                     .focusRequester(remote).onPreviewKeyEvent {
                         if (it.nativeKeyEvent.action != AndroidKey.ACTION_DOWN) false
-                        else when (it.nativeKeyEvent.keyCode) {
-                            AndroidKey.KEYCODE_DPAD_LEFT -> { playing = false; store?.adjacentPhoto(-1); true }
-                            AndroidKey.KEYCODE_DPAD_RIGHT -> { playing = false; store?.adjacentPhoto(1); true }
-                            AndroidKey.KEYCODE_DPAD_CENTER, AndroidKey.KEYCODE_ENTER, AndroidKey.KEYCODE_MEDIA_PLAY_PAUSE -> {
+                        else { hintTick++; when (it.nativeKeyEvent.keyCode) {
+                            AndroidKey.KEYCODE_DPAD_LEFT -> { playing = false; if (transform.zoom > 1f) transform = transform.pan(0.2f, 0f) else store?.adjacentPhoto(-1); true }
+                            AndroidKey.KEYCODE_DPAD_RIGHT -> { playing = false; if (transform.zoom > 1f) transform = transform.pan(-0.2f, 0f) else store?.adjacentPhoto(1); true }
+                            AndroidKey.KEYCODE_DPAD_UP -> { transform = transform.pan(0f, 0.2f); true }
+                            AndroidKey.KEYCODE_DPAD_DOWN -> { transform = transform.pan(0f, -0.2f); true }
+                            AndroidKey.KEYCODE_DPAD_CENTER, AndroidKey.KEYCODE_ENTER -> {
+                                playing = false; transform = transform.nextZoom(); true
+                            }
+                            AndroidKey.KEYCODE_MEDIA_PLAY_PAUSE -> {
+                                transform = PhotoTransform()
                                 if (!state.busy && state.problem == null) playing = !playing
                                 true
                             }
                             else -> false
                         }
-                    }.focusable()) {
+                    } }.focusable()) {
                     val bytes = state.display
-                    TvImage(bytes, t("Photo", "照片") + " ${state.selected ?: ""}", Modifier.fillMaxSize(), t("Preview unavailable", "预览不可用"))
-                    Text(t("← → Photos   ·   OK Play/Pause   ·   Back Controls", "← → 切换照片   ·   确定 播放/暂停   ·   返回 控制栏"),
+                    TvImage(bytes, t("Photo", "照片") + " ${state.selected ?: ""}", Modifier.fillMaxSize(), t("Preview unavailable", "预览不可用"), transform = transform)
+                    if (showHint) Text("${transform.zoom.toInt()}× · " + if (transform.zoom > 1f)
+                        t("Arrows Pan · OK Zoom · Back Reset", "方向键 移动 · 确定 缩放 · 返回 还原") else
+                        t("← → Photos · OK Zoom · Back Controls", "← → 切换照片 · 确定 缩放 · 返回 控制栏"),
                         Modifier.align(Alignment.BottomCenter).background(Color.Black.copy(alpha = 0.65f)).padding(8.dp), style = MaterialTheme.typography.labelSmall)
                 }
                 return@Surface
@@ -158,7 +170,7 @@ private val Gold = Color(0xFFEBC384)
                     viewer -> {
                         val bytes = state.display
                         Box(Modifier.fillMaxWidth().weight(1f).background(Color.Black).testTag("viewer")) {
-                            TvImage(bytes, t("Photo", "照片") + " ${state.selected ?: ""}", Modifier.fillMaxSize(), t("Preview unavailable", "预览不可用"))
+                            TvImage(bytes, t("Photo", "照片") + " ${state.selected ?: ""}", Modifier.fillMaxSize(), t("Preview unavailable", "预览不可用"), transform = transform)
 
                         }
                         // Toolbar arrows move focus; immersive mode maps arrows to photos.
@@ -168,12 +180,18 @@ private val Gold = Color(0xFFEBC384)
                             TvButton(if (playing) t("Pause", "暂停") else t("Play page", "播放本页"), Modifier.testTag("slideshow").onPreviewKeyEvent {
                                 if (it.nativeKeyEvent.action != AndroidKey.ACTION_DOWN) false
                                 else when (it.nativeKeyEvent.keyCode) {
-                                    AndroidKey.KEYCODE_MEDIA_PLAY_PAUSE -> { playing = !playing; true }
+                                    AndroidKey.KEYCODE_MEDIA_PLAY_PAUSE -> { transform = PhotoTransform(); playing = !playing; true }
                                     else -> false
                                 }
-                            }, enabled = !state.busy && state.problem == null && (playing || state.index < state.feed!!.items.lastIndex)) { playing = !playing }
+                            }, enabled = !state.busy && state.problem == null && (playing || state.index < state.feed!!.items.lastIndex)) { transform = PhotoTransform(); playing = !playing }
                             TvButton(t("Next", "下一张"), enabled = !state.busy && state.index < state.feed!!.items.lastIndex) { playing = false; store.adjacentPhoto(1) }
                             TvButton(t("Full screen", "全屏"), Modifier.testTag("fullscreen")) { immersive = true }
+                            TvButton(if (transform.fill) t("Fit photo", "完整显示") else t("Fill screen", "填满画面"), Modifier.testTag("photo-fit")) {
+                                playing = false; transform = PhotoTransform(fill = !transform.fill)
+                            }
+                            TvButton(t("Zoom", "放大"), Modifier.testTag("photo-zoom"), enabled = state.display != null) {
+                                playing = false; transform = transform.nextZoom(); immersive = true
+                            }
                             TvButton(t("Captions", "说明")) { captions = !captions }
                         }
                         Text("${state.index + 1} / ${state.feed!!.items.size}  ·  " +

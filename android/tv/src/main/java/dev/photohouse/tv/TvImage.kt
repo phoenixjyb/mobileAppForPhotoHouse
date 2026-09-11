@@ -10,6 +10,11 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clipToBounds
 import androidx.compose.ui.graphics.asImageBitmap
+import androidx.compose.ui.graphics.graphicsLayer
+import androidx.compose.ui.layout.onSizeChanged
+import androidx.compose.ui.unit.IntSize
+import kotlin.math.max
+import kotlin.math.min
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.testTag
 import dev.photohouse.home.HomeLimits
@@ -47,18 +52,37 @@ internal fun decodeTvPhoto(bytes: ByteArray, maxPixels: Int = 8_847_360): Decode
 private data class DecodeResult(val complete: Boolean = false, val photo: DecodedPhoto? = null)
 private val decodePermit = Semaphore(1)
 /** One decode at a time, off the UI thread. A new byte identity cannot show an old photo. */
-@Composable internal fun TvImage(bytes: ByteArray?, description: String, modifier: Modifier = Modifier, missing: String, maxPixels: Int = 8_847_360) {
+@Composable internal fun TvImage(bytes: ByteArray?, description: String, modifier: Modifier = Modifier, missing: String, maxPixels: Int = 8_847_360, transform: PhotoTransform = PhotoTransform()) {
     key(bytes) {
         val result by produceState(DecodeResult(complete = bytes == null)) {
             if (bytes != null) value = DecodeResult(true, withContext(Dispatchers.Default) {
                 decodePermit.withPermit { decodeTvPhoto(bytes, maxPixels) }
             })
         }
-        Box(modifier.clipToBounds(), contentAlignment = Alignment.Center) {
+        var viewport by remember { mutableStateOf(IntSize.Zero) }
+        Box(modifier.onSizeChanged { viewport = it }.clipToBounds(), contentAlignment = Alignment.Center) {
             val current = result.photo
             if (!result.complete) CircularProgressIndicator()
             else if (current == null) Text(missing)
-            else Image(current.bitmap.asImageBitmap(), description, Modifier.matchParentSize().testTag("tv-image"), contentScale = ContentScale.Fit)
+            else {
+                val width = current.bitmap.width.toFloat(); val height = current.bitmap.height.toFloat()
+                val fit = min(viewport.width / width, viewport.height / height)
+                val fill = max(viewport.width / width, viewport.height / height)
+                val scale = (if (transform.fill) fill else fit) * transform.zoom
+                val x = max(0f, (width * scale - viewport.width) / 2) * transform.panX
+                val y = max(0f, (height * scale - viewport.height) / 2) * transform.panY
+                Image(current.bitmap.asImageBitmap(), description,
+                    Modifier.matchParentSize().graphicsLayer {
+                        scaleX = transform.zoom; scaleY = transform.zoom
+                        translationX = x; translationY = y
+                    }.testTag("tv-image"), contentScale = if (transform.fill) ContentScale.Crop else ContentScale.Fit)
+            }
         }
     }
+}
+
+/** Pan is a fraction of the actual overflow; portrait and landscape cannot pan into blank edges. */
+internal data class PhotoTransform(val fill: Boolean = false, val zoom: Float = 1f, val panX: Float = 0f, val panY: Float = 0f) {
+    fun nextZoom() = copy(zoom = when { zoom < 2f -> 2f; zoom < 4f -> 4f; else -> 1f }, panX = 0f, panY = 0f)
+    fun pan(dx: Float, dy: Float) = copy(panX = (panX + dx).coerceIn(-1f, 1f), panY = (panY + dy).coerceIn(-1f, 1f))
 }

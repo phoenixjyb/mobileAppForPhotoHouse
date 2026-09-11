@@ -10,8 +10,13 @@ phone modules and their protected contract are unchanged.
 - Configured cold start and foreground fetch `/home/v1/feed` automatically.
 - Paged grid, remote D-pad/OK focus, Back to the selected tile, literal captions,
   EN/ZH/system-default UI and fit-to-frame display images.
-- Full screen: left/right change photos, OK toggles an eight-second slideshow,
-  Back returns to controls. Slideshow stops at the current page's end, missing
+- Photo controls: Fit preserves the whole image; Fill crops to the viewport. Zoom
+  enters full screen at 2×. Full-screen OK cycles 1×/2×/4×; arrows pan enlarged
+  photos and left/right change photos at 1×. Back resets zoom before returning to
+  controls. Transforms reset on asset/revision/coverage changes. Hints hide after
+  four seconds and return on a remote key. No higher-resolution bytes are fetched
+  when zooming. The Play page button/media key controls an eight-second slideshow.
+  Slideshow stops at the current page's end, missing
   display image, errors, background, disconnect and leaving the viewer.
 - Metadata refresh every 60 seconds while visible. Changed metadata clears the
   old page and images. Revision conflicts clear and refetch after bounded retry.
@@ -22,6 +27,26 @@ phone modules and their protected contract are unchanged.
 - Background cancels requests and clears content; foreground fetches afresh.
   Disconnect stays locally paused through background/foreground until Reconnect;
   a new process starts a fresh anonymous connection. No media/session persistence.
+
+## Native video component and full-library continuation
+
+The independent `TvVideoPlayer` and `HomeVideoReader` now implement explicit native
+play/pause, 10-second seeking, elapsed/duration display, aspect-fit rendering and
+full screen. OK plays/pauses in video full screen; left/right seek. Changing full
+screen preserves the surface/player. Audio focus loss pauses; background, close,
+surface destruction and decode error release the source/player. No audio autoplay,
+URL delegated to MediaPlayer, disk media cache or personal account adapter.
+
+The reader serializes bounded random reads, cancels an in-flight read on close,
+rejects wrong chunk lengths and suppresses stale copies/errors. The eventual
+catalog adapter must independently validate the returned contract's Range metadata,
+revision, content type and total. Reader validation alone is not an HTTP contract.
+
+The native component is exercised with a test-APK-only synthetic H.264/AAC clip.
+**The v1 production gallery still has no video items or endpoint.** Full-catalog
+photo/video wiring awaits the backend's frozen v2 return; see
+[FULL_LIBRARY_PLAN.md](FULL_LIBRARY_PLAN.md) and [PLAYBACK_CAPSULE.md](PLAYBACK_CAPSULE.md).
+The new whole-library request supersedes selected-photo scope as the next outcome.
 
 ## Frozen contract and image quality
 
@@ -89,8 +114,8 @@ app mapping is a separate resolution path from ordinary projector system DNS. No
 forwarding is needed for LAN-only routing. Actual JMGO firmware/API (minimum 26),
 launcher, remote keys, sleep/wake, image quality and installation/operator window
 still need device evidence. A landscape phone AVD is only a component test surface.
-Named albums/search, video, screensaver startup and offline storage remain outside
-this read-only selected-photo feed.
+Named albums/search, screensaver startup and offline storage are not implemented.
+Full-catalog/video transport is in the coordinated continuation described above.
 
 [App-contained LAN configuration return](../../docs/evidence/android/home-tv-lan-map/RETURN.md).
 

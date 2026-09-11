@@ -115,6 +115,31 @@ class TvUiTest {
         rule.onAllNodesWithTag("tv-image").assertCountEquals(0)
         capture("covered")
     }
+    @Test fun remoteZoomPanResetAndFitFillStayOnTheSamePhoto() {
+        val store = install()
+        rule.onNodeWithTag("asset-1").performClick()
+        rule.waitUntil(10000) { store.state.value.display != null }
+        rule.onNodeWithTag("photo-fit").performScrollTo().performClick()
+        rule.onNodeWithText("Fit photo").assertExists()
+        rule.onNodeWithTag("photo-zoom").performScrollTo().performClick()
+        rule.onNodeWithText("2×", substring = true).assertExists()
+        repeat(8) { key(KeyEvent.KEYCODE_DPAD_RIGHT) }
+        key(KeyEvent.KEYCODE_DPAD_UP)
+        assertEquals(1, store.state.value.selected)
+        rule.waitUntil(10000) { rule.onAllNodesWithTag("tv-image").fetchSemanticsNodes().size == 1 }
+        capture("photo-zoom")
+        key(KeyEvent.KEYCODE_DPAD_CENTER)
+        rule.onNodeWithText("4×", substring = true).assertExists()
+        key(KeyEvent.KEYCODE_BACK)
+        rule.onNodeWithTag("immersive").assertExists()
+        key(KeyEvent.KEYCODE_DPAD_RIGHT)
+        rule.waitUntil(5000) { store.state.value.selected == 2 }
+        key(KeyEvent.KEYCODE_BACK)
+        rule.onNodeWithText("Fill screen").assertExists()
+        val bounded = PhotoTransform(zoom = 4f).pan(100f, -100f)
+        assertEquals(1f, bounded.panX); assertEquals(-1f, bounded.panY)
+        assertEquals(PhotoTransform(), PhotoTransform(zoom = 4f).nextZoom())
+    }
     @Test fun prepared4kLoadsAutomaticallyAndDisconnectClearsIt() {
         val api = SyntheticApi(); val store = install(api); gallery()
         rule.onNodeWithTag("asset-1").performClick(); rule.waitForIdle()
