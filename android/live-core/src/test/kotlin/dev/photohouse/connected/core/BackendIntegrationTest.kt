@@ -94,6 +94,31 @@ class BackendIntegrationTest {
         try { block() } catch (e: ApiFailure) { return e }
         throw AssertionError("Expected backend denial")
     }
+    @Test fun realVideoRangesSeekAndReauthorizeAfterOriginalPermissionRevocation() = runBlocking {
+        Backend().use { backend ->
+            backend.control("use-synthetic-video")
+            val api = backend.api; val token = Bearer.from(api.login(member, password))
+            assertEquals("video", api.detail(token, "family-a", "102").asset.kind)
+            assertEquals(401, failure { api.videoRange(token, "family-a", "102", 0, 32) }.status)
+            backend.control("allow-originals")
+            val first = api.videoRange(token, "family-a", "102", 0, 32)
+            assertEquals("ftyp", first.bytes.copyOfRange(4, 8).toString(Charsets.US_ASCII))
+            assertTrue(first.total > HttpsPhotoHouseApi.VIDEO_CHUNK_LIMIT)
+            val tail = api.videoRange(token, "family-a", "102", first.total - 10, 32)
+            assertEquals(10, tail.bytes.size); assertEquals(first.total, tail.total)
+            assertEquals(401, failure { api.videoRange(token, "family-b", "102", 0, 32) }.status)
+            val errors = mutableListOf<Exception>()
+            val reader = VideoReader({ start, length -> api.videoRange(token, "family-a", "102", start, length) }, Long.MAX_VALUE, { 0 }) { errors += it }
+            reader.use {
+                assertEquals(first.total, it.size())
+                assertEquals(262144, it.readAt(0, ByteArray(262144), 0, 262144))
+                backend.control("deny-originals")
+                assertTrue(runCatching { it.readAt(300000, ByteArray(16), 0, 16) }.isFailure)
+                assertTrue(it.isClosed); assertEquals(401, (errors.single() as ApiFailure).status)
+                assertTrue(api.session(token).memberships.single().available)
+            }
+        }
+    }
     @Test fun realLoginBrowsingThumbnailAndAcknowledgedLogout() = runBlocking {
         Backend().use { backend ->
             val api = backend.api

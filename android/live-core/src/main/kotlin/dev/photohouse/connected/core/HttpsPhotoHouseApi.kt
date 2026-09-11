@@ -39,7 +39,7 @@ class HttpsPhotoHouseApi internal constructor(private val origin: TrustedOrigin,
         .connectionSpecs(listOf(ConnectionSpec.MODERN_TLS))
         .connectTimeout(10, TimeUnit.SECONDS).readTimeout(15, TimeUnit.SECONDS).callTimeout(20, TimeUnit.SECONDS)
         .build()
-    private data class Packet(val code: Int, val contentType: String?, val bytes: ByteArray)
+    private data class Packet(val code: Int, val contentType: String?, val bytes: ByteArray, val total: Long = 0)
 
     private fun url(path: String, library: String? = null, page: Int? = null): HttpUrl {
         require(path.startsWith('/') && !path.startsWith("//"))
@@ -52,12 +52,13 @@ class HttpsPhotoHouseApi internal constructor(private val origin: TrustedOrigin,
         require(id.matches(Regex("[1-9][0-9]{0,18}")) && id.toLongOrNull() != null)
         return id
     }
-    private suspend fun packet(url: HttpUrl, token: Bearer?, body: String? = null, limit: Int = JSON_LIMIT, missingAllowed: Boolean = false, accept: String = "application/json"): Packet {
+    private suspend fun packet(url: HttpUrl, token: Bearer?, body: String? = null, limit: Int = JSON_LIMIT, missingAllowed: Boolean = false, accept: String = "application/json", rangeStart: Long? = null): Packet {
         require(url.scheme == "https" && url.host == origin.url.host && url.port == origin.url.port)
         val bytes = body?.toByteArray(Charsets.UTF_8)
         if (bytes != null && bytes.size > 2048) throw ApiFailure(FailureKind.INVALID_INPUT)
         val request = Request.Builder().url(url).header("Accept", accept)
             .header("Cache-Control", "no-store")
+            .apply { rangeStart?.let { header("Range", "bytes=$it-${it + limit - 1}"); header("Accept-Encoding", "identity") } }
             .apply { token?.let { header("Authorization", it.header()) } }
             .apply { if (bytes != null) post(bytes.toRequestBody("application/json; charset=utf-8".toMediaType())) }
             .build()
@@ -75,6 +76,22 @@ class HttpsPhotoHouseApi internal constructor(private val origin: TrustedOrigin,
                                 throw ApiFailure(FailureKind.HTTP, it.code, if (it.code == 429) retryAfterMillis(it.header("Retry-After")) else 0)
                             }
                             if (it.code == 404) return@use Packet(404, null, byteArrayOf())
+                            var total = 0L
+                            var expectedBytes = -1L
+                            if (rangeStart != null) {
+                                if (it.code != 206 || it.header("Content-Encoding")?.lowercase() !in listOf(null, "identity") ||
+                                    it.header("Content-Type")?.substringBefore(';')?.trim()?.lowercase() !in setOf("video/mp4", "video/webm"))
+                                    throw ApiFailure(FailureKind.INVALID_RESPONSE)
+                                val parts = Regex("bytes ([0-9]+)-([0-9]+)/([0-9]+)").matchEntire(it.header("Content-Range").orEmpty())
+                                    ?.groupValues ?: throw ApiFailure(FailureKind.INVALID_RESPONSE)
+                                val start = parts[1].toLongOrNull() ?: throw ApiFailure(FailureKind.INVALID_RESPONSE)
+                                val end = parts[2].toLongOrNull() ?: throw ApiFailure(FailureKind.INVALID_RESPONSE)
+                                total = parts[3].toLongOrNull() ?: throw ApiFailure(FailureKind.INVALID_RESPONSE)
+                                if (total > VIDEO_FILE_LIMIT) throw ApiFailure(FailureKind.TOO_LARGE)
+                                if (total <= 0 || start != rangeStart || end != minOf(start + limit - 1, total - 1) || end < start)
+                                    throw ApiFailure(FailureKind.INVALID_RESPONSE)
+                                expectedBytes = end - start + 1
+                            }
                             val responseBody = it.body ?: throw ApiFailure(FailureKind.INVALID_RESPONSE)
                             if (responseBody.contentLength() > limit) throw ApiFailure(FailureKind.TOO_LARGE)
                             val out = ByteArrayOutputStream()
@@ -87,7 +104,8 @@ class HttpsPhotoHouseApi internal constructor(private val origin: TrustedOrigin,
                                     out.write(buffer, 0, count)
                                 }
                             }
-                            Packet(it.code, it.header("Content-Type"), out.toByteArray())
+                            if (expectedBytes >= 0 && out.size().toLong() != expectedBytes) throw ApiFailure(FailureKind.INVALID_RESPONSE)
+                            Packet(it.code, it.header("Content-Type"), out.toByteArray(), total)
                         }
                         if (continuation.isActive) continuation.resume(result)
                     } catch (e: Exception) {
@@ -143,5 +161,14 @@ class HttpsPhotoHouseApi internal constructor(private val origin: TrustedOrigin,
             !in setOf("image/jpeg", "image/png", "image/webp")) throw ApiFailure(FailureKind.INVALID_RESPONSE)
         return packet.bytes
     }
-    companion object { const val JSON_LIMIT = 524288; const val IMAGE_LIMIT = 1048576; const val ORIGINAL_LIMIT = 12 * 1024 * 1024 }
+    override suspend fun videoRange(token: Bearer, library: String, assetId: String, start: Long, length: Int): VideoChunk {
+        require(start in 0 until VIDEO_FILE_LIMIT && length in 1..VIDEO_CHUNK_LIMIT)
+        val packet = packet(url("/assets/${assetId(assetId)}/media", library), token,
+            limit = length, accept = "video/mp4, video/webm", rangeStart = start)
+        return VideoChunk(start, packet.total, packet.bytes)
+    }
+    companion object {
+        const val VIDEO_CHUNK_LIMIT = 256 * 1024
+        const val VIDEO_FILE_LIMIT = 4L * 1024 * 1024 * 1024
+        const val JSON_LIMIT = 524288; const val IMAGE_LIMIT = 1048576; const val ORIGINAL_LIMIT = 12 * 1024 * 1024 }
 }

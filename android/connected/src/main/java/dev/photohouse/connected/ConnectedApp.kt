@@ -37,7 +37,7 @@ private class Words(val zh: Boolean) {
         Message.INVALID_INPUT -> t("Check your inputs. Use a country code and a password of 15–128 characters. If already registered, sign in.", "请检查输入，使用含国家码的手机号和 15–128 个字符的密码。已注册请登录。")
         Message.INVALID_RESPONSE -> t("The server response could not be displayed safely.", "无法安全显示服务器响应。")
         Message.TOO_LARGE -> t("This file is too large to display here.", "文件过大，无法在此处显示。")
-        Message.MEDIA_UNAVAILABLE -> t("This photo is unavailable.", "此照片不可用。")
+        Message.MEDIA_UNAVAILABLE -> t("This media is unavailable.", "此媒体不可用。")
     }
     fun membership(m: Membership) = when {
         m.available -> t("Available", "可访问")
@@ -61,8 +61,14 @@ private class Words(val zh: Boolean) {
     MaterialTheme(colorScheme = lightColorScheme(primary = Color(0xFF48634D), background = Color(0xFFFAF7F2), surface = Color(0xFFFAF7F2))) {
         Surface(Modifier.fillMaxSize()) {
             BackHandler(store != null && state.library != null && !state.covered) {
-                if (state.viewingOriginal) store?.closeOriginalPhoto()
+                if (state.video != null) store?.closeVideo()
+                else if (state.viewingOriginal) store?.closeOriginalPhoto()
                 else if (state.detail != null || state.photoNavigation != null) store?.backToPhotos() else store?.libraries()
+            }
+            if (state.video != null && !state.covered && store != null) {
+                val reader = state.video!!
+                key(reader) { VideoPlayer(reader, words.zh, { store.closeVideo(reader) }) { store.videoPlaybackFailed(reader) } }
+                return@Surface
             }
             if (state.viewingOriginal && !state.covered && store != null) {
                 OriginalPhotoViewer(state.originalPhoto, state.busy, words.zh, store::closeOriginalPhoto)
@@ -135,11 +141,13 @@ private class Words(val zh: Boolean) {
                                     if (detail.asset.kind == "image" && detail.originals_allowed) item {
                                         Button(onClick = store::openOriginalPhoto, enabled = !state.busy) { Text(t("Open original photo", "打开原始照片")) }
                                     }
+                                    if (detail.asset.kind == "video" && detail.originals_allowed) item {
+                                        Button(onClick = store::openVideo, enabled = !state.busy) { Text(t("Open video", "打开视频")) }
+                                    }
                                     item { Preview(detail.asset, state.previews[detail.asset.id], words) }
                                     item { Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
                                         Text(detail.asset.taken_at ?: t("Date unknown", "日期未知"))
                                         Text(t("Source date, shown as received", "原始日期，按原文显示"))
-                                        if (detail.asset.kind == "video") Text(t("Video playback is not available in this build.", "此版本暂不支持视频播放。"))
                                         if (!detail.originals_allowed) Text(t("Original access is not permitted.", "无原始文件访问权限。"))
                                         Text(t("Captions · AI unless marked edited", "描述 · 未标注编辑时为 AI 内容"), style = MaterialTheme.typography.titleMedium)
                                         Text(t("Caption language information is not supplied.", "未提供描述语言信息。"))

@@ -51,7 +51,11 @@ def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument('--backend-repo', type=Path, required=True)
     parser.add_argument('--python', type=Path, required=True, help='Existing backend root test interpreter')
+    parser.add_argument('--evidence-dir', type=Path, default=Path('docs/evidence/android/integration'))
     args = parser.parse_args()
+    evidence_dir = (ROOT / args.evidence_dir).resolve()
+    if not evidence_dir.is_relative_to((ROOT / 'docs/evidence/android').resolve()):
+        raise ValueError('Evidence must stay under Android evidence ownership')
     interpreter = args.python.absolute()  # Preserve venv identity; do not resolve its executable symlink.
     if not interpreter.is_file():
         raise ValueError('An existing Python test interpreter is required')
@@ -81,25 +85,25 @@ def main():
             return result.returncode
         report = ROOT / 'android/live-core/build/test-results/backendIntegrationTest/TEST-dev.photohouse.connected.core.BackendIntegrationTest.xml'
         suite = ET.parse(report).getroot()
-        assert suite.attrib['tests'] == '6' and all(suite.attrib[k] == '0' for k in ('failures', 'errors', 'skipped'))
+        assert suite.attrib['tests'] == '7' and all(suite.attrib[k] == '0' for k in ('failures', 'errors', 'skipped'))
         suite.attrib.pop('hostname', None)
         for tag in ('system-out', 'system-err'):
             for element in suite.findall(tag):
                 suite.remove(element)
-        output = ROOT / 'docs/evidence/android/integration'
+        output = evidence_dir
         output.mkdir(parents=True, exist_ok=True)
         ET.ElementTree(suite).write(output / 'backend-integration-tests.xml', encoding='utf-8', xml_declaration=True)
         versions = subprocess.check_output([str(interpreter), '-I', '-B', '-c',
             'import sys,importlib.metadata,json;print(json.dumps({"python":sys.version.split()[0],**{n:importlib.metadata.version(n) for n in ("uvicorn","fastapi","starlette","sqlalchemy","alembic","httpx","Pillow")}}))'], env=environment, text=True)
         evidence = {'backend_commit': manifest['backend_commit'], 'contract_version': manifest['contract_version'],
                     'backend_source_checksums': len(manifest['backend_sources']), 'versions': json.loads(versions),
-                    'tests': 6, 'failures': 0, 'errors': 0, 'skipped': 0,
+                    'tests': 7, 'failures': 0, 'errors': 0, 'skipped': 0,
                     'transport': 'real loopback TLS to pinned ASGI and temporary migrated SQLite',
                     'real_backend_deployment_accessed': False, 'backend_checkout_modified': False}
     assert not source.exists(), 'Temporary source export was not removed'
     evidence['source_export_removed'] = True
     (output / 'result.json').write_text(json.dumps(evidence, indent=2) + '\n')
-    print('PASS 6 actual-backend Android TLS integration tests; temporary source export removed')
+    print('PASS 7 actual-backend Android TLS integration tests; temporary source export removed')
     return 0
 
 

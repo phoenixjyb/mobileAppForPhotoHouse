@@ -22,6 +22,8 @@ class ConnectedUiTest {
     private val scope = CoroutineScope(SupervisorJob() + Dispatchers.Main.immediate)
     @After fun stop() { scope.cancel() }
     private class SyntheticApi : PhotoHouseApi {
+        var videoBytes = byteArrayOf()
+        val videoReads = java.util.concurrent.CopyOnWriteArrayList<Pair<Long, Int>>()
         var registrationCode: String? = null
         val photo = Asset("1", "video", null, null, null, "2026-01-01", "/assets/1/thumbnail?library=synthetic-library")
         var photos = listOf(photo)
@@ -36,6 +38,10 @@ class ConnectedUiTest {
         override suspend fun detail(token: Bearer, library: String, assetId: String) = Detail(library, originalsAllowed, photos.first { it.id == assetId })
         override suspend fun captions(token: Bearer, library: String, assetId: String) = Captions(library, assetId, false, listOf(Caption("1", "<b>Literal 原文</b>", false, false, null, null)))
         override suspend fun thumbnail(token: Bearer, library: String, asset: Asset): ByteArray? = null
+        override suspend fun videoRange(token: Bearer, library: String, assetId: String, start: Long, length: Int): VideoChunk {
+            videoReads += start to length
+            return VideoChunk(start, videoBytes.size.toLong(), videoBytes.copyOfRange(start.toInt(), minOf(videoBytes.size, start.toInt() + length)))
+        }
         override suspend fun originalPhoto(token: Bearer, library: String, assetId: String): ByteArray {
             val bitmap = Bitmap.createBitmap(800, 600, Bitmap.Config.ARGB_8888)
             val canvas = Canvas(bitmap)
@@ -52,10 +58,31 @@ class ConnectedUiTest {
     private fun input(label: String, text: String) { val matcher = hasText(label) and hasSetTextAction(); reveal(matcher); rule.onNode(matcher).performTextInput(text) }
     private fun capture(name: String) {
         rule.waitForIdle()
+        val videoBounds = if (name.startsWith("video-")) rule.onNodeWithTag("video-surface").fetchSemanticsNode().boundsInWindow else null
         rule.runOnUiThread {
             val view = rule.activity.window.decorView
             val bitmap = Bitmap.createBitmap(view.width, view.height, Bitmap.Config.ARGB_8888)
-            view.draw(Canvas(bitmap))
+            val canvas = Canvas(bitmap)
+            view.draw(canvas)
+            // Software View.draw may omit the hardware video layer. Keep a separate
+            // test-owned decoded frame; do not composite or disable FLAG_SECURE.
+            if (name.startsWith("video-")) {
+                fun textures(node: android.view.View): List<android.view.TextureView> = when (node) {
+                    is android.view.TextureView -> listOf(node)
+                    is android.view.ViewGroup -> (0 until node.childCount).flatMap { textures(node.getChildAt(it)) }
+                    else -> emptyList()
+                }
+                val texture = textures(view).single()
+                assertEquals("Video keeps its decoded aspect ratio", 16f / 9f, texture.width.toFloat() / texture.height, 0.02f)
+                val frame = requireNotNull(texture.bitmap)
+                val colors = mutableSetOf<Int>()
+                for (y in 0 until frame.height step 8) for (x in 0 until frame.width step 8) colors += frame.getPixel(x, y)
+                assertTrue("Decoded synthetic video must contain colored pixels", colors.size > 8)
+                val bounds = requireNotNull(videoBounds)
+                assertEquals(16f / 9f, bounds.width / bounds.height, 0.02f)
+                File(rule.activity.filesDir, "$name-frame.png").outputStream().use { frame.compress(Bitmap.CompressFormat.PNG, 100, it) }
+                frame.recycle()
+            }
             File(rule.activity.filesDir, "$name.png").outputStream().use { bitmap.compress(Bitmap.CompressFormat.PNG, 100, it) }
             bitmap.recycle()
         }
@@ -91,6 +118,68 @@ class ConnectedUiTest {
         assertEquals("synthetic-invitation", api.registrationCode)
         assertNotNull(store.state.value.session)
         rule.onAllNodes(hasText("synthetic-invitation")).assertCountEquals(0)
+    }
+    @Test fun nativeVideoPlaysPausesSeeksAndClosesInBothLanguages() {
+        val api = SyntheticApi().apply {
+            originalsAllowed = true
+            videoBytes = androidx.test.platform.app.InstrumentationRegistry.getInstrumentation().context.assets.open("synthetic-video.mp4").use { it.readBytes() }
+        }
+        val store = ConnectedStore(api, scope)
+        rule.runOnUiThread {
+            rule.activity.setContent { ConnectedApp(store) }
+            store.authenticate("+12025550123", "synthetic-password-only")
+        }
+        click("Open library"); click("2026-01-01"); click("Open video")
+        val reader = store.state.value.video!!
+        fun ready(label: String) { rule.waitUntil(30000) {
+            rule.onAllNodes(hasText(label) and isEnabled()).fetchSemanticsNodes().isNotEmpty()
+        } }
+        ready("Play")
+        rule.onNodeWithText("Play").performClick()
+        rule.waitUntil(15000) {
+            rule.onNodeWithTag("video-position").fetchSemanticsNode().config[androidx.compose.ui.semantics.SemanticsProperties.Text].first().text.substringBefore(" / ").toInt() >= 1
+        }
+        // A competing transient audio focus request must pause, without auto-resume.
+        val audio = rule.activity.getSystemService(android.media.AudioManager::class.java)
+        val focus = android.media.AudioFocusRequest.Builder(android.media.AudioManager.AUDIOFOCUS_GAIN_TRANSIENT)
+            .setOnAudioFocusChangeListener { }.build()
+        try {
+            assertEquals(android.media.AudioManager.AUDIOFOCUS_REQUEST_GRANTED, audio.requestAudioFocus(focus))
+            ready("Play")
+        } finally { audio.abandonAudioFocusRequest(focus) }
+        rule.onNodeWithText("Play").assertExists()
+        rule.onNodeWithText("Play").performClick(); ready("Pause")
+        rule.onNodeWithText("Pause").performClick(); ready("Play")
+        rule.onNodeWithText("Forward 10s").performClick(); ready("Play")
+        rule.waitUntil(10000) { rule.onNodeWithTag("video-position").fetchSemanticsNode().config[androidx.compose.ui.semantics.SemanticsProperties.Text].first().text.substringBefore(" / ").toInt() >= 10 }
+        capture("video-en")
+        rule.onNodeWithTag("video-seek").performSemanticsAction(androidx.compose.ui.semantics.SemanticsActions.SetProgress) { it(3000f) }
+        ready("Play")
+        rule.waitUntil(10000) { rule.onNodeWithTag("video-position").fetchSemanticsNode().config[androidx.compose.ui.semantics.SemanticsProperties.Text].first().text.substringBefore(" / ").toInt() in 2..4 }
+        rule.runOnUiThread { rule.activity.onBackPressedDispatcher.onBackPressed() }
+        assertTrue(reader.isClosed); assertNull(store.state.value.video)
+        click("简体中文"); click("打开视频"); ready("播放")
+        rule.onNodeWithText("播放").performClick()
+        rule.waitUntil(15000) { rule.onNodeWithTag("video-position").fetchSemanticsNode().config[androidx.compose.ui.semantics.SemanticsProperties.Text].first().text.substringBefore(" / ").toInt() >= 1 }
+        rule.onNodeWithText("暂停").performClick(); ready("播放"); capture("video-zh")
+        val second = store.state.value.video!!
+        rule.onNodeWithText("关闭视频").performClick(); assertTrue(second.isClosed)
+        click("打开视频"); ready("播放")
+        val third = store.state.value.video!!
+        rule.runOnUiThread { store.background() }; rule.waitForIdle()
+        assertTrue(third.isClosed); assertNull(store.state.value.video)
+        rule.onNodeWithTag("video-player").assertDoesNotExist()
+        assertTrue(api.videoReads.size > 3)
+        assertTrue(api.videoReads.all { it.second in 1..262144 })
+    }
+    @Test fun corruptVideoExitsPlayerWithoutRetryOrPrivateResidue() {
+        val api = SyntheticApi().apply { originalsAllowed = true; videoBytes = ByteArray(128) { 7 } }
+        val store = ConnectedStore(api, scope)
+        rule.runOnUiThread { rule.activity.setContent { ConnectedApp(store) }; store.authenticate("+12025550123", "synthetic-password-only") }
+        click("Open library"); click("2026-01-01"); click("Open video")
+        rule.waitUntil(30000) { store.state.value.video == null && store.state.value.problem != null }
+        assertEquals(Message.MEDIA_UNAVAILABLE, store.state.value.problem?.message)
+        assertFalse(store.canRetry()); rule.onNodeWithTag("video-player").assertDoesNotExist()
     }
     @Test fun originalViewerZoomCloseAndPrivacyUseSyntheticImageBytes() {
         val api = SyntheticApi().apply { photos = listOf(photo.copy(kind = "image")); originalsAllowed = true }

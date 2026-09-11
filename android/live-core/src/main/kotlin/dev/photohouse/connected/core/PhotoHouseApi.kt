@@ -31,6 +31,7 @@ interface PhotoHouseApi {
     suspend fun detail(token: Bearer, library: String, assetId: String): Detail
     suspend fun captions(token: Bearer, library: String, assetId: String): Captions
     suspend fun thumbnail(token: Bearer, library: String, asset: Asset): ByteArray?
+    suspend fun videoRange(token: Bearer, library: String, assetId: String, start: Long, length: Int): VideoChunk
     suspend fun originalPhoto(token: Bearer, library: String, assetId: String): ByteArray
 }
 
@@ -49,3 +50,6 @@ fun retryAfterMillis(value: String?, nowMillis: Long = System.currentTimeMillis(
     val date = runCatching { ZonedDateTime.parse(value, DateTimeFormatter.RFC_1123_DATE_TIME).toInstant().toEpochMilli() }.getOrNull()
     return if (date == null) 5000 else (date - nowMillis).coerceAtLeast(0)
 }
+
+/** Internal transport result, not a new wire DTO. */
+data class VideoChunk(val start: Long, val total: Long, val bytes: ByteArray)

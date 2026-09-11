@@ -22,6 +22,7 @@ class ConnectedStoreTest {
         var originalError: Exception? = null
         var originalBytes = byteArrayOf(9, 8, 7)
         var originalReads = 0
+        var videoError: Exception? = null
         val detailReads = mutableListOf<String>()
         var logoutError: Exception? = null
         var loginGate: CompletableDeferred<Unit>? = null
@@ -56,6 +57,10 @@ class ConnectedStoreTest {
         }
         override suspend fun captions(token: Bearer, library: String, assetId: String) = Captions(library, assetId, false, listOf(Caption("c1", "<b>原文 literal</b>", false, false, null, null)))
         override suspend fun thumbnail(token: Bearer, library: String, asset: Asset): ByteArray? { imageReads++; return images }
+        override suspend fun videoRange(token: Bearer, library: String, assetId: String, start: Long, length: Int): VideoChunk {
+            videoError?.let { throw it }
+            return VideoChunk(start, 100, ByteArray(minOf(length, 100 - start.toInt())))
+        }
         override suspend fun originalPhoto(token: Bearer, library: String, assetId: String): ByteArray {
             originalReads++; val bytes = originalBytes
             originalGate?.let { withContext(NonCancellable) { it.await() } }
@@ -65,6 +70,47 @@ class ConnectedStoreTest {
     private fun TestScope.store(api: FakeApi) = ConnectedStore(api, backgroundScope) { testScheduler.currentTime }
     private fun TestScope.signIn(store: ConnectedStore) { store.authenticate("+12025550123", "synthetic-password-only"); runCurrent(); assertNotNull(store.state.value.session) }
 
+    @Test fun videoIsExplicitPermissionedAndClosedAtEveryPrivacyBoundary() = runTest {
+        for (boundary in listOf("close", "background", "logout", "library", "expiry", "navigation")) {
+            val api = FakeApi().apply { assets = listOf(asset.copy(kind = "video")) }
+            val store = store(api); signIn(store); store.selectLibrary("family"); runCurrent()
+            store.openAsset(api.assets.single()); runCurrent(); store.openVideo(); assertNull(store.state.value.video)
+            api.originalsAllowed = true; store.openAsset(api.assets.single()); runCurrent()
+            assertNull(store.state.value.video); store.openVideo()
+            val reader = store.state.value.video!!; assertEquals(100L, reader.size())
+            when (boundary) {
+                "close" -> store.closeVideo()
+                "background" -> store.background()
+                "logout" -> store.logout()
+                "library" -> store.libraries()
+                "expiry" -> { advanceTimeBy(86400000); runCurrent() }
+                else -> store.backToPhotos()
+            }
+            assertTrue(reader.isClosed); assertNull(store.state.value.video)
+        }
+    }
+    @Test fun videoDenialRechecksOnceAndOldPlayerCannotCloseNewVideo() = runTest {
+        val api = FakeApi().apply { originalsAllowed = true; assets = listOf(asset.copy(kind = "video")) }
+        val store = store(api); signIn(store); store.selectLibrary("family"); runCurrent()
+        store.openAsset(api.assets.single()); runCurrent(); store.openVideo()
+        val old = store.state.value.video!!; store.closeVideo(); store.openVideo()
+        val current = store.state.value.video!!; store.closeVideo(old); store.videoPlaybackFailed(old)
+        assertSame(current, store.state.value.video)
+        api.videoError = ApiFailure(FailureKind.HTTP, 401)
+        assertTrue(runCatching { current.size() }.isFailure); runCurrent()
+        assertEquals(2, api.sessionReads); assertNull(store.state.value.video); assertNull(store.state.value.detail)
+        assertTrue(store.hasSession); assertEquals(Message.ACCESS_DENIED, store.state.value.problem?.message)
+    }
+    @Test fun videoOfflineRetryReloadsPermissionAndNeverRestartsPlayback() = runTest {
+        val api = FakeApi().apply { originalsAllowed = true; assets = listOf(asset.copy(kind = "video")) }
+        val store = store(api); signIn(store); store.selectLibrary("family"); runCurrent()
+        store.openAsset(api.assets.single()); runCurrent(); store.openVideo()
+        api.videoError = ApiFailure(FailureKind.OFFLINE)
+        assertTrue(runCatching { store.state.value.video!!.size() }.isFailure); runCurrent()
+        assertNull(store.state.value.video); assertTrue(store.canRetry())
+        api.originalsAllowed = false; store.retry(); runCurrent(); store.openVideo()
+        assertNotNull(store.state.value.detail); assertNull(store.state.value.video)
+    }
     @Test fun originalRequiresExplicitImagePermissionAndNeverFallsBackFromMissingPreview() = runTest {
         val api = FakeApi().apply { images = null }; val store = store(api); signIn(store)
         store.selectLibrary("family"); runCurrent(); store.openAsset(asset); runCurrent()

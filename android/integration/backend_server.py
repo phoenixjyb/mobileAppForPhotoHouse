@@ -106,6 +106,13 @@ def main():
             result = {'ok': True}
             if command == 'remove-thumbnail':
                 (derived / 'thumbnails/256/101.jpg').unlink()
+            elif command == 'use-synthetic-video':
+                video = Path(__file__).resolve().parents[1] / 'connected/src/androidTest/assets/synthetic-video.mp4'
+                import shutil
+                shutil.copyfile(video, originals / '102.mp4')
+                with closing(connection()) as db:
+                    db.execute('UPDATE assets SET path=?, mime=?, width=320, height=180, duration_sec=20 WHERE id=102', (str(originals / '102.mp4'), 'video/mp4'))
+                    db.commit()
             elif command == 'storage-unavailable':
                 db_path.rename(work / 'unavailable.sqlite')
             elif command == 'advance-admission-window':

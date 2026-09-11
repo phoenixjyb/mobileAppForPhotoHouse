@@ -33,6 +33,60 @@ class HttpsApiTest {
         try { block() } catch (e: ApiFailure) { return e }
         throw AssertionError("Expected a classified failure")
     }
+    private fun range(body: String = "abcd", header: String = "bytes 0-3/10") = MockResponse().setResponseCode(206)
+        .setHeader("Content-Type", "video/mp4").setHeader("Content-Range", header).setBody(body)
+    @Test fun videoRangesAuthenticateEverySeekWithStrictSameOriginHeaders() = runBlocking {
+        TlsFixture().use { f ->
+            f.server.enqueue(range()); f.server.enqueue(range("ij", "bytes 8-9/10"))
+            assertEquals(10L, f.api.videoRange(token, "family", "1", 0, 4).total)
+            assertEquals("ij", f.api.videoRange(token, "family", "1", 8, 4).bytes.toString(Charsets.UTF_8))
+            for (expected in listOf("bytes=0-3", "bytes=8-11")) {
+                val request = f.server.takeRequest()
+                assertEquals("/assets/1/media?library=family", request.path)
+                assertEquals(expected, request.getHeader("Range"))
+                assertEquals("identity", request.getHeader("Accept-Encoding"))
+                assertEquals("no-store", request.getHeader("Cache-Control"))
+                assertEquals(1, request.headers.values("Authorization").size)
+                assertNull(request.getHeader("Cookie")); assertNull(request.getHeader("If-Range"))
+            }
+            for (start in listOf(-1L, HttpsPhotoHouseApi.VIDEO_FILE_LIMIT, Long.MAX_VALUE))
+                assertTrue(runCatching { f.api.videoRange(token, "family", "1", start, 4) }.isFailure)
+            assertTrue(runCatching { f.api.videoRange(token, "family", "1", 0, 262145) }.isFailure)
+            assertEquals(2, f.server.requestCount)
+        }
+    }
+    @Test fun videoRejectsIgnoredMalformedCompressedOversizedAndTruncatedRanges() = runBlocking {
+        TlsFixture().use { f ->
+            val invalid = listOf(range().setResponseCode(200), range().removeHeader("Content-Range"),
+                range(header = "bytes 1-4/10"), range(header = "bytes 0-4/10"), range(header = "bytes 0-3/*"),
+                range(header = "bytes 0-3/0"), range(header = "bytes 0-3/99999999999999999999"),
+                range().setHeader("Content-Encoding", "gzip"), range().setHeader("Content-Type", "text/html"),
+                range("abc"), range("abcde").setChunkedBody("abcde", 1))
+            for (response in invalid) {
+                f.server.enqueue(response)
+                assertTrue(failure { f.api.videoRange(token, "family", "1", 0, 4) }.kind in setOf(FailureKind.INVALID_RESPONSE, FailureKind.TOO_LARGE))
+            }
+            f.server.enqueue(range(header = "bytes 0-3/4294967297"))
+            assertEquals(FailureKind.TOO_LARGE, failure { f.api.videoRange(token, "family", "1", 0, 4) }.kind)
+            f.server.enqueue(range().setHeader("Content-Length", 5))
+            assertEquals(FailureKind.TOO_LARGE, failure { f.api.videoRange(token, "family", "1", 0, 4) }.kind)
+        }
+    }
+    @Test fun videoDenialRateLimitRedirectAndCancellationHaveNoAutomaticRetry() = runBlocking {
+        TlsFixture().use { f ->
+            for (status in listOf(401, 403, 404, 416, 429, 503, 302)) {
+                f.server.enqueue(MockResponse().setResponseCode(status).setHeader("Retry-After", "7").setHeader("Location", "https://other.invalid/video"))
+                val error = failure { f.api.videoRange(token, "family", "1", 0, 4) }
+                assertEquals(status, error.status)
+                if (status == 429) assertEquals(7000L, error.retryAfterMillis)
+                assertNotNull(f.server.takeRequest(5, TimeUnit.SECONDS))
+            }
+            assertEquals(7, f.server.requestCount)
+            f.server.enqueue(MockResponse().setSocketPolicy(SocketPolicy.NO_RESPONSE))
+            val job = launch(Dispatchers.IO) { f.api.videoRange(token, "family", "1", 0, 4) }
+            assertNotNull(f.server.takeRequest(5, TimeUnit.SECONDS)); withTimeout(2000) { job.cancelAndJoin() }
+        }
+    }
     @Test fun originalUsesFixedAuthenticatedNoStoreRouteAndAcceptsExactBudget() = runBlocking {
         TlsFixture().use { f ->
             f.server.enqueue(MockResponse().setHeader("Content-Type", "image/jpeg").setBody("x".repeat(HttpsPhotoHouseApi.ORIGINAL_LIMIT)))

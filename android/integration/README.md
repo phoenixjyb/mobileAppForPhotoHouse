@@ -2,7 +2,8 @@
 
 This opt-in test exercises `HttpsPhotoHouseApi` and `ConnectedStore` against the
 actual pinned Python application, with real TLS, Alembic migrations, SQLite,
-password verification, invitations, authorization and generated JPEG thumbnails.
+password verification, invitations, authorization, generated JPEG thumbnails and
+Range reads from a generated H.264/AAC video.
 It complements the canned-response transport tests and synthetic UI component
 tests. It is not a deployed-backend or physical-device acceptance result.
 
@@ -55,8 +56,12 @@ and sessions are never included in public reports.
    then clearing the session after server-side expiry.
 6. Real password-attempt admission limits, Retry-After, and recovery after the
    server's cooldown window.
+7. Original-video permission, authenticated first/tail/seek ranges, cross-library
+   denial and cancellation after original permission is revoked.
 
-Sanitized results go to `docs/evidence/android/integration`; transient Gradle logs
+Sanitized results default to `docs/evidence/android/integration`. Use
+`--evidence-dir docs/evidence/android/video/backend` to preserve earlier reports;
+the runner restricts output to Android evidence ownership. Transient Gradle logs
 stay under ignored `android/build/backend-integration`. Any failure is an actual
 test failure, never a skip or fallback to canned responses.
 

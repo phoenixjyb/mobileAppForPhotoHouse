@@ -5,9 +5,10 @@ frozen native contract through OkHttp 4.12.0: phone/password login, invited
 registration, own-session and library selection, invitation acceptance, paged
 gallery, authenticated thumbnails, asset details, literal captions and logout.
 It supports English and Simplified Chinese interface text, page-preserving photo
-navigation, and an explicit original-photo viewer with zoom/pan. UI polish is deferred.
+navigation, an original-photo viewer with zoom/pan, and permission-aware native
+video playback with play/pause/seek. UI polish is deferred.
 
-It is not the complete PhotoHouse product. Video playback, file downloads, uploads,
+It is not the complete PhotoHouse product. File downloads, uploads,
 search, albums, voice, owner administration and persistent sign-in are absent.
 Real backend deployment and physical-device acceptance have not been verified.
 
@@ -77,6 +78,21 @@ unsupported or corrupt images show an unavailable state. Decoding is serialized
 off the UI thread. Pinch/pan, double-tap, zoom buttons and fit-to-screen controls
 operate on the in-memory bitmap, with no URI or file handed to another app.
 
+The video player requires video details with original permission and an explicit
+Open video action. It accepts MP4/WebM over authenticated single Range reads, up
+to 256 KiB per read and 4 GiB per file. Every nonempty read goes through the same
+fixed HTTPS origin and bearer adapter, including seeks. Full 200 fallbacks,
+redirects, encoded/malformed/mismatched ranges and changing lengths are rejected.
+The reader stores no chunk cache and gives the native player neither URLs nor
+tokens. Codec support and internal playback buffering remain platform-dependent.
+
+Playback prepares off the UI thread and starts only after Play. Audio focus loss
+and headphone disconnection pause it; it does not resume automatically. Back,
+Close, navigation, logout, expiry and backgrounding close the reader, cancel its
+calls and release the player/surface/audio focus. Failure retries reload detail
+and permission first, never silently resume playback. There is no background
+service, picture-in-picture, download, playlist or casting support.
+
 401 clears the affected view and checks the session once. 403 remains closed.
 429 blocks requests until `Retry-After` expires; retries are explicit. 503/offline
 is shown as unavailable. Invitation acceptance is never automatically replayed
@@ -88,6 +104,7 @@ to check the UI components and separately check the unconfigured app. These test
 do not establish deployed authorization or a real successful sign-in. Test-only
 own-View renders leave `FLAG_SECURE` enabled; ordinary screenshots remain blocked.
 
+Video evidence: [RETURN.md](../../docs/evidence/android/video/RETURN.md).
 Original-viewer evidence: [RETURN.md](../../docs/evidence/android/originals/RETURN.md).
 Earlier connected implementation: [RESULT.md](../../docs/evidence/android/connected/RESULT.md).
 

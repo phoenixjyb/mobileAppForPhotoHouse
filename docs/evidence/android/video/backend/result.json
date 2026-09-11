@@ -1,0 +1,23 @@
+{
+  "backend_commit": "87a60b475b37b1d6873cd977bcb6e7254472da7e",
+  "contract_version": "1.0.0-fixture.1",
+  "backend_source_checksums": 10,
+  "versions": {
+    "python": "3.14.7",
+    "uvicorn": "0.42.0",
+    "fastapi": "0.135.2",
+    "starlette": "1.0.0",
+    "sqlalchemy": "2.0.52",
+    "alembic": "1.19.2",
+    "httpx": "0.28.1",
+    "Pillow": "12.1.1"
+  },
+  "tests": 7,
+  "failures": 0,
+  "errors": 0,
+  "skipped": 0,
+  "transport": "real loopback TLS to pinned ASGI and temporary migrated SQLite",
+  "real_backend_deployment_accessed": false,
+  "backend_checkout_modified": false,
+  "source_export_removed": true
+}

@@ -15,6 +15,7 @@ data class LiveState(
     val previews: Map<String, ByteArray> = emptyMap(), val busy: Boolean = false,
     val covered: Boolean = false, val problem: LiveProblem? = null,
     val photoNavigation: PhotoNavigation? = null,
+    val video: VideoReader? = null,
     val viewingOriginal: Boolean = false, val originalPhoto: ByteArray? = null,
 )
 
@@ -34,6 +35,7 @@ class ConnectedStore(private val api: PhotoHouseApi, private val scope: Coroutin
     val cachedBytes get() = state.value.previews.values.sumOf { it.size }
 
     private fun invalidate(keepIdentity: Boolean, cover: Boolean = false) {
+        state.value.video?.close()
         requests.toList().forEach { it.cancel() }; requests.clear(); retry = null
         if (!keepIdentity) { token = null; identity = null; deadline = 0; expiryJob?.cancel(); expiryJob = null }
         mutable.value = LiveState(generation = state.value.generation + 1, session = if (cover) null else identity, covered = cover,
@@ -134,6 +136,33 @@ class ConnectedStore(private val api: PhotoHouseApi, private val scope: Coroutin
     fun backToPhotos() {
         loadPage(state.value.photoNavigation?.page ?: state.value.gallery?.page ?: 1)
     }
+    fun openVideo() {
+        if (!allowed() || state.value.busy || state.value.video != null || coolingDown()) return
+        val detail = state.value.detail ?: return
+        if (!detail.originals_allowed || detail.asset.kind != "video") return
+        val credential = token!!
+        val navigation = state.value.photoNavigation
+        retainDetail(viewingOriginal = false, busy = false)
+        val generation = state.value.generation
+        val reader = VideoReader({ start, length -> api.videoRange(credential, detail.library_id, detail.asset.id, start, length) }, deadline, now) { error ->
+            scope.launch {
+                if (active(generation)) readFailure(error, generation, credential) { openPhoto(detail.asset.id, navigation) }
+            }
+        }
+        mutable.value = state.value.copy(video = reader)
+    }
+    fun closeVideo(reader: VideoReader? = state.value.video) {
+        if (state.value.video !== reader) return
+        if (usable() && state.value.video != null) retainDetail(viewingOriginal = false, busy = false)
+    }
+    fun videoPlaybackFailed(reader: VideoReader) {
+        if (state.value.video !== reader || !usable()) return
+        // Transport failure owns its classified error and any session recheck.
+        if (reader.isClosed) return
+        reader.close()
+        retainDetail(viewingOriginal = false, busy = false)
+        mutable.value = state.value.copy(problem = LiveProblem(Message.MEDIA_UNAVAILABLE))
+    }
     fun openOriginalPhoto() {
         if (!allowed() || state.value.busy || state.value.viewingOriginal || coolingDown()) return
         val detail = state.value.detail ?: return
@@ -190,7 +219,8 @@ class ConnectedStore(private val api: PhotoHouseApi, private val scope: Coroutin
     }
     private suspend fun readFailure(error: Exception, generation: Long, credential: Bearer, retryRead: () -> Unit) {
         if (!active(generation)) return
-        mutable.value = state.value.copy(gallery = null, detail = null, captions = null, previews = emptyMap(), photoNavigation = null, originalPhoto = null, viewingOriginal = false, busy = false, problem = problem(error))
+        state.value.video?.close()
+        mutable.value = state.value.copy(video = null, gallery = null, detail = null, captions = null, previews = emptyMap(), photoNavigation = null, originalPhoto = null, viewingOriginal = false, busy = false, problem = problem(error))
         if (error is ApiFailure && error.status == 401) {
             mutable.value = state.value.copy(busy = true)
             try {
