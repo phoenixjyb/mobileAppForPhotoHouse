@@ -13,6 +13,8 @@ class ConnectedStoreTest {
     private inner class FakeApi : PhotoHouseApi {
         var currentSession = Session("account-a", "+12025550123", listOf(membership("family"), membership("second"), membership("closed", false)))
         var sessionReads = 0; var galleryReads = 0; var imageReads = 0; var logouts = 0; var accepts = 0; var logins = 0
+        var admissionError: Exception? = null
+        var thumbnailGate: CompletableDeferred<Unit>? = null
         var sessionError: Exception? = null
         var galleryError: Exception? = null
         var detailError: Exception? = null
@@ -33,7 +35,7 @@ class ConnectedStoreTest {
         var assets = listOf(asset)
         var lastRegistration: String? = null
         override suspend fun login(phone: String, password: String): SessionToken {
-            logins++; loginGate?.let { withContext(NonCancellable) { it.await() } }
+            logins++; admissionError?.let { throw it }; loginGate?.let { withContext(NonCancellable) { it.await() } }
             return SessionToken(86400, "T".repeat(43), "Bearer")
         }
         override suspend fun register(phone: String, password: String, code: String): SessionToken { lastRegistration = code; return login(phone, password) }
@@ -56,7 +58,7 @@ class ConnectedStoreTest {
             detailError?.let { throw it }; return response
         }
         override suspend fun captions(token: Bearer, library: String, assetId: String) = Captions(library, assetId, false, listOf(Caption("c1", "<b>原文 literal</b>", false, false, null, null)))
-        override suspend fun thumbnail(token: Bearer, library: String, asset: Asset): ByteArray? { imageReads++; return images }
+        override suspend fun thumbnail(token: Bearer, library: String, asset: Asset): ByteArray? { imageReads++; val response = images; thumbnailGate?.let { withContext(NonCancellable) { it.await() } }; return response }
         override suspend fun videoRange(token: Bearer, library: String, assetId: String, start: Long, length: Int): VideoChunk {
             videoError?.let { throw it }
             return VideoChunk(start, 100, ByteArray(minOf(length, 100 - start.toInt())))
@@ -69,6 +71,62 @@ class ConnectedStoreTest {
     }
     private fun TestScope.store(api: FakeApi) = ConnectedStore(api, backgroundScope) { testScheduler.currentTime }
     private fun TestScope.signIn(store: ConnectedStore) { store.authenticate("+12025550123", "synthetic-password-only"); runCurrent(); assertNotNull(store.state.value.session) }
+
+    @Test fun refusedInvitationNeverCreatesSessionOrTriggersAutomaticAdmissionRetry() = runTest {
+        // Invalid, already-used and wrong-phone codes intentionally have the same
+        // non-enumerating server denial. The client cannot infer which one failed.
+        for (code in listOf("synthetic-invalid", "synthetic-used", "synthetic-wrong-phone")) {
+            val api = FakeApi().apply { admissionError = ApiFailure(FailureKind.HTTP, 401) }
+            val store = store(api)
+            store.authenticate("+12025550123", "synthetic-password-only", code); runCurrent()
+            assertEquals(1, api.logins); assertEquals(0, api.sessionReads)
+            assertFalse(store.hasSession); assertNull(store.state.value.session)
+            assertEquals(Message.ACCESS_DENIED, store.state.value.problem?.message)
+            store.retry(); store.selectLibrary("family"); runCurrent()
+            assertEquals(1, api.logins); assertEquals(0, api.galleryReads); assertFalse(store.canRetry())
+        }
+    }
+    @Test fun refreshedRevokedExpiredOrClosedLibraryCannotUsePreviousApproval() = runTest {
+        for (status in listOf("revoked", "requested", "rejected", "approved")) {
+            val api = FakeApi(); val store = store(api); signIn(store)
+            store.selectLibrary("family"); runCurrent(); assertTrue(store.cachedBytes > 0)
+            store.background()
+            api.currentSession = api.currentSession.copy(memberships = listOf(membership("family", false).copy(status = status)))
+            store.foreground(); runCurrent(); store.selectLibrary("family"); runCurrent()
+            assertTrue(store.hasSession); assertEquals(1, api.galleryReads)
+            assertEquals(0, store.cachedBytes); assertNull(store.state.value.gallery)
+            assertEquals(Message.ACCESS_DENIED, store.state.value.problem?.message)
+        }
+    }
+    @Test fun accountDisabledOrSessionRevokedDuringReadDropsCredentialsAndAllContent() = runTest {
+        val api = FakeApi(); val store = store(api); signIn(store)
+        store.selectLibrary("family"); runCurrent(); store.openAsset(asset); runCurrent()
+        api.galleryError = ApiFailure(FailureKind.HTTP, 401)
+        api.sessionError = ApiFailure(FailureKind.HTTP, 401)
+        store.backToPhotos(); runCurrent()
+        assertEquals(2, api.sessionReads); assertFalse(store.hasSession)
+        assertNull(store.state.value.session); assertNull(store.state.value.gallery)
+        assertNull(store.state.value.detail); assertNull(store.state.value.captions)
+        assertEquals(0, store.cachedBytes); assertFalse(store.canRetry())
+        assertEquals(Message.SESSION_ENDED, store.state.value.problem?.message)
+    }
+    @Test fun lateThumbnailCannotRestoreAfterLogoutExpiryOrLibraryChange() = runTest {
+        for (boundary in listOf("logout", "expiry", "library")) {
+            val api = FakeApi().apply { thumbnailGate = CompletableDeferred() }
+            val store = store(api); signIn(store); store.selectLibrary("family"); runCurrent()
+            val gate = api.thumbnailGate!!
+            api.thumbnailGate = null; api.images = null
+            when (boundary) {
+                "logout" -> store.logout()
+                "expiry" -> advanceTimeBy(86400_000)
+                else -> store.selectLibrary("second")
+            }
+            runCurrent(); gate.complete(Unit); runCurrent()
+            assertEquals(0, store.cachedBytes); assertTrue(store.state.value.previews.isEmpty())
+            assertEquals(boundary == "library", store.hasSession)
+            assertEquals(if (boundary == "library") "second" else null, store.state.value.library)
+        }
+    }
 
     @Test fun videoIsExplicitPermissionedAndClosedAtEveryPrivacyBoundary() = runTest {
         for (boundary in listOf("close", "background", "logout", "library", "expiry", "navigation")) {

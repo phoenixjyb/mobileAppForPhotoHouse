@@ -1,0 +1,46 @@
+{
+  "java": "openjdk version \"17.0.20.1\" 2026-08-18",
+  "compiler": "Kotlin 1.9.24 embeddable, direct CLI",
+  "network_guard": "JDK 17 SecurityManager denies connect/listen/accept",
+  "suites": [
+    "dev.photohouse.fixture.core.FixtureTest",
+    "dev.photohouse.connected.core.ConnectedStoreTest",
+    "dev.photohouse.connected.core.VideoReaderTest",
+    "dev.photohouse.connected.core.ReadinessAdapterTest"
+  ],
+  "cached_artifact_sha256": {
+    "org.jetbrains.kotlin:kotlin-stdlib:1.9.24": "858b902696da9cf585ab9d98ffc1c2712269828354dfe9107e3711b084a36468",
+    "org.jetbrains.kotlin:kotlin-compiler-embeddable:1.9.24": "e71ff19e6b141ab85a9328fd010941531a302543026bd4244c95adc208d501f6",
+    "org.jetbrains.kotlin:kotlin-script-runtime:1.9.24": "314c7d308fe750654365bac6144780613c9169cf3d9e1dafbab91cf80bdc357c",
+    "org.jetbrains.kotlin:kotlin-reflect:1.6.10": "3277ac102ae17aad10a55abec75ff5696c8d109790396434b496e75087854203",
+    "org.jetbrains.intellij.deps:trove4j:1.0.20200330": "c5fd725bffab51846bf3c77db1383c60aaaebfe1b7fe2f00d23fe1b7df0a439d",
+    "org.jetbrains:annotations:13.0": "ace2a10dc8e2d5fd34925ecac03e4988b2c0f851650c94b8cef49ba1bd111478",
+    "org.jetbrains.kotlin:kotlin-serialization-compiler-plugin-embeddable:1.9.24": "4ff5c813beaf6878ef07114866f53891e31d96c72bf9758cbc6f350a6c4d36cd",
+    "org.jetbrains:annotations:23.0.0": "7b0f19724082cbfcbc66e5abea2b9bc92cf08a1ea11e191933ed43801eb3cd05",
+    "org.jetbrains.kotlinx:kotlinx-serialization-json-jvm:1.6.3": "d3234179bcff1886d53d67c11eca47f7f3cf7b63c349d16965f6db51b7f3dd9a",
+    "org.jetbrains.kotlinx:kotlinx-serialization-core-jvm:1.6.3": "29c821a8d4e25cbfe4f2ce96cdd4526f61f8f4e69a135f9612a34a81d93b65f1",
+    "org.jetbrains.kotlinx:kotlinx-coroutines-core-jvm:1.8.1": "f3d4f5de1c391bbcc20f3b3435ccbac013521e76b6902d7d59635ec15c1f797e",
+    "org.jetbrains.kotlinx:kotlinx-coroutines-test-jvm:1.8.1": "c4ef1deb31be3f81ed82ecf237220cc95886868a7ec527a418599dfff159dedb",
+    "com.squareup.okhttp3:okhttp:4.12.0": "b1050081b14bb7a3a7e55a4d3ef01b5dcfabc453b4573a4fc019767191d5f4e0",
+    "com.squareup.okio:okio-jvm:3.6.0": "67543f0736fc422ae927ed0e504b98bc5e269fda0d3500579337cb713da28412",
+    "junit:junit:4.13.2": "8e495b634469d64fb8acfa3495a065cbacc8a0fff55ce1e31007be4c16dc57d3",
+    "org.hamcrest:hamcrest-core:1.3": "66fdef91e9739348df7a096aa384a5685f4e875584cce89386a7a47251c4d8e9"
+  },
+  "compiled_source_sha256": {
+    "android/protocol/src/main/kotlin/dev/photohouse/protocol/WireModels.kt": "36e4615cfed03a5de047a8a482ba7a917e58bc62c96be9aab67efa704df9ce71",
+    "android/core/src/main/kotlin/dev/photohouse/fixture/core/Contract.kt": "e98bd4eb8db9508c0aab68095634645a8e53cb99cc89033c31ed80424cc34940",
+    "android/core/src/main/kotlin/dev/photohouse/fixture/core/FixtureRepository.kt": "97bcfa67d1a5cc7f89c9401f44595b52ec9b524901104643502bbbcf903f57c7",
+    "android/core/src/main/kotlin/dev/photohouse/fixture/core/PhotoHouseStore.kt": "f688d0e02c1e0ef729b5aa8609dc7b72b53df66c62ee76b517e79e5a742286d4",
+    "android/live-core/src/main/kotlin/dev/photohouse/connected/core/ConnectedStore.kt": "cb654cf8b596c6b4110f3d38dc60b1a026124f936b0b9d75df49f4b3c7cca160",
+    "android/live-core/src/main/kotlin/dev/photohouse/connected/core/HttpsPhotoHouseApi.kt": "49873cef1cf01becc094ffc57069135e15cd77f3a1d79d369f9b157d5ab4bab9",
+    "android/live-core/src/main/kotlin/dev/photohouse/connected/core/PhotoHouseApi.kt": "3abb4859d08b195cf3f178cb848368050f284aec9d2d3d18e617e375162d2702",
+    "android/live-core/src/main/kotlin/dev/photohouse/connected/core/VideoReader.kt": "74b497616e782c1640439fa5aa3d0cbe04c3b70db42fab9ddfe38afaeeba2f12",
+    "android/core/src/test/kotlin/dev/photohouse/fixture/core/FixtureTest.kt": "695dccf346c9767558c7a9fe829f8eb595fc39847f63632f57be5387ada8e5a1",
+    "android/live-core/src/test/kotlin/dev/photohouse/connected/core/ConnectedStoreTest.kt": "7ec07b4237d8a13a09e7e6272e731cf7aaca684fd4202c975001a0262260032c",
+    "android/live-core/src/test/kotlin/dev/photohouse/connected/core/VideoReaderTest.kt": "fca19d94ff03ab018eadefc416035e12a993a8a55d35b4f5a5bb6b53c91b9a6f",
+    "android/live-core/src/test/kotlin/dev/photohouse/connected/core/ReadinessAdapterTest.kt": "c08296a9613c7c916276fd34d23e3acf73b0c6a9ff3eea447cec7653cd36dc16"
+  },
+  "apk_built": false,
+  "device_run": false,
+  "real_backend_run": false
+}
