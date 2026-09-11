@@ -1,0 +1,6 @@
+<?xml version='1.0' encoding='utf-8'?>
+<testsuite name="dev.photohouse.connected.core.VideoReaderTest" tests="3" skipped="0" failures="0" errors="0" timestamp="2026-09-11T03:00:52" time="0.02">
+  <testcase name="changedSizeMalformedChunkExpiryAndDenialFailClosedOnlyOnce" classname="dev.photohouse.connected.core.VideoReaderTest" time="0.006" />
+  <testcase name="randomReadsAreBoundedAndEofAndZeroLengthDoNotFetch" classname="dev.photohouse.connected.core.VideoReaderTest" time="0.008" />
+  <testcase name="closeCancelsInflightReadAndNeverCopiesLateBytes" classname="dev.photohouse.connected.core.VideoReaderTest" time="0.006" />
+  </testsuite>

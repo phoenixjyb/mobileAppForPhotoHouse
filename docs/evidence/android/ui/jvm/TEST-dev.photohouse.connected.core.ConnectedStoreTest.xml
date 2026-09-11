@@ -1,0 +1,31 @@
+<?xml version='1.0' encoding='utf-8'?>
+<testsuite name="dev.photohouse.connected.core.ConnectedStoreTest" tests="28" skipped="0" failures="0" errors="0" timestamp="2026-09-11T03:00:44" time="0.407">
+  <testcase name="videoOfflineRetryReloadsPermissionAndNeverRestartsPlayback" classname="dev.photohouse.connected.core.ConnectedStoreTest" time="0.268" />
+  <testcase name="originalRequiresExplicitImagePermissionAndNeverFallsBackFromMissingPreview" classname="dev.photohouse.connected.core.ConnectedStoreTest" time="0.01" />
+  <testcase name="videoIsExplicitPermissionedAndClosedAtEveryPrivacyBoundary" classname="dev.photohouse.connected.core.ConnectedStoreTest" time="0.02" />
+  <testcase name="lateAuthenticationCannotUncoverAfterBackground" classname="dev.photohouse.connected.core.ConnectedStoreTest" time="0.007" />
+  <testcase name="expiryClearsWithoutWaitingForAnotherUserAction" classname="dev.photohouse.connected.core.ConnectedStoreTest" time="0.003" />
+  <testcase name="videoDenialRechecksOnceAndOldPlayerCannotCloseNewVideo" classname="dev.photohouse.connected.core.ConnectedStoreTest" time="0.004" />
+  <testcase name="offlineAdjacentRetryFetchesAgainAndRetainsReturnPage" classname="dev.photohouse.connected.core.ConnectedStoreTest" time="0.005" />
+  <testcase name="malformedIdentityOnForegroundRemainsCovered" classname="dev.photohouse.connected.core.ConnectedStoreTest" time="0.004" />
+  <testcase name="session401SignsOutAnd503KeepsCoverForExplicitRetry" classname="dev.photohouse.connected.core.ConnectedStoreTest" time="0.003" />
+  <testcase name="signInRechecksOwnSessionAndClosedMembershipNeverReads" classname="dev.photohouse.connected.core.ConnectedStoreTest" time="0.003" />
+  <testcase name="originalDenialRechecksOnceAndClearsAllPrivateContent" classname="dev.photohouse.connected.core.ConnectedStoreTest" time="0.005" />
+  <testcase name="originalOfflineRetryRechecksMetadataBeforeAnotherExplicitOriginalRead" classname="dev.photohouse.connected.core.ConnectedStoreTest" time="0.003" />
+  <testcase name="detailNavigationStaysOnCurrentPageAndFetchesEachPhoto" classname="dev.photohouse.connected.core.ConnectedStoreTest" time="0.005" />
+  <testcase name="missingThumbnailAndLiteralCaptionsAreNotOriginalOrHtmlFallbacks" classname="dev.photohouse.connected.core.ConnectedStoreTest" time="0.004" />
+  <testcase name="closingOriginalCancelsLateBytesAndRetainsNavigation" classname="dev.photohouse.connected.core.ConnectedStoreTest" time="0.003" />
+  <testcase name="adjacentPhotoDenialClearsSequenceAndRechecksSessionOnce" classname="dev.photohouse.connected.core.ConnectedStoreTest" time="0.004" />
+  <testcase name="invitationAcceptanceRefetchesMembershipAndDoesNotReplayMutation" classname="dev.photohouse.connected.core.ConnectedStoreTest" time="0.004" />
+  <testcase name="logoutFailureIsLocalAndLateAcknowledgementCannotReplaceNewAccount" classname="dev.photohouse.connected.core.ConnectedStoreTest" time="0.004" />
+  <testcase name="galleryPagesDeduplicateAndBoundMemory" classname="dev.photohouse.connected.core.ConnectedStoreTest" time="0.002" />
+  <testcase name="object401RechecksOnceWithoutRetryingForeignRead" classname="dev.photohouse.connected.core.ConnectedStoreTest" time="0.004" />
+  <testcase name="navigationContextIsClearedAtEveryPrivateStateBoundary" classname="dev.photohouse.connected.core.ConnectedStoreTest" time="0.004" />
+  <testcase name="backgroundClearsPrivateStateAndRevalidatesBeforeUncovering" classname="dev.photohouse.connected.core.ConnectedStoreTest" time="0.002" />
+  <testcase name="invitedRegistrationAndColdStartAreIndependentOfFixtureState" classname="dev.photohouse.connected.core.ConnectedStoreTest" time="0.003" />
+  <testcase name="pendingAdjacentPhotoCannotRestoreAfterBackOrLibrarySwitch" classname="dev.photohouse.connected.core.ConnectedStoreTest" time="0.005" />
+  <testcase name="originalBudgetAndMissingFileHaveExplicitErrors" classname="dev.photohouse.connected.core.ConnectedStoreTest" time="0.007" />
+  <testcase name="rateLimitSurvivesNavigationAndRequiresExplicitRetry" classname="dev.photohouse.connected.core.ConnectedStoreTest" time="0.005" />
+  <testcase name="lateGalleryCannotCrossLibraryOrLogoutGeneration" classname="dev.photohouse.connected.core.ConnectedStoreTest" time="0.004" />
+  <testcase name="lateOriginalCannotCrossLogoutBackgroundLibraryOrExpiry" classname="dev.photohouse.connected.core.ConnectedStoreTest" time="0.007" />
+  </testsuite>

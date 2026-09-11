@@ -22,6 +22,7 @@ class ConnectedUiTest {
     private val scope = CoroutineScope(SupervisorJob() + Dispatchers.Main.immediate)
     @After fun stop() { scope.cancel() }
     private class SyntheticApi : PhotoHouseApi {
+        var previewBytes: ByteArray? = null
         var videoBytes = byteArrayOf()
         val videoReads = java.util.concurrent.CopyOnWriteArrayList<Pair<Long, Int>>()
         var registrationCode: String? = null
@@ -37,7 +38,7 @@ class ConnectedUiTest {
         override suspend fun gallery(token: Bearer, library: String, page: Int) = Gallery(library, page, 50, total, false, photos)
         override suspend fun detail(token: Bearer, library: String, assetId: String) = Detail(library, originalsAllowed, photos.first { it.id == assetId })
         override suspend fun captions(token: Bearer, library: String, assetId: String) = Captions(library, assetId, false, listOf(Caption("1", "<b>Literal 原文</b>", false, false, null, null)))
-        override suspend fun thumbnail(token: Bearer, library: String, asset: Asset): ByteArray? = null
+        override suspend fun thumbnail(token: Bearer, library: String, asset: Asset): ByteArray? = previewBytes
         override suspend fun videoRange(token: Bearer, library: String, assetId: String, start: Long, length: Int): VideoChunk {
             videoReads += start to length
             return VideoChunk(start, videoBytes.size.toLong(), videoBytes.copyOfRange(start.toInt(), minOf(videoBytes.size, start.toInt() + length)))
@@ -54,13 +55,25 @@ class ConnectedUiTest {
         }
     }
     private fun reveal(matcher: SemanticsMatcher) { rule.onNodeWithTag("connected-screen").performScrollToNode(matcher) }
-    private fun click(text: String) { val matcher = hasText(text) and hasClickAction(); reveal(matcher); rule.onNode(matcher).performClick(); rule.waitForIdle() }
+    private fun click(text: String) {
+        val matcher = hasText(text) and hasClickAction()
+        if (text in listOf("简体中文", "English", "System", "系统", "Sign out", "退出登录")) {
+            reveal(hasTestTag("app-settings")); rule.onNodeWithTag("app-settings").performClick()
+        } else reveal(matcher)
+        rule.onNode(matcher).performClick(); rule.waitForIdle()
+    }
     private fun input(label: String, text: String) { val matcher = hasText(label) and hasSetTextAction(); reveal(matcher); rule.onNode(matcher).performTextInput(text) }
     private fun capture(name: String) {
         rule.waitForIdle()
         val videoBounds = if (name.startsWith("video-")) rule.onNodeWithTag("video-surface").fetchSemanticsNode().boundsInWindow else null
         rule.runOnUiThread {
-            val view = rule.activity.window.decorView
+            // Dialogs own a separate window; draw that owned window without
+            // disabling FLAG_SECURE or capturing another application's surface.
+            val view = if (name.startsWith("settings-")) {
+                check(android.os.Build.VERSION.SDK_INT >= 29) { "Dialog render evidence requires API 29+" }
+                android.view.inspector.WindowInspector.getGlobalWindowViews()
+                    .last { it.isShown && it !== rule.activity.window.decorView }
+            } else rule.activity.window.decorView
             val bitmap = Bitmap.createBitmap(view.width, view.height, Bitmap.Config.ARGB_8888)
             val canvas = Canvas(bitmap)
             view.draw(canvas)
@@ -107,6 +120,41 @@ class ConnectedUiTest {
         click("简体中文"); reveal(hasText("<b>Literal 原文</b>")); rule.onNodeWithText("<b>Literal 原文</b>").assertIsDisplayed(); capture("literal-caption-zh")
         click("退出登录"); assertFalse(store.hasSession)
         rule.onAllNodes(hasText("<b>Literal 原文</b>")).assertCountEquals(0)
+    }
+    @Test fun photoLedGalleryDetailAndSettingsRemainReachableInBothLanguages() {
+        val bitmap = Bitmap.createBitmap(640, 480, Bitmap.Config.ARGB_8888)
+        val canvas = Canvas(bitmap)
+        val paint = android.graphics.Paint(android.graphics.Paint.ANTI_ALIAS_FLAG)
+        canvas.drawColor(android.graphics.Color.rgb(196, 219, 225))
+        paint.color = android.graphics.Color.rgb(246, 220, 165); canvas.drawCircle(460f, 100f, 48f, paint)
+        paint.color = android.graphics.Color.rgb(138, 169, 151); canvas.drawOval(-120f, 220f, 680f, 700f, paint)
+        paint.color = android.graphics.Color.rgb(68, 107, 88); canvas.drawOval(180f, 270f, 880f, 790f, paint)
+        val preview = java.io.ByteArrayOutputStream().use { stream ->
+            bitmap.compress(Bitmap.CompressFormat.PNG, 100, stream); bitmap.recycle(); stream.toByteArray()
+        }
+        val api = SyntheticApi().apply {
+            previewBytes = preview; originalsAllowed = true
+            photos = listOf(photo.copy(kind = "image"), photo.copy(id = "2", taken_at = "2026-01-02"),
+                photo.copy(id = "3", kind = "image", taken_at = null))
+            total = photos.size.toLong()
+        }
+        val store = ConnectedStore(api, scope)
+        rule.runOnUiThread { rule.activity.setContent { ConnectedApp(store) }; store.authenticate("+12025550123", "synthetic-password-only") }
+        reveal(hasText("Your libraries")); capture("libraries-en")
+        click("Open library")
+        rule.waitUntil(5000) { store.state.value.previews.size == 3 }
+        reveal(hasText("Photos")); capture("gallery-en")
+        click("2026-01-01")
+        reveal(hasContentDescription("Photo 1")); rule.onNodeWithContentDescription("Photo 1").assertIsDisplayed(); capture("detail-en")
+        click("简体中文")
+        reveal(hasContentDescription("照片 1")); rule.onNodeWithContentDescription("照片 1").assertIsDisplayed(); capture("detail-zh")
+        click("返回照片"); reveal(hasText("照片", substring = false)); capture("gallery-zh")
+        click("资料库"); reveal(hasText("你的资料库")); capture("libraries-zh")
+        reveal(hasTestTag("app-settings")); rule.onNodeWithTag("app-settings").performClick()
+        rule.onNodeWithText("界面语言").assertIsDisplayed(); rule.onNodeWithText("退出登录").assertIsDisplayed(); capture("settings-zh")
+        rule.onNodeWithText("退出登录").performClick(); rule.waitForIdle()
+        assertFalse(store.hasSession); assertTrue(store.state.value.previews.isEmpty())
+        rule.onNodeWithText("你的资料库").assertDoesNotExist()
     }
     @Test fun syntheticInvitedRegistrationRequiresAllInputs() {
         val api = SyntheticApi(); val store = ConnectedStore(api, scope)

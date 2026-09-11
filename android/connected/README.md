@@ -112,3 +112,15 @@ The optional [actual-backend interoperability suite](../integration/README.md)
 exercises this same Kotlin adapter against the pinned Python application over
 local TLS with temporary migrated SQLite. It is separate from ordinary JVM tests
 and deployed-server/device acceptance.
+
+## Interface refinement
+
+The connected UI uses a warm neutral theme and a photo-led grid. Open **Settings**
+from the header for app language and sign-out; **Libraries** returns to membership
+selection. Gallery tiles crop previews, while detail previews fit the complete
+image. Original viewing and video remain explicit, permission-gated actions.
+At large text sizes the gallery uses one column and action groups wrap.
+
+The UI remains a development build with memory-only sign-in. Dates are source text,
+captions stay literal, and unavailable previews never fall back to original files.
+See `docs/evidence/android/ui/RETURN.md` for the independently recorded UI check.

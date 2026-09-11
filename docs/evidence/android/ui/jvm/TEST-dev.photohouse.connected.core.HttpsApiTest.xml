@@ -1,0 +1,22 @@
+<?xml version='1.0' encoding='utf-8'?>
+<testsuite name="dev.photohouse.connected.core.HttpsApiTest" tests="19" skipped="0" failures="0" errors="0" timestamp="2026-09-11T03:00:45" time="7.621">
+  <testcase name="protectedSessionUsesOneHeaderAndDoesNotPersistCookie" classname="dev.photohouse.connected.core.HttpsApiTest" time="0.86" />
+  <testcase name="videoDenialRateLimitRedirectAndCancellationHaveNoAutomaticRetry" classname="dev.photohouse.connected.core.HttpsApiTest" time="0.272" />
+  <testcase name="videoRejectsIgnoredMalformedCompressedOversizedAndTruncatedRanges" classname="dev.photohouse.connected.core.HttpsApiTest" time="0.24" />
+  <testcase name="originAdmissionAndOpaqueTokenValidation" classname="dev.photohouse.connected.core.HttpsApiTest" time="0.007" />
+  <testcase name="nativeLoginAndRegistrationSendExactFieldsWithoutAmbientCredentials" classname="dev.photohouse.connected.core.HttpsApiTest" time="0.207" />
+  <testcase name="cancelStopsOutstandingTransport" classname="dev.photohouse.connected.core.HttpsApiTest" time="0.127" />
+  <testcase name="originalRejectsKnownAndUnknownOversizeAndIncompleteOrNonImageBodies" classname="dev.photohouse.connected.core.HttpsApiTest" time="2.51" />
+  <testcase name="requestLimitsRejectOversizedInvitationBeforeNetwork" classname="dev.photohouse.connected.core.HttpsApiTest" time="0.077" />
+  <testcase name="thumbnailMimeAndStreamingSizeAreBounded" classname="dev.photohouse.connected.core.HttpsApiTest" time="0.181" />
+  <testcase name="originalUsesFixedAuthenticatedNoStoreRouteAndAcceptsExactBudget" classname="dev.photohouse.connected.core.HttpsApiTest" time="1.52" />
+  <testcase name="originalDenialAndRedirectAreNeverFollowedOrRetried" classname="dev.photohouse.connected.core.HttpsApiTest" time="0.117" />
+  <testcase name="statusesDoNotDependOnErrorBodyAndNeverAutoRetry" classname="dev.photohouse.connected.core.HttpsApiTest" time="0.1" />
+  <testcase name="arbitraryThumbnailUrlsNeverSendBearer" classname="dev.photohouse.connected.core.HttpsApiTest" time="0.066" />
+  <testcase name="redirectsNeverFollowEvenOnSameOrigin" classname="dev.photohouse.connected.core.HttpsApiTest" time="0.119" />
+  <testcase name="videoRangesAuthenticateEverySeekWithStrictSameOriginHeaders" classname="dev.photohouse.connected.core.HttpsApiTest" time="0.139" />
+  <testcase name="frozenBrowsingAndMutationResponsesUseExactScopedRoutes" classname="dev.photohouse.connected.core.HttpsApiTest" time="0.158" />
+  <testcase name="missingThumbnailIsPlaceholderWithNoOriginalFallback" classname="dev.photohouse.connected.core.HttpsApiTest" time="0.192" />
+  <testcase name="boundedStreamingAndStrictJsonRejectMalformedResponses" classname="dev.photohouse.connected.core.HttpsApiTest" time="0.408" />
+  <testcase name="platformTrustRejectsSelfSignedServerAndHostnameValidationRemainsEnabled" classname="dev.photohouse.connected.core.HttpsApiTest" time="0.316" />
+  </testsuite>

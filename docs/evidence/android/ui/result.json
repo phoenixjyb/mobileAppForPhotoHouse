@@ -1,0 +1,290 @@
+{
+  "task": "PH-ANDROID-UI-01",
+  "base": "0970d981985cca1363dc4e98c2d8a1087f6348eb",
+  "branch": "codex/android-ui-refinement",
+  "contract": {
+    "backend_pin": "87a60b475b37b1d6873cd977bcb6e7254472da7e",
+    "operations": 12,
+    "cases": 38,
+    "checksummed_files": 8,
+    "passed": true,
+    "unchanged": true
+  },
+  "artifacts": {
+    "connected": {
+      "path": "android/connected/build/outputs/apk/debug/connected-debug.apk",
+      "sha256": "ca38584656b4d864f1d2cccce398e0e0b91c5721a2bd39149676e0cc84943e97",
+      "bytes": 8936400
+    },
+    "instrumentation": {
+      "path": "android/connected/build/outputs/apk/androidTest/debug/connected-debug-androidTest.apk",
+      "sha256": "532af50910f6cce0161fa75e8747e4736c23db81c4ed340d4fa658fbe03d5bac",
+      "bytes": 1608392
+    },
+    "fixture": {
+      "path": "android/app/build/outputs/apk/debug/app-debug.apk",
+      "sha256": "d16eb8f689b8700dc1c26fde09b9e8c0e9c6ea9d57572b650fb689a1a48ad88d",
+      "bytes": 8255351
+    }
+  },
+  "source_sha256": {
+    "android/connected/README.md": "1b73913a5fbd700b4b49fd60c959cf8f15c65cfbf58a030ff7eb1e1a9fcd1c04",
+    "android/connected/src/androidTest/java/dev/photohouse/connected/ConnectedUiTest.kt": "34b7c058c777b91ac1860bccdca7455cb4922d2189fed2a66146a2a5697d62f8",
+    "android/connected/src/main/java/dev/photohouse/connected/ConnectedApp.kt": "d2df34969b43aeda2c7d49233e9e59ee4be331391f79e56505ec1cf6a73a995f",
+    "android/verify-connected-emulator.sh": "e4c8c329037e8e4e6e2ce6846003578b99dc13d9247e41f2c2b96b410971e23c"
+  },
+  "jvm": [
+    {
+      "name": "dev.photohouse.connected.core.ConnectedStoreTest",
+      "tests": "28",
+      "failures": "0",
+      "errors": "0",
+      "time": "0.407"
+    },
+    {
+      "name": "dev.photohouse.connected.core.HttpsApiTest",
+      "tests": "19",
+      "failures": "0",
+      "errors": "0",
+      "time": "7.621"
+    },
+    {
+      "name": "dev.photohouse.connected.core.VideoReaderTest",
+      "tests": "3",
+      "failures": "0",
+      "errors": "0",
+      "time": "0.02"
+    },
+    {
+      "name": "dev.photohouse.fixture.core.FixtureTest",
+      "tests": "22",
+      "failures": "0",
+      "errors": "0",
+      "time": "0.508"
+    }
+  ],
+  "lint": [
+    {
+      "module": "app",
+      "errors": 0,
+      "issues": [
+        {
+          "id": "OldTargetApi",
+          "severity": "Warning"
+        }
+      ]
+    },
+    {
+      "module": "connected",
+      "errors": 0,
+      "issues": [
+        {
+          "id": "ExifInterface",
+          "severity": "Warning"
+        },
+        {
+          "id": "OldTargetApi",
+          "severity": "Warning"
+        }
+      ]
+    }
+  ],
+  "emulator": {
+    "avd": "Medium_Phone_API_36.0",
+    "serial": "emulator-5580",
+    "api": 36,
+    "abi": "arm64-v8a",
+    "runs": [
+      {
+        "font_scale": 1.0,
+        "tests": 9,
+        "failures": 0,
+        "seconds": 45.194,
+        "screenshots": [
+          {
+            "path": "screenshots/normal/admission-en.png",
+            "sha256": "6ba4a7cba2d49cf22d3aaffc2b1e076fa6d02ad69f532ab4f3666a3d952bca01"
+          },
+          {
+            "path": "screenshots/normal/detail-en.png",
+            "sha256": "10e5158a9691285d24a124d1aad73b24190cf659328908796a271ad5cbdfcab1"
+          },
+          {
+            "path": "screenshots/normal/detail-zh.png",
+            "sha256": "9e1ac1eeef4e2e64072929aad5904b6045289423119f5252256922e4e49662f0"
+          },
+          {
+            "path": "screenshots/normal/gallery-en.png",
+            "sha256": "6782571e6b0d69f834959df1c96616e6b67adafcf6a7f16da22bebc1b3cba217"
+          },
+          {
+            "path": "screenshots/normal/gallery-zh.png",
+            "sha256": "36ffa14c43801b1a9d1851148d1033d608da10abd7ecb26b67db465e77680719"
+          },
+          {
+            "path": "screenshots/normal/libraries-en.png",
+            "sha256": "f8e995620bb9d84694407f7f661bb6b677e54255f29e51927e9ebc31c386af4b"
+          },
+          {
+            "path": "screenshots/normal/libraries-zh.png",
+            "sha256": "30411e08021e2ce4eb33f6e390f2093033232c80567d07d807e4236ca77d068b"
+          },
+          {
+            "path": "screenshots/normal/literal-caption-en.png",
+            "sha256": "6890bd72ce7da9ef8c815e0a3ee294199d9cb04e0d3174f19e3a05e573d5d9b6"
+          },
+          {
+            "path": "screenshots/normal/literal-caption-zh.png",
+            "sha256": "114f36251ae3de1035c7a75096eb588b5b3a0748126641f2459a2e4f8432f91e"
+          },
+          {
+            "path": "screenshots/normal/original-photo-en.png",
+            "sha256": "905ad4d965c4a92be41efde80630e8c193d2f7ececb4ac8fb5098e5cee2d40fd"
+          },
+          {
+            "path": "screenshots/normal/original-photo-zh.png",
+            "sha256": "caac9e31db2f3c1874ab02f884dfcb7967b6c927258399cfacb03e985d27c280"
+          },
+          {
+            "path": "screenshots/normal/photo-navigation-en.png",
+            "sha256": "e078367ca8f6ce3e5dfeb57dc10a10d079172757a6fa64054f387cfe9d3b7ac4"
+          },
+          {
+            "path": "screenshots/normal/photo-navigation-zh.png",
+            "sha256": "974dc1325ce05f3c09799b4c2f692bad992169301573e97effe7d4ff0d04cdc5"
+          },
+          {
+            "path": "screenshots/normal/settings-zh.png",
+            "sha256": "6665f7e1756ad5315b0396e56d4f74e0e706bb828601637e60720cb2bb352176"
+          },
+          {
+            "path": "screenshots/normal/unconfigured-en.png",
+            "sha256": "f779baef50dc03c63d1c4f33b6b3bebe32b76933fc8d82a15cde6341c71837bc"
+          },
+          {
+            "path": "screenshots/normal/unconfigured-zh.png",
+            "sha256": "b4a8d9c6738df508a6ef574ee13b688237ec8aabde5ec5e6fd07df7afbbbc7e0"
+          },
+          {
+            "path": "screenshots/normal/video-en-frame.png",
+            "sha256": "7681d4ab350ee83c9fc7e0945d9901ff66d3d348b58868905562e6009011c82a"
+          },
+          {
+            "path": "screenshots/normal/video-en.png",
+            "sha256": "c35723216024f38bc5245ece052e2473c81d3d5693894148690b29dd3db1aca4"
+          },
+          {
+            "path": "screenshots/normal/video-zh-frame.png",
+            "sha256": "ea6987686cbdcefcf013e1b1914b779fee1df75007211d8e62d74ace22ca86c2"
+          },
+          {
+            "path": "screenshots/normal/video-zh.png",
+            "sha256": "3a85670bd8e9ad2ebcc3ae97edde360f09132aad003f1ab3733860059433f697"
+          }
+        ]
+      },
+      {
+        "font_scale": 2.0,
+        "tests": 9,
+        "failures": 0,
+        "seconds": 45.856,
+        "screenshots": [
+          {
+            "path": "screenshots/large/admission-en.png",
+            "sha256": "5a945aa2a56dcf49ea1b79ff85823b45bb0638a533ec3a98246109252fdca3cc"
+          },
+          {
+            "path": "screenshots/large/detail-en.png",
+            "sha256": "ec9637a5747f63a1a449ba78dab2353eb5197c435bb1d8eb92b967bbb4bd7450"
+          },
+          {
+            "path": "screenshots/large/detail-zh.png",
+            "sha256": "b8e143d2f1c164b4dbb5e865e20bd29c6ebe93e575b5cd7fd7018225574523df"
+          },
+          {
+            "path": "screenshots/large/gallery-en.png",
+            "sha256": "4ee0dcde432a0046c60a8d2711d729e2b8116622c6dc9274d0d7a6b852c594dc"
+          },
+          {
+            "path": "screenshots/large/gallery-zh.png",
+            "sha256": "a85de241d4e47f4313c44737f6f75e7b1947ea440c487271e31e53f0cb92158c"
+          },
+          {
+            "path": "screenshots/large/libraries-en.png",
+            "sha256": "29a1ae570716088e2af699f276bb12060caa9a77797ecee7fafe7048f9f8008a"
+          },
+          {
+            "path": "screenshots/large/libraries-zh.png",
+            "sha256": "c03e5ab01c4470789df771fdc79bebd92c4d1e6169bd445668cb100eb728bf32"
+          },
+          {
+            "path": "screenshots/large/literal-caption-en.png",
+            "sha256": "99d6cc78bf0c934fe6690fee2e51be18d533f7b4949e929dc3ef974b39498091"
+          },
+          {
+            "path": "screenshots/large/literal-caption-zh.png",
+            "sha256": "0f8cad6a03628d656a6dc760564af1c8f500df835f1e02b7a1993a7343fa41ce"
+          },
+          {
+            "path": "screenshots/large/original-photo-en.png",
+            "sha256": "7e84e9a2be5a8c43d535f08a701025d78633e35d68a423d73a91d86ba0138326"
+          },
+          {
+            "path": "screenshots/large/original-photo-zh.png",
+            "sha256": "e33693436ae2d1324a349c744d9c982b04b675ba868fe6a6c3bfb2c0198f663f"
+          },
+          {
+            "path": "screenshots/large/photo-navigation-en.png",
+            "sha256": "d1100c4fa44deed07450026e0705d213665f28e0dc09884a69c217d738909ae0"
+          },
+          {
+            "path": "screenshots/large/photo-navigation-zh.png",
+            "sha256": "f157b15cee0ddcbec72594cd3005e4e3120729c4cbc7b60f5d1f923e9c72a00c"
+          },
+          {
+            "path": "screenshots/large/settings-zh.png",
+            "sha256": "a8492dcd79ced6920cfcc36560158d36d8c06ed471a11671d1ba621554509014"
+          },
+          {
+            "path": "screenshots/large/unconfigured-en.png",
+            "sha256": "dce66c4fed6cc3b5f77a2e43108b3d944d1c88b9d2351787417c397c0bfefe38"
+          },
+          {
+            "path": "screenshots/large/unconfigured-zh.png",
+            "sha256": "10370ea4fa9a837aac5acb4d33bce1fc48a3089c27d3f2d6d294c2b22ecb140c"
+          },
+          {
+            "path": "screenshots/large/video-en-frame.png",
+            "sha256": "7a8ae3c8e7cfca2ec2cb28587d527f39bbdb1de60cf8e3a80f540f488aa269fe"
+          },
+          {
+            "path": "screenshots/large/video-en.png",
+            "sha256": "0e5dfbbe920175307215dde73d63848c033eba9d7ed03be69b9296decce97f1e"
+          },
+          {
+            "path": "screenshots/large/video-zh-frame.png",
+            "sha256": "7e928af73f8c059fc1c4206fd404e22ceec90b1fc37a3b88c90828dae1b80374"
+          },
+          {
+            "path": "screenshots/large/video-zh.png",
+            "sha256": "34d8f7807ad5cac5f918a172df07023491119eb3f313cd7269afa7d3a46e7b44"
+          }
+        ]
+      }
+    ]
+  },
+  "configuration": {
+    "origin": "",
+    "memory_only_sign_in": true,
+    "fixture_assets_in_connected_apk": false
+  },
+  "not_run": [
+    "real backend or credentials",
+    "backend TLS replay (live-core and contract unchanged)",
+    "physical phone install or acceptance",
+    "release signing",
+    "hosted CI",
+    "push, merge, deployment"
+  ],
+  "visual_evidence": "Synthetic own-View screenshots; settings is its separate owned dialog window. Video decoded frames are separate; full UI renders may omit the hardware video layer."
+}
