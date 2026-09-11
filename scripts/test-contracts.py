@@ -19,6 +19,42 @@ class ContractChecks(unittest.TestCase):
     def test_frozen_contract_and_scenario_links(self):
         with redirect_stdout(io.StringIO()): check.verify()
 
+    def test_replay_image_identity_and_frozen_response_lengths(self):
+        data=check.replay_image_bytes()
+        self.assertEqual(len(data),632)
+        self.assertEqual(data[:2],b'\xff\xd8');self.assertEqual(data[-2:],b'\xff\xd9')
+        lengths={c['id']:c['byte_length'] for c in check.read('fixtures.json')['cases'] if 'byte_length' in c}
+        self.assertEqual(lengths,{'thumbnail':632,'thumbnail-head':0,'original-authorized':632,'original-range':6,'original-head':0})
+
+    def test_replay_image_missing_truncated_or_same_length_mutation_is_refused(self):
+        original=check.replay_image_bytes()
+        with tempfile.TemporaryDirectory(prefix='photohouse-replay-image-') as tmp:
+            image=Path(tmp)/'image.jpg'
+            with patch.object(check,'REPLAY_IMAGE',image):
+                with self.assertRaises(FileNotFoundError):check.replay_image_bytes()
+                for bad in (original[:-1],original[:100]+bytes([original[100]^1])+original[101:]):
+                    image.write_bytes(bad)
+                    with self.assertRaisesRegex(AssertionError,'Replay image identity differs'):check.verify()
+
+    def test_backend_replay_refuses_bad_image_before_backend_imports(self):
+        with patch.object(check.subprocess,'check_output',return_value=check.BACKEND_SHA+'\n'), patch.object(check,'sha',side_effect=lambda path:check.read('manifest.json')['backend_sources'][str(path.relative_to('/unused-synthetic-backend'))]):
+            with patch.object(check,'replay_image_bytes',side_effect=AssertionError('Replay image identity differs')):
+                with self.assertRaisesRegex(AssertionError,'Replay image identity differs'):
+                    check.backend_cases(Path('/unused-synthetic-backend'))
+
+    def test_external_io_is_guarded_after_git_identity_checks(self):
+        import os,socket,subprocess
+        def guarded(_):
+            with socket.socket() as probe:
+                with self.assertRaisesRegex(AssertionError,'External I/O forbidden'):probe.bind(('127.0.0.1',0))
+                with self.assertRaisesRegex(AssertionError,'External I/O forbidden'):probe.connect(('127.0.0.1',9))
+            with self.assertRaisesRegex(AssertionError,'External I/O forbidden'):subprocess.Popen(['unused-synthetic-command'])
+            with self.assertRaisesRegex(AssertionError,'External I/O forbidden'):os.system('unused-synthetic-command')
+            return 'guarded'
+        with patch.object(check.subprocess,'check_output',return_value=check.BACKEND_SHA+'\n'), patch.object(check,'sha',side_effect=lambda path:check.read('manifest.json')['backend_sources'][str(path.relative_to('/unused-synthetic-backend'))]):
+            with patch.object(check,'_guarded_backend_cases',side_effect=guarded):
+                self.assertEqual(check.backend_cases(Path('/unused-synthetic-backend')),'guarded')
+
     def test_missing_invitation_field_is_not_a_registration_request(self):
         api=check.read('openapi.json')
         with self.assertRaises(AssertionError):

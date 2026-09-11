@@ -26,3 +26,7 @@ still includes these tests when that separate lane is authorized.
 See the slice return for the CPU dependency-profile replay blocker and the separate
 future HTTPS/device acceptance gates. Do not run the ordinary HTTPS tests or
 `verify-backend.py` as part of a no-listener authorization.
+
+The coordinator-authorized fixed JPEG follow-up closes the CPU locked-profile
+in-process replay blocker. See `docs/evidence/android/locked-profile-replay/RETURN.md`
+for the exact 38-case replay and dependency identities; TLS/device gates remain.
