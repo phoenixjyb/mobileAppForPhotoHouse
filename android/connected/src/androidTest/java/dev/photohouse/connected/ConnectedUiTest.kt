@@ -63,6 +63,11 @@ class ConnectedUiTest {
         rule.onNode(matcher).performClick(); rule.waitForIdle()
     }
     private fun input(label: String, text: String) { val matcher = hasText(label) and hasSetTextAction(); reveal(matcher); rule.onNode(matcher).performTextInput(text) }
+    private fun screenAwake(): Boolean {
+        fun awake(view: android.view.View): Boolean = view.keepScreenOn || view is android.view.ViewGroup &&
+            (0 until view.childCount).any { awake(view.getChildAt(it)) }
+        return rule.runOnIdle { awake(rule.activity.window.decorView) }
+    }
     private fun capture(name: String) {
         rule.waitForIdle()
         val videoBounds = if (name.startsWith("video-")) rule.onNodeWithTag("video-surface").fetchSemanticsNode().boundsInWindow else null
@@ -183,7 +188,7 @@ class ConnectedUiTest {
             rule.onAllNodes(hasText(label) and isEnabled()).fetchSemanticsNodes().isNotEmpty()
         } }
         ready("Play")
-        rule.onNodeWithText("Play").performClick()
+        rule.onNodeWithText("Play").performScrollTo().performClick()
         rule.waitUntil(15000) {
             rule.onNodeWithTag("video-position").fetchSemanticsNode().config[androidx.compose.ui.semantics.SemanticsProperties.Text].first().text.substringBefore(" / ").toInt() >= 1
         }
@@ -196,22 +201,22 @@ class ConnectedUiTest {
             ready("Play")
         } finally { audio.abandonAudioFocusRequest(focus) }
         rule.onNodeWithText("Play").assertExists()
-        rule.onNodeWithText("Play").performClick(); ready("Pause")
-        rule.onNodeWithText("Pause").performClick(); ready("Play")
-        rule.onNodeWithText("Forward 10s").performClick(); ready("Play")
+        rule.onNodeWithText("Play").performScrollTo().performClick(); ready("Pause")
+        rule.onNodeWithText("Pause").performScrollTo().performClick(); ready("Play")
+        rule.onNodeWithText("Forward 10s").performScrollTo().performClick(); ready("Play")
         rule.waitUntil(10000) { rule.onNodeWithTag("video-position").fetchSemanticsNode().config[androidx.compose.ui.semantics.SemanticsProperties.Text].first().text.substringBefore(" / ").toInt() >= 10 }
         capture("video-en")
-        rule.onNodeWithTag("video-seek").performSemanticsAction(androidx.compose.ui.semantics.SemanticsActions.SetProgress) { it(3000f) }
+        rule.onNodeWithTag("video-seek").performScrollTo().performSemanticsAction(androidx.compose.ui.semantics.SemanticsActions.SetProgress) { it(3000f) }
         ready("Play")
         rule.waitUntil(10000) { rule.onNodeWithTag("video-position").fetchSemanticsNode().config[androidx.compose.ui.semantics.SemanticsProperties.Text].first().text.substringBefore(" / ").toInt() in 2..4 }
         rule.runOnUiThread { rule.activity.onBackPressedDispatcher.onBackPressed() }
         assertTrue(reader.isClosed); assertNull(store.state.value.video)
         click("简体中文"); click("打开视频"); ready("播放")
-        rule.onNodeWithText("播放").performClick()
+        rule.onNodeWithText("播放").performScrollTo().performClick()
         rule.waitUntil(15000) { rule.onNodeWithTag("video-position").fetchSemanticsNode().config[androidx.compose.ui.semantics.SemanticsProperties.Text].first().text.substringBefore(" / ").toInt() >= 1 }
-        rule.onNodeWithText("暂停").performClick(); ready("播放"); capture("video-zh")
+        rule.onNodeWithText("暂停").performScrollTo().performClick(); ready("播放"); capture("video-zh")
         val second = store.state.value.video!!
-        rule.onNodeWithText("关闭视频").performClick(); assertTrue(second.isClosed)
+        rule.onNodeWithText("关闭视频").performScrollTo().performClick(); assertTrue(second.isClosed)
         click("打开视频"); ready("播放")
         val third = store.state.value.video!!
         rule.runOnUiThread { store.background() }; rule.waitForIdle()
@@ -239,16 +244,16 @@ class ConnectedUiTest {
         click("Open library"); click("2026-01-01"); click("Open original photo")
         rule.waitUntil(5000) { rule.onAllNodesWithTag("original-image").fetchSemanticsNodes().size == 1 }
         rule.onNodeWithTag("photo-zoom").assertTextEquals("100%")
-        rule.onNode(hasText("Zoom in") and hasClickAction()).performClick()
+        rule.onNode(hasText("Zoom in") and hasClickAction()).performScrollTo().performClick()
         rule.onNodeWithTag("photo-zoom").assertTextEquals("150%")
-        rule.onNode(hasText("Fit photo") and hasClickAction()).performClick()
+        rule.onNode(hasText("Fit photo") and hasClickAction()).performScrollTo().performClick()
         rule.onNodeWithTag("original-image").performTouchInput {
             val delta = androidx.compose.ui.geometry.Offset(35f, 0f)
             pinch(center - delta, center + delta, center - delta * 2f, center + delta * 2f, 300)
         }
         rule.onNodeWithTag("photo-zoom").assertTextContains("%", substring = true)
         rule.onNodeWithTag("photo-zoom").assert(hasText("100%").not())
-        rule.onNode(hasText("Fit photo") and hasClickAction()).performClick()
+        rule.onNode(hasText("Fit photo") and hasClickAction()).performScrollTo().performClick()
         rule.onNodeWithTag("original-image").performTouchInput { doubleClick(center) }
         rule.onNodeWithTag("photo-zoom").assertTextEquals("200%")
         rule.onNodeWithTag("original-image").performTouchInput { swipe(center, center + androidx.compose.ui.geometry.Offset(40f, 20f), 200) }
@@ -260,13 +265,121 @@ class ConnectedUiTest {
         rule.waitUntil(5000) { rule.onAllNodesWithTag("original-image").fetchSemanticsNodes().size == 1 }
         rule.onNodeWithTag("photo-zoom").assertTextEquals("100%")
         capture("original-photo-zh")
-        rule.onNode(hasText("关闭照片") and hasClickAction()).performClick()
+        rule.onNode(hasText("关闭照片") and hasClickAction()).performScrollTo().performClick()
         rule.waitForIdle(); assertNull(store.state.value.originalPhoto)
         click("打开原始照片")
         rule.waitUntil(5000) { rule.onAllNodesWithTag("original-image").fetchSemanticsNodes().size == 1 }
         rule.runOnUiThread { store.background() }
         rule.waitForIdle(); rule.onAllNodesWithTag("original-viewer").assertCountEquals(0)
         assertNull(store.state.value.originalPhoto); assertTrue(store.state.value.covered)
+    }
+    @Test fun photoFitFillFullscreenAndSlideshowPreservePageAndClearOnBackground() {
+        val api = SyntheticApi().apply {
+            photos = (1..3).map { photo.copy(id = it.toString(), kind = "image", taken_at = "2026-01-0$it") }
+            originalsAllowed = true; total = 100
+        }
+        val store = ConnectedStore(api, scope)
+        rule.runOnUiThread { rule.activity.setContent { ConnectedApp(store) }; store.authenticate("+12025550123", "synthetic-password-only") }
+        click("Open library"); click("Next"); click("2026-01-01"); click("Open original photo")
+        fun ready() { rule.waitUntil(5000) { rule.onAllNodesWithTag("original-image").fetchSemanticsNodes().size == 1 } }
+        fun mediaClick(label: String) { rule.onNode(hasText(label) and hasClickAction()).performScrollTo().performClick() }
+        ready(); val original = store.state.value.originalPhoto
+        mediaClick("Fill screen"); rule.onNodeWithTag("photo-fit-mode").assertTextEquals("Fill · edges cropped")
+        rule.onNodeWithTag("original-image").performTouchInput {
+            swipe(center, center + androidx.compose.ui.geometry.Offset(width * 0.3f, height * 0.3f), 300)
+        }
+        val viewport = rule.onNodeWithTag("photo-viewport").fetchSemanticsNode().boundsInWindow
+        rule.runOnUiThread {
+            val view = rule.activity.window.decorView
+            val image = Bitmap.createBitmap(view.width, view.height, Bitmap.Config.ARGB_8888)
+            view.draw(Canvas(image))
+            for (x in listOf(viewport.left.toInt() + 8, viewport.right.toInt() - 8))
+                for (y in listOf(viewport.top.toInt() + 8, viewport.bottom.toInt() - 8))
+                    assertNotEquals("Fill pan must reveal image edges, not black gaps", android.graphics.Color.BLACK, image.getPixel(x, y))
+            image.recycle()
+        }
+        mediaClick("Full screen"); rule.onNodeWithTag("photo-exit-fullscreen").assertIsDisplayed()
+        rule.onNodeWithTag("photo-controls").assertDoesNotExist(); capture("parity-photo-fullscreen")
+        rule.runOnUiThread { rule.activity.onBackPressedDispatcher.onBackPressed() }
+        assertSame(original, store.state.value.originalPhoto)
+        rule.onNodeWithTag("photo-controls").assertExists(); mediaClick("Fit photo")
+        mediaClick("Start slideshow"); assertTrue(store.state.value.photoSlideshow)
+        assertTrue(screenAwake())
+        rule.mainClock.autoAdvance = false
+        rule.mainClock.advanceTimeBy(8200)
+        rule.waitUntil(5000) { store.state.value.detail?.asset?.id == "2" }
+        // Decoder work uses a real worker thread. Pump frames while yielding wall
+        // time instead of letting the spinner advance virtual slideshow time.
+        rule.waitUntil(5000) {
+            rule.mainClock.advanceTimeByFrame()
+            rule.onAllNodesWithTag("original-image").fetchSemanticsNodes().size == 1
+        }
+        assertTrue("Slideshow must still be active on the second photo", store.state.value.photoSlideshow)
+        rule.mainClock.autoAdvance = true
+        mediaClick("Pause slideshow"); assertFalse(store.state.value.photoSlideshow)
+        capture("parity-photo-slideshow")
+        mediaClick("Previous photo"); ready(); assertEquals("1", store.state.value.detail?.asset?.id)
+        mediaClick("Full screen")
+        rule.runOnUiThread { store.background() }; rule.waitForIdle()
+        rule.onNodeWithTag("original-viewer").assertDoesNotExist()
+        assertFalse(store.state.value.photoSlideshow); assertNull(store.state.value.originalPhoto)
+        assertFalse(screenAwake())
+    }
+    @Test fun nativeVideoFitFillAndFullscreenKeepTheSameReaderAndRestoreControls() {
+        val api = SyntheticApi().apply {
+            originalsAllowed = true
+            videoBytes = androidx.test.platform.app.InstrumentationRegistry.getInstrumentation().context.assets.open("synthetic-video.mp4").use { it.readBytes() }
+        }
+        val store = ConnectedStore(api, scope)
+        rule.runOnUiThread { rule.activity.setContent { ConnectedApp(store) }; store.authenticate("+12025550123", "synthetic-password-only") }
+        click("Open library"); click("2026-01-01"); click("Open video")
+        rule.waitUntil(30000) { rule.onAllNodes(hasText("Play") and isEnabled()).fetchSemanticsNodes().isNotEmpty() }
+        val reader = store.state.value.video!!
+        fun mediaClick(label: String) { rule.onNode(hasText(label) and hasClickAction()).performScrollTo().performClick() }
+        mediaClick("Fill screen"); rule.onNodeWithTag("video-fit-mode").assertTextEquals("Fill · edges cropped")
+        mediaClick("Fit video"); mediaClick("Play")
+        rule.waitUntil(15000) { rule.onNodeWithTag("video-position").fetchSemanticsNode().config[androidx.compose.ui.semantics.SemanticsProperties.Text].first().text.substringBefore(" / ").toInt() >= 1 }
+        mediaClick("Full screen"); rule.onNodeWithTag("video-exit-fullscreen").assertIsDisplayed()
+        assertTrue(screenAwake())
+        rule.onNodeWithTag("video-controls").assertDoesNotExist()
+        assertSame(reader, store.state.value.video); assertFalse(reader.isClosed)
+        capture("video-parity-fullscreen")
+        rule.runOnUiThread { rule.activity.onBackPressedDispatcher.onBackPressed() }; rule.waitForIdle()
+        assertSame(reader, store.state.value.video); assertFalse(reader.isClosed)
+        rule.onNodeWithTag("video-controls").assertExists(); mediaClick("Pause")
+        rule.waitUntil(5000) { rule.onAllNodes(hasText("Play") and isEnabled()).fetchSemanticsNodes().isNotEmpty() }
+        assertFalse(screenAwake())
+        mediaClick("Full screen"); rule.onNodeWithTag("video-exit-fullscreen").performClick()
+        mediaClick("Close video"); assertTrue(reader.isClosed)
+        assertTrue(rule.activity.window.attributes.flags and WindowManager.LayoutParams.FLAG_SECURE != 0)
+    }
+    @Test fun undecodablePhotoStopsSlideshowWithoutAdvancingOrKeepingScreenAwake() {
+        var stopped = 0; var advanced = 0
+        rule.runOnUiThread { rule.activity.setContent {
+            OriginalPhotoViewer(byteArrayOf(1, 2, 3), false, false, {}, PhotoNavigation(1, listOf("1", "2"), 0),
+                true, onStopSlideshow = { stopped++ }, onAdvanceSlideshow = { advanced++ })
+        } }
+        rule.waitUntil(5000) { stopped > 0 }
+        rule.onNodeWithText("This image format or size cannot be displayed here.").assertExists()
+        assertEquals(0, advanced); assertFalse(screenAwake())
+    }
+    @Test fun pageJumpRejectsInvalidInputAndClearsOnPrivateLifecycleBoundary() {
+        val api = SyntheticApi().apply { total = 1000 }
+        val store = ConnectedStore(api, scope)
+        rule.runOnUiThread { rule.activity.setContent { ConnectedApp(store) }; store.authenticate("+12025550123", "synthetic-password-only") }
+        click("Open library"); click("Go to page")
+        rule.onNodeWithTag("phone-page-input").performTextReplacement("0")
+        rule.onNodeWithTag("phone-page-go").assertIsNotEnabled()
+        rule.onNodeWithTag("phone-page-input").performTextReplacement("21")
+        rule.onNodeWithTag("phone-page-go").assertIsNotEnabled()
+        rule.onNodeWithTag("phone-page-input").performTextReplacement("12")
+        rule.onNodeWithTag("phone-page-go").performClick(); rule.waitForIdle()
+        assertEquals(12, store.state.value.gallery?.page)
+        click("简体中文"); click("跳转页面")
+        rule.onNodeWithText("选择第 1 至 20 页").assertIsDisplayed()
+        rule.runOnUiThread { store.background() }; rule.waitForIdle()
+        rule.onNodeWithTag("phone-page-input").assertDoesNotExist()
+        assertTrue(store.state.value.covered)
     }
     @Test fun originalDecoderRejectsCorruptionBoundsPixelsAndHandlesAllExifOrientations() {
         assertNull(decodeOriginalPhoto(byteArrayOf(1, 2, 3)))

@@ -16,8 +16,8 @@ android {
         minSdk = 26
         targetSdk = 34
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
-        versionCode = 1
-        versionName = "0.2-connected-dev"
+        versionCode = 2
+        versionName = "0.3-phone-media-dev"
         buildConfigField("String", "PHOTOHOUSE_ORIGIN", "\"$configuredOrigin\"")
     }
     androidComponents { beforeVariants(selector().withBuildType("release")) { it.enable = false } }

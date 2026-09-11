@@ -17,6 +17,7 @@ data class LiveState(
     val photoNavigation: PhotoNavigation? = null,
     val video: VideoReader? = null,
     val viewingOriginal: Boolean = false, val originalPhoto: ByteArray? = null,
+    val photoSlideshow: Boolean = false,
 )
 
 /** UI-dispatcher-confined; only the wire DTO module is shared with fixture code. */
@@ -188,6 +189,29 @@ class ConnectedStore(private val api: PhotoHouseApi, private val scope: Coroutin
         if (!usable()) return
         if (state.value.viewingOriginal) retainDetail(viewingOriginal = false, busy = false)
     }
+    fun togglePhotoSlideshow() {
+        if (state.value.photoSlideshow) { stopPhotoSlideshow(); return }
+        val current = state.value
+        val navigation = current.photoNavigation ?: return
+        if (!allowed() || current.busy || !current.viewingOriginal || current.originalPhoto == null ||
+            navigation.index >= navigation.assetIds.lastIndex || coolingDown()) return
+        mutable.value = current.copy(photoSlideshow = true)
+    }
+    fun stopPhotoSlideshow() { mutable.value = state.value.copy(photoSlideshow = false) }
+    /** A slideshow never wraps, crosses pages, skips denied items, or starts video audio. */
+    fun advancePhotoSlideshow() {
+        if (!state.value.photoSlideshow) return
+        adjacentOriginalPhoto(1, fromSlideshow = true)
+    }
+    fun adjacentOriginalPhoto(direction: Int, fromSlideshow: Boolean = false) {
+        val current = state.value
+        if (!allowed() || current.busy || !current.viewingOriginal || direction !in listOf(-1, 1) ||
+            (fromSlideshow && (!current.photoSlideshow || direction != 1))) return
+        val navigation = current.photoNavigation ?: return
+        val index = navigation.index + direction
+        if (index !in navigation.assetIds.indices) { stopPhotoSlideshow(); return }
+        openPhoto(navigation.assetIds[index], navigation.copy(index = index), originalAfterLoad = true, slideshow = fromSlideshow)
+    }
     private fun retainDetail(viewingOriginal: Boolean, busy: Boolean) {
         val previous = state.value
         invalidate(keepIdentity = true)
@@ -195,11 +219,12 @@ class ConnectedStore(private val api: PhotoHouseApi, private val scope: Coroutin
             captions = previous.captions, previews = previous.previews, photoNavigation = previous.photoNavigation,
             viewingOriginal = viewingOriginal, busy = busy)
     }
-    private fun openPhoto(assetId: String, navigation: PhotoNavigation?) {
+    private fun openPhoto(assetId: String, navigation: PhotoNavigation?, originalAfterLoad: Boolean = false, slideshow: Boolean = false) {
         if (!allowed() || coolingDown()) return
         val library = state.value.library!!; val credential = token!!
         invalidate(keepIdentity = true)
-        mutable.value = state.value.copy(library = library, busy = true, photoNavigation = navigation)
+        mutable.value = state.value.copy(library = library, busy = true, photoNavigation = navigation,
+            viewingOriginal = originalAfterLoad, photoSlideshow = slideshow)
         launch { generation ->
             try {
                 val detail = api.detail(credential, library, assetId)
@@ -211,8 +236,18 @@ class ConnectedStore(private val api: PhotoHouseApi, private val scope: Coroutin
                 val bytes = api.detailPreview(credential, library, detail.asset)
                 if (!active(generation)) return@launch
                 validResponse(bytes == null || bytes.size <= HttpsPhotoHouseApi.IMAGE_LIMIT)
-                mutable.value = state.value.copy(detail = detail, captions = captions, busy = false,
+                val openOriginal = originalAfterLoad && detail.originals_allowed && detail.asset.kind == "image"
+                mutable.value = state.value.copy(detail = detail, captions = captions, busy = openOriginal,
+                    viewingOriginal = openOriginal, photoSlideshow = state.value.photoSlideshow && openOriginal,
                     previews = if (bytes == null) emptyMap() else mapOf(assetId to bytes))
+                if (openOriginal) {
+                    val original = api.originalPhoto(credential, library, assetId)
+                    if (!active(generation)) return@launch
+                    if (original.size > HttpsPhotoHouseApi.ORIGINAL_LIMIT) throw ApiFailure(FailureKind.TOO_LARGE)
+                    validResponse(original.isNotEmpty())
+                    mutable.value = state.value.copy(originalPhoto = original, busy = false,
+                        photoSlideshow = state.value.photoSlideshow && navigation != null && navigation.index < navigation.assetIds.lastIndex)
+                }
             } catch (e: CancellationException) { throw e }
             catch (e: Exception) { readFailure(e, generation, credential) { openPhoto(assetId, navigation) } }
         }
@@ -220,7 +255,7 @@ class ConnectedStore(private val api: PhotoHouseApi, private val scope: Coroutin
     private suspend fun readFailure(error: Exception, generation: Long, credential: Bearer, retryRead: () -> Unit) {
         if (!active(generation)) return
         state.value.video?.close()
-        mutable.value = state.value.copy(video = null, gallery = null, detail = null, captions = null, previews = emptyMap(), photoNavigation = null, originalPhoto = null, viewingOriginal = false, busy = false, problem = problem(error))
+        mutable.value = state.value.copy(video = null, gallery = null, detail = null, captions = null, previews = emptyMap(), photoNavigation = null, originalPhoto = null, viewingOriginal = false, photoSlideshow = false, busy = false, problem = problem(error))
         if (error is ApiFailure && error.status == 401) {
             mutable.value = state.value.copy(busy = true)
             try {

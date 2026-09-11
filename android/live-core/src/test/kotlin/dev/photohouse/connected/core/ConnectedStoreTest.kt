@@ -400,6 +400,77 @@ class ConnectedStoreTest {
         assertEquals(0, store.cachedBytes); assertEquals(2, api.sessionReads)
         assertEquals(listOf("1", "2"), api.detailReads); assertFalse(store.canRetry())
     }
+    @Test fun slideshowRequiresExplicitOriginalAndStopsAtPageEndWithoutWrapping() = runTest {
+        val api = FakeApi().apply { assets = listOf(asset, asset.copy(id = "2"), asset.copy(id = "3")); originalsAllowed = true }
+        val store = store(api); signIn(store); store.selectLibrary("family"); runCurrent()
+        store.loadPage(2); runCurrent(); store.openAsset(asset); runCurrent()
+        store.togglePhotoSlideshow(); assertFalse(store.state.value.photoSlideshow); assertEquals(0, api.originalReads)
+        store.openOriginalPhoto(); runCurrent(); store.togglePhotoSlideshow()
+        assertTrue(store.state.value.photoSlideshow)
+        store.advancePhotoSlideshow(); assertNull(store.state.value.originalPhoto); runCurrent()
+        assertEquals("2", store.state.value.detail?.asset?.id); assertTrue(store.state.value.photoSlideshow)
+        store.advancePhotoSlideshow(); runCurrent()
+        assertEquals("3", store.state.value.detail?.asset?.id); assertFalse(store.state.value.photoSlideshow)
+        store.advancePhotoSlideshow(); runCurrent(); assertEquals(3, api.originalReads)
+        assertEquals(listOf("1", "2", "3"), api.detailReads)
+        store.closeOriginalPhoto(); store.backToPhotos(); runCurrent(); assertEquals(2, store.state.value.gallery?.page)
+    }
+    @Test fun slideshowRechecksEachOriginalGrantAndDoesNotAutoplayVideo() = runTest {
+        for (video in listOf(false, true)) {
+            val api = FakeApi().apply { assets = listOf(asset, asset.copy(id = "2", kind = if (video) "video" else "image")); originalsAllowed = true }
+            val store = store(api); signIn(store); store.selectLibrary("family"); runCurrent(); store.openAsset(asset); runCurrent()
+            store.openOriginalPhoto(); runCurrent(); store.togglePhotoSlideshow()
+            if (!video) api.originalsAllowed = false
+            store.advancePhotoSlideshow(); runCurrent()
+            assertEquals("2", store.state.value.detail?.asset?.id)
+            assertFalse(store.state.value.viewingOriginal); assertFalse(store.state.value.photoSlideshow)
+            assertNull(store.state.value.video); assertNull(store.state.value.originalPhoto); assertEquals(1, api.originalReads)
+        }
+    }
+    @Test fun pausedSlideshowCannotRestartWhenPendingMetadataCompletes() = runTest {
+        val api = FakeApi().apply { assets = listOf(asset, asset.copy(id = "2"), asset.copy(id = "3")); originalsAllowed = true }
+        val store = store(api); signIn(store); store.selectLibrary("family"); runCurrent(); store.openAsset(asset); runCurrent()
+        store.openOriginalPhoto(); runCurrent(); store.togglePhotoSlideshow()
+        api.detailGate = CompletableDeferred()
+        store.advancePhotoSlideshow(); runCurrent(); store.stopPhotoSlideshow()
+        api.detailGate!!.complete(Unit); runCurrent()
+        assertNotNull(store.state.value.originalPhoto); assertFalse(store.state.value.photoSlideshow)
+        store.advancePhotoSlideshow(); runCurrent(); assertEquals(2, api.originalReads)
+    }
+    @Test fun lateSlideshowOriginalCannotSurviveBackgroundLogoutOrLibrarySwitch() = runTest {
+        for (boundary in listOf("background", "logout", "switch", "expiry")) {
+            val api = FakeApi().apply { assets = listOf(asset, asset.copy(id = "2"), asset.copy(id = "3")); originalsAllowed = true }
+            val store = store(api); signIn(store); store.selectLibrary("family"); runCurrent(); store.openAsset(asset); runCurrent()
+            store.openOriginalPhoto(); runCurrent(); store.togglePhotoSlideshow()
+            api.originalGate = CompletableDeferred()
+            store.advancePhotoSlideshow(); runCurrent()
+            when (boundary) { "background" -> store.background(); "logout" -> store.logout(); "expiry" -> { advanceTimeBy(86400000); runCurrent() }; else -> store.selectLibrary("second") }
+            api.originalGate!!.complete(Unit); runCurrent()
+            assertFalse(store.state.value.photoSlideshow); assertFalse(store.state.value.viewingOriginal)
+            assertNull(store.state.value.originalPhoto); assertNull(store.state.value.photoNavigation)
+        }
+    }
+    @Test fun slideshowFailureClearsPrivateStateAndRetryDoesNotReopenOriginalAutomatically() = runTest {
+        val api = FakeApi().apply { assets = listOf(asset, asset.copy(id = "2")); originalsAllowed = true }
+        val store = store(api); signIn(store); store.selectLibrary("family"); runCurrent(); store.openAsset(asset); runCurrent()
+        store.openOriginalPhoto(); runCurrent(); store.togglePhotoSlideshow()
+        api.originalError = ApiFailure(FailureKind.OFFLINE)
+        store.advancePhotoSlideshow(); runCurrent()
+        assertNull(store.state.value.detail); assertNull(store.state.value.originalPhoto)
+        assertFalse(store.state.value.photoSlideshow); assertEquals(0, store.cachedBytes)
+        api.originalError = null; store.retry(); runCurrent()
+        assertEquals("2", store.state.value.detail?.asset?.id); assertFalse(store.state.value.viewingOriginal)
+        assertEquals(2, api.originalReads)
+    }
+    @Test fun manualViewerNavigationStopsSlideshowAndFetchesFreshOriginal() = runTest {
+        val api = FakeApi().apply { assets = listOf(asset, asset.copy(id = "2"), asset.copy(id = "3")); originalsAllowed = true }
+        val store = store(api); signIn(store); store.selectLibrary("family"); runCurrent(); store.openAsset(asset); runCurrent()
+        store.openOriginalPhoto(); runCurrent(); store.togglePhotoSlideshow()
+        store.adjacentOriginalPhoto(1); runCurrent()
+        assertEquals("2", store.state.value.detail?.asset?.id); assertFalse(store.state.value.photoSlideshow)
+        store.adjacentOriginalPhoto(-1); runCurrent(); assertEquals("1", store.state.value.detail?.asset?.id)
+        assertEquals(3, api.originalReads)
+    }
     @Test fun offlineAdjacentRetryFetchesAgainAndRetainsReturnPage() = runTest {
         val api = FakeApi().apply { assets = listOf(asset, asset.copy(id = "2")) }
         val store = store(api); signIn(store); store.selectLibrary("family"); runCurrent()

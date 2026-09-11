@@ -6,15 +6,23 @@ import android.media.*
 import android.os.*
 import android.view.Surface
 import android.view.TextureView
+import androidx.activity.compose.BackHandler
+import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.Alignment
+import androidx.compose.ui.draw.clipToBounds
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.viewinterop.AndroidView
 import dev.photohouse.connected.core.VideoReader
+import dev.photohouse.connected.core.MediaViewport
 import kotlinx.coroutines.delay
 import java.util.concurrent.atomic.AtomicBoolean
 
@@ -118,15 +126,20 @@ internal class NativeVideoPlayer(context: Context, private val reader: VideoRead
 @Composable internal fun VideoPlayer(reader: VideoReader, zh: Boolean, close: () -> Unit, failure: () -> Unit) {
     fun t(en: String, cn: String) = if (zh) cn else en
     var state by remember(reader) { mutableStateOf(Playback()) }
+    var fill by remember(reader) { mutableStateOf(false) }
+    var fullScreen by remember(reader) { mutableStateOf(false) }
     val context = LocalContext.current
     val onFailure by rememberUpdatedState(failure)
     val player = remember(reader) { NativeVideoPlayer(context, reader, { state = it }, { onFailure() }) }
     DisposableEffect(player) { onDispose { player.close() } }
+    MediaWindow(fullScreen, state.playing)
+    BackHandler(fullScreen) { fullScreen = false }
     LaunchedEffect(player) { while (true) { delay(250); player.poll() } }
-    Column(Modifier.fillMaxSize().safeDrawingPadding().padding(16.dp).testTag("video-player"), verticalArrangement = Arrangement.spacedBy(8.dp)) {
-        Text(t("Video", "视频"), style = MaterialTheme.typography.titleLarge)
-        OutlinedButton(onClick = close) { Text(t("Close video", "关闭视频")) }
-        Box(Modifier.weight(1f).fillMaxWidth(), contentAlignment = androidx.compose.ui.Alignment.Center) {
+    BoxWithConstraints(Modifier.fillMaxSize().testTag("video-player")) {
+    val panelLimit = maxHeight * 0.5f
+    Column(Modifier.fillMaxSize().then(if (fullScreen) Modifier else Modifier.safeDrawingPadding().padding(16.dp)), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+        BoxWithConstraints(Modifier.weight(1f).fillMaxWidth().background(Color.Black).clipToBounds().testTag("video-viewport"), contentAlignment = Alignment.Center) {
+            val fitted = MediaViewport.measure(state.width.toFloat(), state.height.toFloat(), maxWidth.value, maxHeight.value, fill)
             AndroidView(factory = { ctx -> TextureView(ctx).apply {
                 surfaceTextureListener = object : TextureView.SurfaceTextureListener {
                     override fun onSurfaceTextureAvailable(texture: SurfaceTexture, width: Int, height: Int) { player.attach(texture) }
@@ -134,8 +147,15 @@ internal class NativeVideoPlayer(context: Context, private val reader: VideoRead
                     override fun onSurfaceTextureUpdated(texture: SurfaceTexture) { }
                     override fun onSurfaceTextureDestroyed(texture: SurfaceTexture): Boolean { player.close(); close(); return true }
                 }
-            } }, modifier = Modifier.fillMaxWidth().aspectRatio(state.width.toFloat() / state.height).testTag("video-surface"))
+            } }, modifier = Modifier.requiredSize(fitted.width.dp, fitted.height.dp).testTag("video-surface"))
         }
+        if (!fullScreen) Column(Modifier.fillMaxWidth().heightIn(max = panelLimit).verticalScroll(rememberScrollState()).testTag("video-controls"), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+        FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+            OutlinedButton(onClick = close) { Text(t("Close video", "关闭视频")) }
+            TextButton(onClick = { fullScreen = true }, enabled = state.ready) { Text(t("Full screen", "全屏")) }
+            TextButton(onClick = { fill = !fill }) { Text(if (fill) t("Fit video", "完整视频") else t("Fill screen", "填满屏幕")) }
+        }
+        Text(if (fill) t("Fill · edges cropped", "填满 · 边缘已裁切") else t("Fit · whole video", "适合 · 完整视频"), Modifier.testTag("video-fit-mode"), style = MaterialTheme.typography.labelMedium)
         if (!state.ready) { LinearProgressIndicator(Modifier.fillMaxWidth()); Text(t("Loading video…", "正在加载视频…")) }
         Text("${state.position / 1000} / ${state.duration / 1000} " + t("seconds", "秒"), Modifier.testTag("video-position"))
         FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
@@ -148,5 +168,11 @@ internal class NativeVideoPlayer(context: Context, private val reader: VideoRead
             onValueChange = { scrub = it }, onValueChangeFinished = { scrub?.let { player.seek(it.toInt()) }; scrub = null },
             valueRange = 0f..state.duration.coerceAtLeast(1).toFloat(), enabled = state.ready && !state.seeking,
             modifier = Modifier.testTag("video-seek"))
+        }
+    }
+    if (fullScreen) FilledTonalButton(onClick = { fullScreen = false },
+        modifier = Modifier.align(Alignment.TopEnd).safeDrawingPadding().padding(12.dp).testTag("video-exit-fullscreen")) {
+        Text(t("Show controls", "显示控制"))
+    }
     }
 }

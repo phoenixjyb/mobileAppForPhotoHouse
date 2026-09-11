@@ -5,6 +5,10 @@ import android.graphics.BitmapFactory
 import android.graphics.Matrix
 import android.media.ExifInterface
 import androidx.compose.foundation.Image
+import androidx.activity.compose.BackHandler
+import androidx.compose.foundation.background
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.foundation.gestures.detectTapGestures
 import androidx.compose.foundation.gestures.rememberTransformableState
 import androidx.compose.foundation.gestures.transformable
@@ -16,6 +20,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clipToBounds
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.asImageBitmap
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.layout.ContentScale
@@ -24,12 +29,13 @@ import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.unit.IntSize
 import androidx.compose.ui.unit.dp
 import dev.photohouse.connected.core.HttpsPhotoHouseApi
+import dev.photohouse.connected.core.MediaViewport
+import dev.photohouse.connected.core.PhotoNavigation
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.sync.Semaphore
 import kotlinx.coroutines.sync.withPermit
 import kotlinx.coroutines.withContext
 import java.io.ByteArrayInputStream
-import kotlin.math.min
 
 internal data class DecodedPhoto(val bitmap: Bitmap, val downsampled: Boolean)
 private data class DecodeResult(val complete: Boolean = false, val photo: DecodedPhoto? = null)
@@ -78,7 +84,10 @@ internal fun orientPhoto(bitmap: Bitmap, orientation: Int): Bitmap {
 }
 
 @OptIn(ExperimentalLayoutApi::class)
-@Composable internal fun OriginalPhotoViewer(bytes: ByteArray?, loading: Boolean, zh: Boolean, onClose: () -> Unit) {
+@Composable internal fun OriginalPhotoViewer(bytes: ByteArray?, loading: Boolean, zh: Boolean, onClose: () -> Unit,
+    navigation: PhotoNavigation? = null, slideshow: Boolean = false,
+    onAdjacent: (Int) -> Unit = {}, onToggleSlideshow: () -> Unit = {},
+    onStopSlideshow: () -> Unit = {}, onAdvanceSlideshow: () -> Unit = {}) {
     fun t(en: String, cn: String) = if (zh) cn else en
     val decodedState by produceState(DecodeResult(), bytes) {
         value = DecodeResult()
@@ -86,44 +95,88 @@ internal fun orientPhoto(bitmap: Bitmap, orientation: Int): Bitmap {
             decodePermit.withPermit { decodeOriginalPhoto(bytes) }
         })
     }
-    val photo = decodedState.photo
+    // Capture one result for this composition. Reading the delegated state again
+    // inside the effect could pair a new completion with the old null bitmap.
+    val result = decodedState
+    val photo = result.photo
     var zoom by remember(bytes) { mutableFloatStateOf(1f) }
     var offset by remember(bytes) { mutableStateOf(Offset.Zero) }
     var viewport by remember { mutableStateOf(IntSize.Zero) }
+    var fill by remember { mutableStateOf(false) }
+    var fullScreen by remember { mutableStateOf(false) }
+    val advance by rememberUpdatedState(onAdvanceSlideshow)
+    val stop by rememberUpdatedState(onStopSlideshow)
+    // Start the interval only once decoding has succeeded. No stale timer survives
+    // a manual navigation, pause, byte change or removal of the private viewer.
+    LaunchedEffect(slideshow, bytes, result, loading) {
+        if (slideshow && result.complete && photo == null) stop()
+        else if (slideshow && photo != null && !loading) { kotlinx.coroutines.delay(8000); advance() }
+    }
+    MediaWindow(fullScreen, slideshow && photo != null && !loading)
+    BackHandler(fullScreen) { fullScreen = false; onStopSlideshow() }
     fun updateZoom(factor: Float, pan: Offset = Offset.Zero) {
         if (!factor.isFinite() || !pan.x.isFinite() || !pan.y.isFinite()) return
         zoom = (zoom * factor).coerceIn(1f, 5f)
         val bitmap = photo?.bitmap ?: return
-        val fit = min(viewport.width.toFloat() / bitmap.width, viewport.height.toFloat() / bitmap.height)
-        val maxX = ((bitmap.width * fit * zoom - viewport.width) / 2).coerceAtLeast(0f)
-        val maxY = ((bitmap.height * fit * zoom - viewport.height) / 2).coerceAtLeast(0f)
+        val size = MediaViewport.measure(bitmap.width.toFloat(), bitmap.height.toFloat(), viewport.width.toFloat(), viewport.height.toFloat(), fill)
+        val maxX = size.panLimitX(viewport.width.toFloat(), zoom)
+        val maxY = size.panLimitY(viewport.height.toFloat(), zoom)
         offset = Offset((offset.x + pan.x).coerceIn(-maxX, maxX), (offset.y + pan.y).coerceIn(-maxY, maxY))
     }
     val transform = rememberTransformableState { zoomChange, panChange, _ -> updateZoom(zoomChange, panChange) }
-    Column(Modifier.fillMaxSize().safeDrawingPadding().padding(16.dp).testTag("original-viewer")) {
-        FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalArrangement = Arrangement.spacedBy(4.dp)) {
-            TextButton(onClick = onClose) { Text(t("Close photo", "关闭照片")) }
-            TextButton(onClick = { updateZoom(1.5f) }, enabled = photo != null && zoom < 5f) { Text(t("Zoom in", "放大")) }
-            TextButton(onClick = { updateZoom(1 / 1.5f) }, enabled = photo != null && zoom > 1f) { Text(t("Zoom out", "缩小")) }
-            TextButton(onClick = { zoom = 1f; offset = Offset.Zero }, enabled = photo != null) { Text(t("Fit photo", "适合屏幕")) }
-        }
-        if (photo != null) Text("${(zoom * 100).toInt()}%", Modifier.testTag("photo-zoom"))
-        if (photo?.downsampled == true) Text(t("Large photo shown at reduced resolution.", "大图已降低显示分辨率。"))
-        Box(Modifier.fillMaxWidth().weight(1f).clipToBounds().onSizeChanged {
+    BoxWithConstraints(Modifier.fillMaxSize().testTag("original-viewer")) {
+    val panelLimit = maxHeight * 0.5f
+    Column(Modifier.fillMaxSize().then(if (fullScreen) Modifier else Modifier.safeDrawingPadding().padding(16.dp))) {
+        BoxWithConstraints(Modifier.fillMaxWidth().weight(1f).background(Color.Black).clipToBounds().testTag("photo-viewport").onSizeChanged {
             viewport = it; offset = Offset.Zero
         }, contentAlignment = Alignment.Center) {
             val decoded = photo
-            if (loading || !decodedState.complete) CircularProgressIndicator()
-            else if (decoded == null) Text(t("This image format or size cannot be displayed here.", "此处无法显示该图片格式或尺寸。"))
-            if (decoded != null) Image(decoded.bitmap.asImageBitmap(),
+            if (loading || !result.complete) CircularProgressIndicator()
+            else if (decoded == null) Text(t("This image format or size cannot be displayed here.", "此处无法显示该图片格式或尺寸。"), color = Color.White, modifier = Modifier.padding(20.dp))
+            if (decoded != null) {
+            val fitted = MediaViewport.measure(decoded.bitmap.width.toFloat(), decoded.bitmap.height.toFloat(), maxWidth.value, maxHeight.value, fill)
+            Image(decoded.bitmap.asImageBitmap(),
                 contentDescription = t("Original photo. Pinch or use the zoom controls.", "原始照片。可双指缩放或使用缩放按钮。"),
+                // Keep the full fitted bitmap in the layer. Cropping the Image
+                // before translation would pan an already-clipped rectangle and
+                // expose black gaps instead of revealing its hidden edges.
                 contentScale = ContentScale.Fit,
-                modifier = Modifier.fillMaxSize().testTag("original-image")
+                modifier = Modifier.requiredSize(fitted.width.dp, fitted.height.dp).testTag("original-image")
                     .graphicsLayer(scaleX = zoom, scaleY = zoom, translationX = offset.x, translationY = offset.y)
                     .transformable(transform)
                     .pointerInput(bytes) { detectTapGestures(onDoubleTap = {
                         zoom = if (zoom > 1f) 1f else 2f; offset = Offset.Zero
                     }) })
+            }
         }
+        if (!fullScreen) Column(Modifier.fillMaxWidth().heightIn(max = panelLimit).verticalScroll(rememberScrollState()).testTag("photo-controls")) {
+            FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalArrangement = Arrangement.spacedBy(4.dp)) {
+                TextButton(onClick = onClose) { Text(t("Close photo", "关闭照片")) }
+                TextButton(onClick = { fullScreen = true }, enabled = photo != null) { Text(t("Full screen", "全屏")) }
+                TextButton(onClick = { updateZoom(1.5f) }, enabled = photo != null && zoom < 5f) { Text(t("Zoom in", "放大")) }
+                TextButton(onClick = { updateZoom(1 / 1.5f) }, enabled = photo != null && zoom > 1f) { Text(t("Zoom out", "缩小")) }
+                TextButton(onClick = { fill = false; zoom = 1f; offset = Offset.Zero }, enabled = photo != null) { Text(t("Fit photo", "适合屏幕")) }
+                TextButton(onClick = { fill = true; zoom = 1f; offset = Offset.Zero }, enabled = photo != null) { Text(t("Fill screen", "填满屏幕")) }
+            }
+            if (photo != null) Text("${(zoom * 100).toInt()}%", Modifier.testTag("photo-zoom"))
+            Text(if (fill) t("Fill · edges cropped", "填满 · 边缘已裁切") else t("Fit · whole photo", "适合 · 完整照片"), Modifier.testTag("photo-fit-mode"), style = MaterialTheme.typography.labelMedium)
+            if (photo?.downsampled == true) Text(t("Large photo shown at reduced resolution.", "大图已降低显示分辨率。"))
+            navigation?.let { nav ->
+                Text(t("Photo ${nav.index + 1} of ${nav.assetIds.size} · Page ${nav.page}", "第 ${nav.page} 页 · 第 ${nav.index + 1}/${nav.assetIds.size} 张"))
+                FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                    OutlinedButton(onClick = { onAdjacent(-1) }, enabled = !loading && nav.index > 0) { Text(t("Previous photo", "上一张")) }
+                    OutlinedButton(onClick = { onAdjacent(1) }, enabled = !loading && nav.index < nav.assetIds.lastIndex) { Text(t("Next photo", "下一张")) }
+                    Button(onClick = onToggleSlideshow, enabled = slideshow || !loading && photo != null && nav.index < nav.assetIds.lastIndex) {
+                        Text(if (slideshow) t("Pause slideshow", "暂停幻灯片") else t("Start slideshow", "开始幻灯片"))
+                    }
+                }
+                Text(t("8 seconds per photo on this page. Stops at videos or unavailable originals.", "本页每张照片停留 8 秒，遇到视频或不可用原图时停止。"), style = MaterialTheme.typography.bodySmall)
+            }
+        }
+    }
+    if (fullScreen) FilledTonalButton(onClick = { fullScreen = false; onStopSlideshow() },
+        modifier = Modifier.align(Alignment.TopEnd).safeDrawingPadding().padding(12.dp).testTag("photo-exit-fullscreen")) {
+        Text(t("Show controls", "显示控制"))
+    }
     }
 }
