@@ -1,0 +1,73 @@
+{
+  "task": "PH-ANDROID-HOME-FEED-01",
+  "base_commit": "8ca5f20e95aec9fb8b789f3443c3a074f2de19cf",
+  "source_commit": "e8ab9be3c5497778783edf1b4a009707922248d1",
+  "backend_implementation_commit": "e6b2827842b2c0b5223c85208299b60e8a1257f6",
+  "backend_readiness_commit": "90c2e2461f480c1ae49daab4ac83c629b44a2148",
+  "contract_sha256": "70328a653ddaa559bad6a4d654cf9870c89c5217e8e9e6c46a3501e9dd9e7548",
+  "phone_pin": "87a60b475b37b1d6873cd977bcb6e7254472da7e",
+  "artifacts": {
+    "apk": {
+      "path": "android/tv/build/outputs/apk/debug/tv-debug.apk",
+      "bytes": 8779354,
+      "sha256": "3fba5917cd0215f4696d4bdc8ae1e962e787409273c7ed92f574301aaec3c0d1"
+    },
+    "test_apk": {
+      "path": "android/tv/build/outputs/apk/androidTest/debug/tv-debug-androidTest.apk",
+      "bytes": 1583430,
+      "sha256": "fd92248304065f340d5b9c42fa6496a1c4bfaca105fe39d2bf28dc7d42685f84"
+    }
+  },
+  "signer_sha256": "56d7591b2b6c2538d506d1fe51327444f2307736cb12f5beefa08f1c410d6d28",
+  "version_code": 2,
+  "version_name": "0.2-home-feed-dev",
+  "origin_configured": false,
+  "jvm_tests": 110,
+  "new_home_tests": 23,
+  "existing_regression_tests": 87,
+  "asgi_checks": 10,
+  "emulator": {
+    "avd": "Medium_Phone_API_36.0",
+    "api": 36,
+    "abi": "arm64-v8a",
+    "surface": "1920x1080 landscape phone AVD, 320dpi",
+    "font_scales": {
+      "1.0": {
+        "tests": 8,
+        "seconds": 16.019
+      },
+      "2.0": {
+        "tests": 8,
+        "seconds": 16.249
+      }
+    },
+    "task_owned_emulator_stopped": true
+  },
+  "lint": [
+    {
+      "id": "OldTargetApi",
+      "severity": "Warning"
+    },
+    {
+      "id": "VectorRaster",
+      "severity": "Warning"
+    },
+    {
+      "id": "DiscouragedApi",
+      "severity": "Warning"
+    }
+  ],
+  "phone_implementation_changed": false,
+  "physical_installation": false,
+  "real_media": false,
+  "real_credentials": false,
+  "home_feed_deployment": false,
+  "push": false,
+  "merge": false,
+  "limits": [
+    "No approved serving origin or real selection",
+    "No JMGO installation/firmware/output acceptance",
+    "Grid retention capped at 16 MiB; overflow grids use placeholders",
+    "Separate mock-TLS and in-process-ASGI evidence; no served LAN end-to-end claim"
+  ]
+}

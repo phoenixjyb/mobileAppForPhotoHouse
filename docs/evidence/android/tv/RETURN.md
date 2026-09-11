@@ -1,3 +1,6 @@
+> Historical prototype evidence. Backend implementation and anonymous TV integration
+> now supersede pending-backend statements here; see [current return](../home-feed/RETURN.md).
+
 # PH-ANDROID-TV-01 — viewer built, automatic connection pending
 
 The remote-controlled TV viewer is implemented and tested. **The requested

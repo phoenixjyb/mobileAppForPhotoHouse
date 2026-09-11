@@ -1,0 +1,37 @@
+To honour the JVM settings for this build a single-use Daemon process will be forked. For more on this, please refer to https://docs.gradle.org/8.10.2/userguide/gradle_daemon.html#sec:disabling_the_daemon in the Gradle documentation.
+Daemon will be stopped at the end of the build 
+> Task :core:checkKotlinGradlePluginConfigurationErrors
+> Task :protocol:checkKotlinGradlePluginConfigurationErrors
+> Task :core:processResources NO-SOURCE
+> Task :core:processTestResources
+> Task :protocol:processResources NO-SOURCE
+> Task :live-core:checkKotlinGradlePluginConfigurationErrors
+> Task :live-core:processResources NO-SOURCE
+> Task :live-core:processTestResources
+> Task :protocol:compileKotlin
+> Task :protocol:compileJava NO-SOURCE
+> Task :protocol:classes UP-TO-DATE
+> Task :protocol:jar
+> Task :core:compileKotlin
+> Task :core:compileJava NO-SOURCE
+> Task :core:classes UP-TO-DATE
+> Task :live-core:compileKotlin
+> Task :live-core:compileJava NO-SOURCE
+> Task :live-core:classes UP-TO-DATE
+> Task :core:compileTestKotlin
+> Task :core:compileTestJava NO-SOURCE
+> Task :core:testClasses
+> Task :core:test
+
+> Task :live-core:compileTestKotlin
+w: file://<worktree>/android/live-core/src/test/kotlin/dev/photohouse/connected/core/BackendIntegrationTest.kt:27:17 Lateinit is unnecessary: definitely initialized in constructors
+w: file://<worktree>/android/live-core/src/test/kotlin/dev/photohouse/connected/core/BackendIntegrationTest.kt:28:17 Lateinit is unnecessary: definitely initialized in constructors
+w: file://<worktree>/android/live-core/src/test/kotlin/dev/photohouse/connected/core/BackendIntegrationTest.kt:29:17 Lateinit is unnecessary: definitely initialized in constructors
+w: file://<worktree>/android/live-core/src/test/kotlin/dev/photohouse/connected/core/BackendIntegrationTest.kt:30:9 Lateinit is unnecessary: definitely initialized in constructors
+
+> Task :live-core:compileTestJava NO-SOURCE
+> Task :live-core:testClasses
+> Task :live-core:test
+
+BUILD SUCCESSFUL in 17s
+13 actionable tasks: 13 executed

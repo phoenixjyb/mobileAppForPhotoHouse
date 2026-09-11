@@ -1,0 +1,13 @@
+{
+  "package_smoke": "pass",
+  "asgi_checks": 10,
+  "config_syntax_check": "pass",
+  "actual_4k_fixture": true,
+  "listeners_opened": false,
+  "host_accessed": false,
+  "real_media_accessed": false,
+  "implementation_commit": "e6b2827842b2c0b5223c85208299b60e8a1257f6",
+  "source_hashes_verified": 12,
+  "contract_sha256": "70328a653ddaa559bad6a4d654cf9870c89c5217e8e9e6c46a3501e9dd9e7548",
+  "evidence_tier": "in-process actual backend; separate from Kotlin mock TLS and device tests"
+}
