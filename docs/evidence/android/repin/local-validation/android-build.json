@@ -1,0 +1,69 @@
+{
+  "date": "2026-09-11",
+  "mobile_source_commit": "1d4fc49c043d553df510c52b9a368ee0313398c6",
+  "backend_commit": "87a60b475b37b1d6873cd977bcb6e7254472da7e",
+  "jvm_suites": [
+    {
+      "name": "dev.photohouse.fixture.core.FixtureTest",
+      "tests": "22",
+      "failures": "0",
+      "errors": "0",
+      "skipped": "0",
+      "time": "0.164"
+    },
+    {
+      "name": "dev.photohouse.connected.core.ConnectedStoreTest",
+      "tests": "14",
+      "failures": "0",
+      "errors": "0",
+      "skipped": "0",
+      "time": "0.103"
+    },
+    {
+      "name": "dev.photohouse.connected.core.HttpsApiTest",
+      "tests": "13",
+      "failures": "0",
+      "errors": "0",
+      "skipped": "0",
+      "time": "1.125"
+    }
+  ],
+  "lint": {
+    "app": [
+      {
+        "id": "OldTargetApi",
+        "severity": "Warning"
+      }
+    ],
+    "connected": [
+      {
+        "id": "OldTargetApi",
+        "severity": "Warning"
+      }
+    ]
+  },
+  "artifacts": {
+    "app": {
+      "path": "android/app/build/outputs/apk/debug/app-debug.apk",
+      "sha256": "d16eb8f689b8700dc1c26fde09b9e8c0e9c6ea9d57572b650fb689a1a48ad88d",
+      "bytes": 8255351,
+      "installed": false
+    },
+    "connected": {
+      "path": "android/connected/build/outputs/apk/debug/connected-debug.apk",
+      "sha256": "259a42051066ae862fe96a311a0fd128607b5cde185d5442d7385d35d3056ab9",
+      "bytes": 8772978,
+      "installed": false
+    }
+  },
+  "fixture_pack_byte_identical": true,
+  "apk_permission_checks_passed": true,
+  "connected_origin_configured": false,
+  "ordinary_build_dependency_resolution": "offline_existing_cache",
+  "real_credentials_used": false,
+  "phone_installed": false,
+  "hosted_ci_checked": false,
+  "push_performed": false,
+  "merge_performed": false,
+  "deployment_performed": false
+}
