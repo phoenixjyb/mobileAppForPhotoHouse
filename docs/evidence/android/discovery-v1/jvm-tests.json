@@ -1,0 +1,179 @@
+{
+  "home-core": {
+    "totals": {
+      "tests": 80,
+      "failures": 0,
+      "errors": 0,
+      "skipped": 0
+    },
+    "classes": [
+      {
+        "name": "dev.photohouse.home.CatalogHttpTest",
+        "tests": 8,
+        "failures": 0,
+        "errors": 0,
+        "skipped": 0,
+        "xml_sha256": "5fcd5b7e6856c3fffb0aa8f6647bc16ba88da389951ecdea472a771a7e0b6eca"
+      },
+      {
+        "name": "dev.photohouse.home.CatalogStoreTest",
+        "tests": 4,
+        "failures": 0,
+        "errors": 0,
+        "skipped": 0,
+        "xml_sha256": "5eb65d6f12742f1c3ca8aada3004c71638af43f2ad1ce8de94bdc500d85e33c4"
+      },
+      {
+        "name": "dev.photohouse.home.CatalogWireTest",
+        "tests": 6,
+        "failures": 0,
+        "errors": 0,
+        "skipped": 0,
+        "xml_sha256": "98046a7079686695d97e476ba329f4e219b2b7b10e3079237c8d07ebaa17fbea"
+      },
+      {
+        "name": "dev.photohouse.home.DiscoveryControllerTest",
+        "tests": 6,
+        "failures": 0,
+        "errors": 0,
+        "skipped": 0,
+        "xml_sha256": "ca52e55cf6bd0f4c523e77d80e7e8323acdb076ea64571bbb5f4f7c3c603f249"
+      },
+      {
+        "name": "dev.photohouse.home.DiscoveryDraftTest",
+        "tests": 5,
+        "failures": 0,
+        "errors": 0,
+        "skipped": 0,
+        "xml_sha256": "2ef0732f786f5a3d434fe184c4d605c77867f35cc99fe7c2e92074c4056d890a"
+      },
+      {
+        "name": "dev.photohouse.home.DiscoveryHttpTest",
+        "tests": 7,
+        "failures": 0,
+        "errors": 0,
+        "skipped": 0,
+        "xml_sha256": "f75355d49693db5ca2b76edf4a54ff0fa37507d7df63d9163665053685f625a1"
+      },
+      {
+        "name": "dev.photohouse.home.DiscoveryWireTest",
+        "tests": 9,
+        "failures": 0,
+        "errors": 0,
+        "skipped": 0,
+        "xml_sha256": "2448efa6e292e213e1e420978346f4a66de9971487f95218c93a3c61cda191dd"
+      },
+      {
+        "name": "dev.photohouse.home.HomeHttpTest",
+        "tests": 7,
+        "failures": 0,
+        "errors": 0,
+        "skipped": 0,
+        "xml_sha256": "bf70367ab65528ac1d6c280a284f56e6e5e26a1260ad22d6acce77724fc34cd4"
+      },
+      {
+        "name": "dev.photohouse.home.HomeLanTest",
+        "tests": 6,
+        "failures": 0,
+        "errors": 0,
+        "skipped": 0,
+        "xml_sha256": "1d439d58de415509b8fbd025a216a1141729df38cc9e10e4c353f6a5a82b7e63"
+      },
+      {
+        "name": "dev.photohouse.home.HomeStoreTest",
+        "tests": 10,
+        "failures": 0,
+        "errors": 0,
+        "skipped": 0,
+        "xml_sha256": "d41064a4e3563813de6a1dc800da2e0521141bd189239777b80e6e7fdfbbcff6"
+      },
+      {
+        "name": "dev.photohouse.home.HomeTest",
+        "tests": 6,
+        "failures": 0,
+        "errors": 0,
+        "skipped": 0,
+        "xml_sha256": "a7c75efb312babd10892e17ba337222d29b759931941cf5b9c5fb6bc266bba0e"
+      },
+      {
+        "name": "dev.photohouse.home.HomeVideoReaderTest",
+        "tests": 6,
+        "failures": 0,
+        "errors": 0,
+        "skipped": 0,
+        "xml_sha256": "2a1f30f8d03ca6263e79f8353476c385fc8230ef2ee350571c6fd92a640c3d90"
+      }
+    ],
+    "gradle_up_to_date": false
+  },
+  "core": {
+    "totals": {
+      "tests": 22,
+      "failures": 0,
+      "errors": 0,
+      "skipped": 0
+    },
+    "classes": [
+      {
+        "name": "dev.photohouse.fixture.core.FixtureTest",
+        "tests": 22,
+        "failures": 0,
+        "errors": 0,
+        "skipped": 0,
+        "xml_sha256": "897971c8e1114b7e08f8bf0b8b9baf1f18c2825a9d38ff17ca3c8d9c172fae69"
+      }
+    ],
+    "gradle_up_to_date": true
+  },
+  "live-core": {
+    "totals": {
+      "tests": 65,
+      "failures": 0,
+      "errors": 0,
+      "skipped": 0
+    },
+    "classes": [
+      {
+        "name": "dev.photohouse.connected.core.ConnectedStoreTest",
+        "tests": 32,
+        "failures": 0,
+        "errors": 0,
+        "skipped": 0,
+        "xml_sha256": "371ee77250257c7b7836c63012fb8ad93c154be19ca562429c7a08089a2033ee"
+      },
+      {
+        "name": "dev.photohouse.connected.core.HttpsApiTest",
+        "tests": 19,
+        "failures": 0,
+        "errors": 0,
+        "skipped": 0,
+        "xml_sha256": "77d9a869d919fd54469f8c8d5bcfe953493670f2290ac2600f5c289d63ccb206"
+      },
+      {
+        "name": "dev.photohouse.connected.core.ReadinessAdapterTest",
+        "tests": 5,
+        "failures": 0,
+        "errors": 0,
+        "skipped": 0,
+        "xml_sha256": "0698acb4a94db82c33c02931aa9e3cdfadcc9f3c0655733be57d4e80eec70454"
+      },
+      {
+        "name": "dev.photohouse.connected.core.TvPreviewTest",
+        "tests": 6,
+        "failures": 0,
+        "errors": 0,
+        "skipped": 0,
+        "xml_sha256": "16f1a2697b9d7b81b00f7aa0002d71aea119702065b2139eea242328fb5ed60d"
+      },
+      {
+        "name": "dev.photohouse.connected.core.VideoReaderTest",
+        "tests": 3,
+        "failures": 0,
+        "errors": 0,
+        "skipped": 0,
+        "xml_sha256": "e1c2161188fe1d60098b5e44425f6c4e99f4be2d8372ff2d9c480a6c78d5fb1f"
+      }
+    ],
+    "gradle_up_to_date": true
+  }
+}

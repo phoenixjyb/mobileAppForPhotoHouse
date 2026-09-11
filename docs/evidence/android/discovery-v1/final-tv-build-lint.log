@@ -1,0 +1,105 @@
+> Task :tv:preBuild UP-TO-DATE
+> Task :tv:preDebugBuild UP-TO-DATE
+> Task :tv:mergeDebugNativeDebugMetadata NO-SOURCE
+> Task :home-core:checkKotlinGradlePluginConfigurationErrors
+> Task :home-core:compileKotlin UP-TO-DATE
+> Task :home-core:compileJava NO-SOURCE
+> Task :home-core:processResources NO-SOURCE
+> Task :home-core:classes UP-TO-DATE
+> Task :home-core:jar UP-TO-DATE
+> Task :tv:checkKotlinGradlePluginConfigurationErrors
+> Task :tv:generateDebugBuildConfig UP-TO-DATE
+> Task :tv:checkDebugAarMetadata UP-TO-DATE
+> Task :tv:generateDebugResValues UP-TO-DATE
+> Task :tv:mapDebugSourceSetPaths UP-TO-DATE
+> Task :tv:generateDebugResources UP-TO-DATE
+> Task :tv:mergeDebugResources UP-TO-DATE
+> Task :tv:packageDebugResources UP-TO-DATE
+> Task :tv:parseDebugLocalResources UP-TO-DATE
+> Task :tv:createDebugCompatibleScreenManifests UP-TO-DATE
+> Task :tv:extractDeepLinksDebug UP-TO-DATE
+> Task :tv:processDebugMainManifest UP-TO-DATE
+> Task :tv:processDebugManifest UP-TO-DATE
+> Task :tv:processDebugManifestForPackage UP-TO-DATE
+> Task :tv:processDebugResources UP-TO-DATE
+> Task :tv:javaPreCompileDebug UP-TO-DATE
+> Task :tv:mergeDebugShaders UP-TO-DATE
+> Task :tv:compileDebugShaders NO-SOURCE
+> Task :tv:generateDebugAssets UP-TO-DATE
+> Task :tv:mergeDebugAssets UP-TO-DATE
+> Task :tv:compressDebugAssets UP-TO-DATE
+> Task :tv:desugarDebugFileDependencies UP-TO-DATE
+> Task :tv:checkDebugDuplicateClasses UP-TO-DATE
+> Task :tv:mergeDebugStartupProfile UP-TO-DATE
+> Task :tv:mergeExtDexDebug UP-TO-DATE
+> Task :tv:mergeLibDexDebug UP-TO-DATE
+> Task :tv:mergeDebugJniLibFolders UP-TO-DATE
+> Task :tv:mergeDebugNativeLibs NO-SOURCE
+> Task :tv:stripDebugDebugSymbols NO-SOURCE
+> Task :tv:validateSigningDebug UP-TO-DATE
+> Task :tv:writeDebugAppMetadata UP-TO-DATE
+> Task :tv:writeDebugSigningConfigVersions UP-TO-DATE
+> Task :tv:preDebugAndroidTestBuild SKIPPED
+> Task :tv:processDebugAndroidTestManifest UP-TO-DATE
+> Task :tv:generateDebugAndroidTestBuildConfig UP-TO-DATE
+> Task :tv:checkDebugAndroidTestAarMetadata UP-TO-DATE
+> Task :tv:generateDebugAndroidTestResValues UP-TO-DATE
+> Task :tv:mapDebugAndroidTestSourceSetPaths UP-TO-DATE
+> Task :tv:generateDebugAndroidTestResources UP-TO-DATE
+> Task :tv:mergeDebugAndroidTestResources UP-TO-DATE
+> Task :tv:processDebugAndroidTestResources UP-TO-DATE
+> Task :tv:javaPreCompileDebugAndroidTest UP-TO-DATE
+> Task :tv:mergeDebugAndroidTestShaders UP-TO-DATE
+> Task :tv:compileDebugAndroidTestShaders NO-SOURCE
+> Task :tv:generateDebugAndroidTestAssets UP-TO-DATE
+> Task :tv:mergeDebugAndroidTestAssets UP-TO-DATE
+> Task :tv:compressDebugAndroidTestAssets UP-TO-DATE
+> Task :tv:desugarDebugAndroidTestFileDependencies UP-TO-DATE
+> Task :tv:checkDebugAndroidTestDuplicateClasses UP-TO-DATE
+> Task :tv:mergeExtDexDebugAndroidTest UP-TO-DATE
+> Task :tv:mergeLibDexDebugAndroidTest UP-TO-DATE
+> Task :tv:mergeDebugAndroidTestJniLibFolders UP-TO-DATE
+> Task :tv:mergeDebugAndroidTestNativeLibs NO-SOURCE
+> Task :tv:stripDebugAndroidTestDebugSymbols NO-SOURCE
+> Task :tv:validateSigningDebugAndroidTest UP-TO-DATE
+> Task :tv:writeDebugAndroidTestSigningConfigVersions UP-TO-DATE
+> Task :tv:extractProguardFiles UP-TO-DATE
+> Task :tv:preDebugUnitTestBuild UP-TO-DATE
+
+> Task :tv:compileDebugKotlin
+w: file://<ANDROID_WORKTREE>/android/tv/src/main/java/dev/photohouse/tv/TvApp.kt:123:25 Name shadowed: focusedWindow
+
+> Task :tv:compileDebugJavaWithJavac UP-TO-DATE
+> Task :tv:dexBuilderDebug
+> Task :tv:mergeDebugGlobalSynthetics UP-TO-DATE
+> Task :tv:processDebugJavaRes UP-TO-DATE
+> Task :tv:mergeDebugJavaResource UP-TO-DATE
+> Task :tv:bundleDebugClassesToCompileJar
+> Task :tv:compileDebugAndroidTestKotlin UP-TO-DATE
+> Task :tv:mergeProjectDexDebug
+> Task :tv:compileDebugAndroidTestJavaWithJavac UP-TO-DATE
+> Task :tv:dexBuilderDebugAndroidTest UP-TO-DATE
+> Task :tv:mergeDebugAndroidTestGlobalSynthetics UP-TO-DATE
+> Task :tv:processDebugAndroidTestJavaRes UP-TO-DATE
+> Task :tv:mergeDebugAndroidTestJavaResource UP-TO-DATE
+> Task :tv:mergeProjectDexDebugAndroidTest UP-TO-DATE
+> Task :tv:packageDebugAndroidTest UP-TO-DATE
+> Task :tv:createDebugAndroidTestApkListingFileRedirect UP-TO-DATE
+> Task :tv:assembleDebugAndroidTest UP-TO-DATE
+> Task :tv:generateDebugAndroidTestLintModel
+> Task :tv:generateDebugLintReportModel
+> Task :tv:generateDebugUnitTestLintModel
+> Task :tv:packageDebug
+> Task :tv:createDebugApkListingFileRedirect UP-TO-DATE
+> Task :tv:assembleDebug
+> Task :tv:lintAnalyzeDebugAndroidTest
+> Task :tv:lintAnalyzeDebugUnitTest
+> Task :tv:lintAnalyzeDebug
+
+> Task :tv:lintReportDebug
+Wrote HTML report to file://<ANDROID_WORKTREE>/android/tv/build/reports/lint-results-debug.html
+
+> Task :tv:lintDebug
+
+BUILD SUCCESSFUL in 6s
+78 actionable tasks: 15 executed, 63 up-to-date
