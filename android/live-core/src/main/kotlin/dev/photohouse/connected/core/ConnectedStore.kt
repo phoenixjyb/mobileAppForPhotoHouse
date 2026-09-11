@@ -208,7 +208,7 @@ class ConnectedStore(private val api: PhotoHouseApi, private val scope: Coroutin
                 val captions = api.captions(credential, library, assetId)
                 if (!active(generation)) return@launch
                 validResponse(captions.library_id == library && captions.asset_id == assetId && captions.items.size <= 20 && captions.items.map { it.id }.distinct().size == captions.items.size)
-                val bytes = api.thumbnail(credential, library, detail.asset)
+                val bytes = api.detailPreview(credential, library, detail.asset)
                 if (!active(generation)) return@launch
                 validResponse(bytes == null || bytes.size <= HttpsPhotoHouseApi.IMAGE_LIMIT)
                 mutable.value = state.value.copy(detail = detail, captions = captions, busy = false,

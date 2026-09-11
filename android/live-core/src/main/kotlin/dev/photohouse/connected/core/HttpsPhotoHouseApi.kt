@@ -30,8 +30,9 @@ class TrustedOrigin private constructor(internal val url: HttpUrl) {
 /** Application construction always uses platform trust and hostname validation.
  * The internal overload is visible only to this module's JVM test friend source set.
  */
-class HttpsPhotoHouseApi internal constructor(private val origin: TrustedOrigin, client: OkHttpClient) : PhotoHouseApi {
-    constructor(origin: TrustedOrigin) : this(origin, OkHttpClient())
+class HttpsPhotoHouseApi internal constructor(private val origin: TrustedOrigin, client: OkHttpClient, private val detailPreviewSize: Int = 256) : PhotoHouseApi {
+    constructor(origin: TrustedOrigin, detailPreviewSize: Int = 256) : this(origin, OkHttpClient(), detailPreviewSize)
+    init { require(detailPreviewSize in 64..1024) }
     private val client = client.newBuilder()
         .followRedirects(false).followSslRedirects(false).retryOnConnectionFailure(false)
         .cookieJar(CookieJar.NO_COOKIES).cache(null)
@@ -144,11 +145,21 @@ class HttpsPhotoHouseApi internal constructor(private val origin: TrustedOrigin,
     override suspend fun detail(token: Bearer, library: String, assetId: String) = json(url("/assets/detail/${assetId(assetId)}", library), Detail.serializer(), token)
     override suspend fun captions(token: Bearer, library: String, assetId: String) = json(url("/assets/${assetId(assetId)}/captions", library), Captions.serializer(), token)
     override suspend fun thumbnail(token: Bearer, library: String, asset: Asset): ByteArray? {
+        return cachedPreview(token, library, asset, 256)
+    }
+    override suspend fun detailPreview(token: Bearer, library: String, asset: Asset): ByteArray? {
+        val preview = cachedPreview(token, library, asset, detailPreviewSize)
+        // Only a missing cached larger derivative can fall back to a cached thumbnail.
+        // Denial, TLS, size and other failures propagate; originals are never a fallback.
+        return if (preview == null && detailPreviewSize != 256) thumbnail(token, library, asset) else preview
+    }
+    private suspend fun cachedPreview(token: Bearer, library: String, asset: Asset, size: Int): ByteArray? {
         val expected = url("/assets/${assetId(asset.id)}/thumbnail", library)
         // A response cannot turn a bearer-protected thumbnail into an arbitrary URL.
         require(asset.thumbnail_url.startsWith('/') && !asset.thumbnail_url.startsWith("//") && '\\' !in asset.thumbnail_url)
         require(origin.url.resolve(asset.thumbnail_url) == expected) { "Unexpected scoped thumbnail reference" }
-        val packet = packet(expected, token, limit = IMAGE_LIMIT, missingAllowed = true, accept = "image/*")
+        val target = if (size == 256) expected else expected.newBuilder().addQueryParameter("size", size.toString()).build()
+        val packet = packet(target, token, limit = IMAGE_LIMIT, missingAllowed = true, accept = "image/*")
         if (packet.code == 404) return null
         if (packet.contentType?.substringBefore(';')?.lowercase() !in setOf("image/jpeg", "image/png", "image/webp")) throw ApiFailure(FailureKind.INVALID_RESPONSE)
         return packet.bytes

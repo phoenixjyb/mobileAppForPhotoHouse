@@ -31,6 +31,8 @@ interface PhotoHouseApi {
     suspend fun detail(token: Bearer, library: String, assetId: String): Detail
     suspend fun captions(token: Bearer, library: String, assetId: String): Captions
     suspend fun thumbnail(token: Bearer, library: String, asset: Asset): ByteArray?
+    /** Larger cached detail preview; default preserves existing phone and test adapters. */
+    suspend fun detailPreview(token: Bearer, library: String, asset: Asset): ByteArray? = thumbnail(token, library, asset)
     suspend fun videoRange(token: Bearer, library: String, assetId: String, start: Long, length: Int): VideoChunk
     suspend fun originalPhoto(token: Bearer, library: String, assetId: String): ByteArray
 }
