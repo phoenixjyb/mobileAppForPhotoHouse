@@ -1,0 +1,16 @@
+<?xml version='1.0' encoding='utf-8'?>
+<testsuite name="dev.photohouse.connected.core.HttpsApiTest" tests="13" skipped="0" failures="0" errors="0" timestamp="2026-09-11T01:16:28" time="0.879">
+  <testcase name="protectedSessionUsesOneHeaderAndDoesNotPersistCookie" classname="dev.photohouse.connected.core.HttpsApiTest" time="0.282" />
+  <testcase name="originAdmissionAndOpaqueTokenValidation" classname="dev.photohouse.connected.core.HttpsApiTest" time="0.003" />
+  <testcase name="nativeLoginAndRegistrationSendExactFieldsWithoutAmbientCredentials" classname="dev.photohouse.connected.core.HttpsApiTest" time="0.07" />
+  <testcase name="cancelStopsOutstandingTransport" classname="dev.photohouse.connected.core.HttpsApiTest" time="0.046" />
+  <testcase name="requestLimitsRejectOversizedInvitationBeforeNetwork" classname="dev.photohouse.connected.core.HttpsApiTest" time="0.031" />
+  <testcase name="thumbnailMimeAndStreamingSizeAreBounded" classname="dev.photohouse.connected.core.HttpsApiTest" time="0.108" />
+  <testcase name="statusesDoNotDependOnErrorBodyAndNeverAutoRetry" classname="dev.photohouse.connected.core.HttpsApiTest" time="0.046" />
+  <testcase name="arbitraryThumbnailUrlsNeverSendBearer" classname="dev.photohouse.connected.core.HttpsApiTest" time="0.029" />
+  <testcase name="redirectsNeverFollowEvenOnSameOrigin" classname="dev.photohouse.connected.core.HttpsApiTest" time="0.038" />
+  <testcase name="frozenBrowsingAndMutationResponsesUseExactScopedRoutes" classname="dev.photohouse.connected.core.HttpsApiTest" time="0.052" />
+  <testcase name="missingThumbnailIsPlaceholderWithNoOriginalFallback" classname="dev.photohouse.connected.core.HttpsApiTest" time="0.037" />
+  <testcase name="boundedStreamingAndStrictJsonRejectMalformedResponses" classname="dev.photohouse.connected.core.HttpsApiTest" time="0.053" />
+  <testcase name="platformTrustRejectsSelfSignedServerAndHostnameValidationRemainsEnabled" classname="dev.photohouse.connected.core.HttpsApiTest" time="0.083" />
+  </testsuite>

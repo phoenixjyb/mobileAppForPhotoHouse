@@ -15,6 +15,9 @@ class ConnectedStoreTest {
         var sessionReads = 0; var galleryReads = 0; var imageReads = 0; var logouts = 0; var accepts = 0; var logins = 0
         var sessionError: Exception? = null
         var galleryError: Exception? = null
+        var detailError: Exception? = null
+        var detailGate: CompletableDeferred<Unit>? = null
+        val detailReads = mutableListOf<String>()
         var logoutError: Exception? = null
         var loginGate: CompletableDeferred<Unit>? = null
         var galleryGate: CompletableDeferred<Unit>? = null
@@ -40,7 +43,12 @@ class ConnectedStoreTest {
             galleryGate?.let { withContext(NonCancellable) { it.await() } }
             galleryError?.let { throw it }; return response
         }
-        override suspend fun detail(token: Bearer, library: String, assetId: String) = Detail(library, false, asset)
+        override suspend fun detail(token: Bearer, library: String, assetId: String): Detail {
+            detailReads += assetId
+            val response = Detail(library, false, assets.first { it.id == assetId })
+            detailGate?.let { withContext(NonCancellable) { it.await() } }
+            detailError?.let { throw it }; return response
+        }
         override suspend fun captions(token: Bearer, library: String, assetId: String) = Captions(library, assetId, false, listOf(Caption("c1", "<b>原文 literal</b>", false, false, null, null)))
         override suspend fun thumbnail(token: Bearer, library: String, asset: Asset): ByteArray? { imageReads++; return images }
     }
@@ -149,5 +157,75 @@ class ConnectedStoreTest {
         store.authenticate("+12025550123", "synthetic-password-only", "synthetic-invitation"); runCurrent()
         assertEquals("synthetic-invitation", api.lastRegistration); assertNotNull(store.state.value.session)
         val restarted = store(api); assertFalse(restarted.hasSession); assertNull(restarted.state.value.session)
+    }
+    @Test fun detailNavigationStaysOnCurrentPageAndFetchesEachPhoto() = runTest {
+        val api = FakeApi().apply { assets = (1..3).map { asset.copy(id = it.toString()) } + asset }
+        val store = store(api); signIn(store); store.selectLibrary("family"); runCurrent()
+        store.loadPage(2); runCurrent(); store.openAsset(asset); runCurrent()
+        assertEquals(listOf("1", "2", "3"), store.state.value.photoNavigation?.assetIds)
+        store.adjacentPhoto(-1); store.adjacentPhoto(2); runCurrent()
+        assertEquals(listOf("1"), api.detailReads)
+        store.adjacentPhoto(1); runCurrent(); assertEquals("2", store.state.value.detail?.asset?.id)
+        store.adjacentPhoto(1); runCurrent(); store.adjacentPhoto(1); runCurrent()
+        assertEquals(listOf("1", "2", "3"), api.detailReads)
+        store.adjacentPhoto(-1); runCurrent(); assertEquals("2", store.state.value.detail?.asset?.id)
+        store.backToPhotos(); runCurrent()
+        assertEquals(2, store.state.value.gallery?.page)
+        assertNull(store.state.value.photoNavigation); assertNull(store.state.value.detail)
+    }
+    @Test fun pendingAdjacentPhotoCannotRestoreAfterBackOrLibrarySwitch() = runTest {
+        for (switchLibrary in listOf(false, true)) {
+            val api = FakeApi().apply { assets = listOf(asset, asset.copy(id = "2")) }
+            val store = store(api); signIn(store); store.selectLibrary("family"); runCurrent()
+            store.loadPage(2); runCurrent(); store.openAsset(asset); runCurrent()
+            api.detailGate = CompletableDeferred(); store.adjacentPhoto(1); runCurrent()
+            assertTrue(store.state.value.busy); assertNull(store.state.value.detail)
+            assertEquals(0, store.cachedBytes)
+            store.adjacentPhoto(-1); runCurrent(); assertEquals(2, api.detailReads.size)
+            if (switchLibrary) store.selectLibrary("second") else store.backToPhotos()
+            runCurrent(); api.detailGate!!.complete(Unit); runCurrent()
+            assertNull(store.state.value.photoNavigation); assertNull(store.state.value.detail)
+            assertEquals(if (switchLibrary) "second" else "family", store.state.value.gallery?.library_id)
+            assertEquals(if (switchLibrary) 1 else 2, store.state.value.gallery?.page)
+        }
+    }
+    @Test fun navigationContextIsClearedAtEveryPrivateStateBoundary() = runTest {
+        for (boundary in listOf("background", "logout", "libraries", "expiry")) {
+            val api = FakeApi().apply { assets = listOf(asset, asset.copy(id = "2")) }
+            val store = store(api); signIn(store); store.selectLibrary("family"); runCurrent()
+            store.openAsset(asset); runCurrent(); assertNotNull(store.state.value.photoNavigation)
+            when (boundary) {
+                "background" -> store.background()
+                "logout" -> store.logout()
+                "libraries" -> store.libraries()
+                "expiry" -> advanceTimeBy(86400_000)
+            }
+            runCurrent(); store.adjacentPhoto(1); runCurrent()
+            assertNull(store.state.value.photoNavigation); assertNull(store.state.value.detail)
+            assertEquals(0, store.cachedBytes); assertEquals(listOf("1"), api.detailReads)
+        }
+    }
+    @Test fun adjacentPhotoDenialClearsSequenceAndRechecksSessionOnce() = runTest {
+        val api = FakeApi().apply { assets = listOf(asset, asset.copy(id = "2")) }
+        val store = store(api); signIn(store); store.selectLibrary("family"); runCurrent()
+        store.openAsset(asset); runCurrent()
+        api.detailError = ApiFailure(FailureKind.HTTP, 401)
+        store.adjacentPhoto(1); runCurrent(); store.adjacentPhoto(-1); runCurrent()
+        assertNull(store.state.value.photoNavigation); assertNull(store.state.value.detail)
+        assertEquals(0, store.cachedBytes); assertEquals(2, api.sessionReads)
+        assertEquals(listOf("1", "2"), api.detailReads); assertFalse(store.canRetry())
+    }
+    @Test fun offlineAdjacentRetryFetchesAgainAndRetainsReturnPage() = runTest {
+        val api = FakeApi().apply { assets = listOf(asset, asset.copy(id = "2")) }
+        val store = store(api); signIn(store); store.selectLibrary("family"); runCurrent()
+        store.loadPage(2); runCurrent(); store.openAsset(asset); runCurrent()
+        api.detailError = ApiFailure(FailureKind.OFFLINE)
+        store.adjacentPhoto(1); runCurrent()
+        assertNull(store.state.value.photoNavigation); assertNull(store.state.value.detail)
+        assertTrue(store.canRetry()); assertEquals(0, store.cachedBytes)
+        api.detailError = null; store.retry(); runCurrent()
+        assertEquals("2", store.state.value.detail?.asset?.id)
+        assertEquals(listOf("1", "2", "2"), api.detailReads)
+        store.backToPhotos(); runCurrent(); assertEquals(2, store.state.value.gallery?.page)
     }
 }

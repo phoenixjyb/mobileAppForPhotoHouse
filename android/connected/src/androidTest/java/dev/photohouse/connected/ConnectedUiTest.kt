@@ -24,13 +24,15 @@ class ConnectedUiTest {
     private class SyntheticApi : PhotoHouseApi {
         var registrationCode: String? = null
         val photo = Asset("1", "video", null, null, null, "2026-01-01", "/assets/1/thumbnail?library=synthetic-library")
+        var photos = listOf(photo)
+        var total = 1L
         override suspend fun login(phone: String, password: String) = SessionToken(86400, "T".repeat(43), "Bearer")
         override suspend fun register(phone: String, password: String, code: String): SessionToken { registrationCode = code; return login(phone, password) }
         override suspend fun session(token: Bearer) = Session("synthetic-account", "+12025550123", listOf(Membership("synthetic-library", "approved", "viewer", 1, null, 0, true)))
         override suspend fun logout(token: Bearer) { }
         override suspend fun acceptInvitation(token: Bearer, code: String) { }
-        override suspend fun gallery(token: Bearer, library: String, page: Int) = Gallery(library, page, 50, 1, false, listOf(photo))
-        override suspend fun detail(token: Bearer, library: String, assetId: String) = Detail(library, false, photo)
+        override suspend fun gallery(token: Bearer, library: String, page: Int) = Gallery(library, page, 50, total, false, photos)
+        override suspend fun detail(token: Bearer, library: String, assetId: String) = Detail(library, false, photos.first { it.id == assetId })
         override suspend fun captions(token: Bearer, library: String, assetId: String) = Captions(library, assetId, false, listOf(Caption("1", "<b>Literal 原文</b>", false, false, null, null)))
         override suspend fun thumbnail(token: Bearer, library: String, asset: Asset): ByteArray? = null
     }
@@ -78,5 +80,33 @@ class ConnectedUiTest {
         assertEquals("synthetic-invitation", api.registrationCode)
         assertNotNull(store.state.value.session)
         rule.onAllNodes(hasText("synthetic-invitation")).assertCountEquals(0)
+    }
+    @Test fun photoNavigationReturnsToSelectedPageAndSupportsBothLanguages() {
+        val api = SyntheticApi().apply { photos = listOf(photo, photo.copy(id = "2", taken_at = "2026-01-02")); total = 100 }
+        val store = ConnectedStore(api, scope)
+        rule.runOnUiThread {
+            rule.activity.setContent { ConnectedApp(store) }
+            store.authenticate("+12025550123", "synthetic-password-only")
+        }
+        click("Open library"); click("Next"); click("2026-01-01")
+        reveal(hasText("Photo 1 of 2 · Page 2"))
+        rule.onNodeWithText("Photo 1 of 2 · Page 2").assertIsDisplayed()
+        rule.onNode(hasText("Previous photo") and hasClickAction()).assertIsNotEnabled()
+        click("Next photo")
+        reveal(hasText("Photo 2 of 2 · Page 2"))
+        rule.onNodeWithText("Photo 2 of 2 · Page 2").assertIsDisplayed()
+        rule.onNode(hasText("Next photo") and hasClickAction()).assertIsNotEnabled()
+        capture("photo-navigation-en")
+        click("简体中文"); reveal(hasText("第 2 页 · 第 2/2 张"))
+        rule.onNodeWithText("第 2 页 · 第 2/2 张").assertIsDisplayed()
+        capture("photo-navigation-zh")
+        click("上一张"); click("返回照片")
+        reveal(hasText("第 2 页 · 100 张照片")); rule.onNodeWithText("第 2 页 · 100 张照片").assertIsDisplayed()
+        click("2026-01-01")
+        rule.runOnUiThread { rule.activity.onBackPressedDispatcher.onBackPressed() }
+        rule.waitForIdle()
+        reveal(hasText("第 2 页 · 100 张照片")); rule.onNodeWithText("第 2 页 · 100 张照片").assertIsDisplayed()
+        click("退出登录"); assertNull(store.state.value.photoNavigation)
+        rule.onAllNodes(hasText("第 2 页 · 第 1/2 张")).assertCountEquals(0)
     }
 }

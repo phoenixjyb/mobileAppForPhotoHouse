@@ -6,6 +6,7 @@ import androidx.compose.foundation.Image
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
@@ -53,12 +54,14 @@ private class Words(val zh: Boolean) {
     val words = Words(language == "zh" || language == "system" && config.locales[0].language == "zh")
     val t = words::t
     val state = store?.state?.collectAsState()?.value ?: LiveState()
+    val scroll = rememberLazyListState()
+    LaunchedEffect(state.generation) { scroll.scrollToItem(0) }
     MaterialTheme(colorScheme = lightColorScheme(primary = Color(0xFF48634D), background = Color(0xFFFAF7F2), surface = Color(0xFFFAF7F2))) {
         Surface(Modifier.fillMaxSize()) {
             BackHandler(store != null && state.library != null && !state.covered) {
-                if (state.detail != null) store?.loadPage() else store?.libraries()
+                if (state.detail != null || state.photoNavigation != null) store?.backToPhotos() else store?.libraries()
             }
-            LazyColumn(Modifier.fillMaxSize().safeDrawingPadding().testTag("connected-screen"),
+            LazyColumn(Modifier.fillMaxSize().safeDrawingPadding().testTag("connected-screen"), state = scroll,
                 contentPadding = PaddingValues(20.dp), verticalArrangement = Arrangement.spacedBy(16.dp)) {
                 item { Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
                     Text(t("PhotoHouse", "拾光相册"), style = MaterialTheme.typography.headlineLarge)
@@ -110,9 +113,18 @@ private class Words(val zh: Boolean) {
                                     }
                                     item { key(state.generation) { InvitationForm(store, state, words) } }
                                 }
-                                state.detail != null -> {
-                                    val detail = state.detail!!
-                                    item { TextButton(onClick = { store.loadPage() }) { Text(t("Back to Photos", "返回照片")) } }
+                                state.detail != null || state.photoNavigation != null -> {
+                                    item { TextButton(onClick = store::backToPhotos) { Text(t("Back to Photos", "返回照片")) } }
+                                    state.photoNavigation?.let { navigation ->
+                                        item { Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                                            Text(t("Photo ${navigation.index + 1} of ${navigation.assetIds.size} · Page ${navigation.page}", "第 ${navigation.page} 页 · 第 ${navigation.index + 1}/${navigation.assetIds.size} 张"))
+                                            FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                                                OutlinedButton(onClick = { store.adjacentPhoto(-1) }, enabled = !state.busy && navigation.index > 0) { Text(t("Previous photo", "上一张")) }
+                                                OutlinedButton(onClick = { store.adjacentPhoto(1) }, enabled = !state.busy && navigation.index < navigation.assetIds.lastIndex) { Text(t("Next photo", "下一张")) }
+                                            }
+                                        } }
+                                    }
+                                    state.detail?.let { detail ->
                                     item { Preview(detail.asset, state.previews[detail.asset.id], words) }
                                     item { Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
                                         Text(detail.asset.taken_at ?: t("Date unknown", "日期未知"))
@@ -131,6 +143,7 @@ private class Words(val zh: Boolean) {
                                         } }
                                     }
                                     if (state.captions?.has_more == true) item { Text(t("More captions exist", "还有更多描述")) }
+                                    }
                                 }
                                 else -> {
                                     item { Text(t("Photos", "照片"), style = MaterialTheme.typography.headlineMedium) }

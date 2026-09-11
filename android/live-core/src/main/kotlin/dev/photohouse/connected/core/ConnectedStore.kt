@@ -7,11 +7,14 @@ import kotlinx.coroutines.flow.asStateFlow
 
 enum class Message { SIGNED_OUT_LOCAL, SIGNED_OUT_CONFIRMED, SESSION_ENDED, ACCESS_DENIED, UNAVAILABLE, TLS_ERROR, CLOSED, RATE_LIMITED, INVALID_INPUT, INVALID_RESPONSE }
 data class LiveProblem(val message: Message, val retryAtMillis: Long = 0)
+/** Only the current page's IDs, never a persistent or cross-library history. */
+data class PhotoNavigation(val page: Int, val assetIds: List<String>, val index: Int)
 data class LiveState(
     val generation: Long = 0, val session: Session? = null, val library: String? = null,
     val gallery: Gallery? = null, val detail: Detail? = null, val captions: Captions? = null,
     val previews: Map<String, ByteArray> = emptyMap(), val busy: Boolean = false,
     val covered: Boolean = false, val problem: LiveProblem? = null,
+    val photoNavigation: PhotoNavigation? = null,
 )
 
 /** UI-dispatcher-confined; only the wire DTO module is shared with fixture code. */
@@ -114,30 +117,47 @@ class ConnectedStore(private val api: PhotoHouseApi, private val scope: Coroutin
         }
     }
     fun openAsset(asset: Asset) {
+        val gallery = state.value.gallery
+        val ids = gallery?.items?.map { it.id }.orEmpty()
+        val index = ids.indexOf(asset.id)
+        val navigation = if (gallery != null && index >= 0) PhotoNavigation(gallery.page, ids, index) else null
+        openPhoto(asset.id, navigation)
+    }
+    fun adjacentPhoto(direction: Int) {
+        if (state.value.busy || direction !in listOf(-1, 1)) return
+        val navigation = state.value.photoNavigation ?: return
+        val index = navigation.index + direction
+        if (index !in navigation.assetIds.indices) return
+        openPhoto(navigation.assetIds[index], navigation.copy(index = index))
+    }
+    fun backToPhotos() {
+        loadPage(state.value.photoNavigation?.page ?: state.value.gallery?.page ?: 1)
+    }
+    private fun openPhoto(assetId: String, navigation: PhotoNavigation?) {
         if (!allowed() || coolingDown()) return
         val library = state.value.library!!; val credential = token!!
         invalidate(keepIdentity = true)
-        mutable.value = state.value.copy(library = library, busy = true)
+        mutable.value = state.value.copy(library = library, busy = true, photoNavigation = navigation)
         launch { generation ->
             try {
-                val detail = api.detail(credential, library, asset.id)
+                val detail = api.detail(credential, library, assetId)
                 if (!active(generation)) return@launch
-                validResponse(detail.library_id == library && detail.asset.id == asset.id)
-                val captions = api.captions(credential, library, asset.id)
+                validResponse(detail.library_id == library && detail.asset.id == assetId)
+                val captions = api.captions(credential, library, assetId)
                 if (!active(generation)) return@launch
-                validResponse(captions.library_id == library && captions.asset_id == asset.id && captions.items.size <= 20 && captions.items.map { it.id }.distinct().size == captions.items.size)
+                validResponse(captions.library_id == library && captions.asset_id == assetId && captions.items.size <= 20 && captions.items.map { it.id }.distinct().size == captions.items.size)
                 val bytes = api.thumbnail(credential, library, detail.asset)
                 if (!active(generation)) return@launch
                 validResponse(bytes == null || bytes.size <= HttpsPhotoHouseApi.IMAGE_LIMIT)
                 mutable.value = state.value.copy(detail = detail, captions = captions, busy = false,
-                    previews = if (bytes == null) emptyMap() else mapOf(asset.id to bytes))
+                    previews = if (bytes == null) emptyMap() else mapOf(assetId to bytes))
             } catch (e: CancellationException) { throw e }
-            catch (e: Exception) { readFailure(e, generation, credential) { openAsset(asset) } }
+            catch (e: Exception) { readFailure(e, generation, credential) { openPhoto(assetId, navigation) } }
         }
     }
     private suspend fun readFailure(error: Exception, generation: Long, credential: Bearer, retryRead: () -> Unit) {
         if (!active(generation)) return
-        mutable.value = state.value.copy(gallery = null, detail = null, captions = null, previews = emptyMap(), busy = false, problem = problem(error))
+        mutable.value = state.value.copy(gallery = null, detail = null, captions = null, previews = emptyMap(), photoNavigation = null, busy = false, problem = problem(error))
         if (error is ApiFailure && error.status == 401) {
             mutable.value = state.value.copy(busy = true)
             try {
