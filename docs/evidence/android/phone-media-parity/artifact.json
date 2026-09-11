@@ -1,0 +1,14 @@
+{
+  "source_commit": "fd7a72ac400c604bf078d04f3fb62cbdee4be806",
+  "branch": "codex/android-phone-media-parity",
+  "package": "dev.photohouse.connected",
+  "version_code": 2,
+  "version_name": "0.3-phone-media-dev",
+  "origin": "",
+  "apk": "PhotoHouse-Phone-media-v2-unconfigured-6cb1b192.apk",
+  "apk_sha256": "6cb1b19296be11135f55b0bbfef15ba6151c52614434e362515290b6b1b7bb40",
+  "apk_bytes": 8988354,
+  "signer_sha256": "56d7591b2b6c2538d506d1fe51327444f2307736cb12f5beefa08f1c410d6d28",
+  "application_assets": [],
+  "physical_installation": false
+}

@@ -32,7 +32,7 @@ Base `838d392861a474ad8b9e2faf0994f35f26b085cd`; isolated branch
 versionCode 2, versionName `0.3-phone-media-dev`, debug only and origin unset.
 
 - Whole-photo fit or aspect-preserving fill with a cropped-edge indication;
-  zoom/pan remain bounded, and changing photos resets the transform.
+  zoom/pan remain bounded, and changing photos resets zoom and pan.
 - Immersive photo/video display with a visible Show controls action. Back first
   restores controls, then closes the viewer. Native video uses the same reader
   and player across fit/fullscreen changes, with no audio restart.
@@ -66,8 +66,10 @@ over the working projector build expecting it to find a server automatically.
 ## Search continuation
 
 Backend proposal `8d8e88974b8be515ad5a9ab088b91a94652b1e71` documents protected
-library-scoped discovery. This task requested its next synthetic service slice
-from the existing backend owner. Proposed HTTP/field names are not frozen.
+library-scoped discovery. The existing backend owner implemented its unmounted
+service slice at `ddfb0fb893d96482eb1b4b1015328c66ec96077c`; Android independently
+verified 15 committed source blobs, 25 focused tests and 10 internal replay checks.
+This adds no callable endpoint. Proposed HTTP/field names are not frozen.
 No guessed phone routes, global people list, caption-to-identity inference,
 or shared-contract edits belong in this media change.
 
