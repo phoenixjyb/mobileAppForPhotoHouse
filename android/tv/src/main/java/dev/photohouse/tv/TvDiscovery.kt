@@ -233,11 +233,13 @@ private fun toggle(ids: Set<String>, id: String) = if (id in ids) ids - id else 
         TvButton("+10", enabled = year < high) { year = (year + 10).coerceAtMost(high) }
     }
 }
-private fun choiceHint(choice: DiscoveryChoice, zh: Boolean): String = buildList {
+internal fun choiceHint(choice: DiscoveryChoice, zh: Boolean): String = buildList {
     if (choice.aliases.isNotEmpty()) add(choice.aliases.joinToString(" · "))
     choice.assetCount?.let { add(if (zh) "$it 项" else "$it items") }
     choice.provenance.filterValues { it > 0 }.forEach { (source, count) ->
         val label = when (source) {
+            "reviewed_assignments" -> if (zh) "已确认人物" else "Reviewed people"
+            "reviewed_region" -> if (zh) "已确认地区" else "Reviewed region"
             "manual" -> if (zh) "人工" else "Manual"
             "caption" -> if (zh) "来自说明" else "Caption-derived"
             "image" -> if (zh) "来自图像" else "Image-derived"

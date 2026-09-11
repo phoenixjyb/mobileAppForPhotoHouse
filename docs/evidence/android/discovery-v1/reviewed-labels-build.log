@@ -1,0 +1,52 @@
+> Task :home-core:checkKotlinGradlePluginConfigurationErrors
+> Task :home-core:compileKotlin UP-TO-DATE
+> Task :home-core:compileJava NO-SOURCE
+> Task :home-core:processResources NO-SOURCE
+> Task :home-core:classes UP-TO-DATE
+> Task :home-core:jar UP-TO-DATE
+> Task :tv:checkKotlinGradlePluginConfigurationErrors
+> Task :tv:preBuild UP-TO-DATE
+> Task :tv:preDebugBuild UP-TO-DATE
+> Task :tv:generateDebugBuildConfig
+> Task :tv:checkDebugAarMetadata UP-TO-DATE
+> Task :tv:generateDebugResValues UP-TO-DATE
+> Task :tv:mapDebugSourceSetPaths UP-TO-DATE
+> Task :tv:generateDebugResources UP-TO-DATE
+> Task :tv:mergeDebugResources UP-TO-DATE
+> Task :tv:packageDebugResources UP-TO-DATE
+> Task :tv:parseDebugLocalResources UP-TO-DATE
+> Task :tv:createDebugCompatibleScreenManifests UP-TO-DATE
+> Task :tv:extractDeepLinksDebug UP-TO-DATE
+> Task :tv:processDebugMainManifest UP-TO-DATE
+> Task :tv:processDebugManifest UP-TO-DATE
+> Task :tv:processDebugManifestForPackage UP-TO-DATE
+> Task :tv:processDebugResources UP-TO-DATE
+> Task :tv:javaPreCompileDebug UP-TO-DATE
+> Task :tv:preDebugUnitTestBuild UP-TO-DATE
+> Task :tv:javaPreCompileDebugUnitTest
+> Task :tv:preDebugAndroidTestBuild SKIPPED
+> Task :tv:generateDebugAndroidTestResValues UP-TO-DATE
+> Task :tv:extractProguardFiles UP-TO-DATE
+> Task :tv:compileDebugKotlin
+> Task :tv:compileDebugJavaWithJavac
+> Task :tv:bundleDebugClassesToRuntimeJar
+> Task :tv:bundleDebugClassesToCompileJar
+> Task :tv:processDebugJavaRes UP-TO-DATE
+> Task :tv:generateDebugAndroidTestLintModel
+> Task :tv:generateDebugLintReportModel
+> Task :tv:generateDebugUnitTestLintModel
+> Task :tv:compileDebugUnitTestKotlin
+> Task :tv:compileDebugUnitTestJavaWithJavac NO-SOURCE
+> Task :tv:processDebugUnitTestJavaRes
+> Task :tv:testDebugUnitTest
+> Task :tv:lintAnalyzeDebugAndroidTest
+> Task :tv:lintAnalyzeDebug
+> Task :tv:lintAnalyzeDebugUnitTest
+
+> Task :tv:lintReportDebug
+Wrote HTML report to file://<ANDROID_WORKTREE>/android/tv/build/reports/lint-results-debug.html
+
+> Task :tv:lintDebug
+
+BUILD SUCCESSFUL in 7s
+38 actionable tasks: 19 executed, 19 up-to-date

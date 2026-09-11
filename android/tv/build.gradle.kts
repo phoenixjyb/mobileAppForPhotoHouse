@@ -40,6 +40,7 @@ android {
     packaging { resources.excludes += "/META-INF/{AL2.0,LGPL2.1}" }
 }
 dependencies {
+    testImplementation("junit:junit:4.13.2")
     implementation(project(":home-core"))
     androidTestImplementation(platform("androidx.compose:compose-bom:2024.06.00"))
     androidTestImplementation("androidx.compose.ui:ui-test-junit4")
