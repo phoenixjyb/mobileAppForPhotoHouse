@@ -52,11 +52,11 @@ class HttpsPhotoHouseApi internal constructor(private val origin: TrustedOrigin,
         require(id.matches(Regex("[1-9][0-9]{0,18}")) && id.toLongOrNull() != null)
         return id
     }
-    private suspend fun packet(url: HttpUrl, token: Bearer?, body: String? = null, limit: Int = JSON_LIMIT, missingAllowed: Boolean = false): Packet {
+    private suspend fun packet(url: HttpUrl, token: Bearer?, body: String? = null, limit: Int = JSON_LIMIT, missingAllowed: Boolean = false, accept: String = "application/json"): Packet {
         require(url.scheme == "https" && url.host == origin.url.host && url.port == origin.url.port)
         val bytes = body?.toByteArray(Charsets.UTF_8)
         if (bytes != null && bytes.size > 2048) throw ApiFailure(FailureKind.INVALID_INPUT)
-        val request = Request.Builder().url(url).header("Accept", if (limit == IMAGE_LIMIT) "image/*" else "application/json")
+        val request = Request.Builder().url(url).header("Accept", accept)
             .header("Cache-Control", "no-store")
             .apply { token?.let { header("Authorization", it.header()) } }
             .apply { if (bytes != null) post(bytes.toRequestBody("application/json; charset=utf-8".toMediaType())) }
@@ -130,10 +130,18 @@ class HttpsPhotoHouseApi internal constructor(private val origin: TrustedOrigin,
         // A response cannot turn a bearer-protected thumbnail into an arbitrary URL.
         require(asset.thumbnail_url.startsWith('/') && !asset.thumbnail_url.startsWith("//") && '\\' !in asset.thumbnail_url)
         require(origin.url.resolve(asset.thumbnail_url) == expected) { "Unexpected scoped thumbnail reference" }
-        val packet = packet(expected, token, limit = IMAGE_LIMIT, missingAllowed = true)
+        val packet = packet(expected, token, limit = IMAGE_LIMIT, missingAllowed = true, accept = "image/*")
         if (packet.code == 404) return null
         if (packet.contentType?.substringBefore(';')?.lowercase() !in setOf("image/jpeg", "image/png", "image/webp")) throw ApiFailure(FailureKind.INVALID_RESPONSE)
         return packet.bytes
     }
-    companion object { const val JSON_LIMIT = 524288; const val IMAGE_LIMIT = 1048576 }
+    override suspend fun originalPhoto(token: Bearer, library: String, assetId: String): ByteArray {
+        // Construct the protected route; never accept a URL from metadata or UI.
+        val packet = packet(url("/assets/${assetId(assetId)}/media", library), token,
+            limit = ORIGINAL_LIMIT, accept = "image/jpeg, image/png, image/webp")
+        if (packet.code != 200 || packet.bytes.isEmpty() || packet.contentType?.substringBefore(';')?.trim()?.lowercase()
+            !in setOf("image/jpeg", "image/png", "image/webp")) throw ApiFailure(FailureKind.INVALID_RESPONSE)
+        return packet.bytes
+    }
+    companion object { const val JSON_LIMIT = 524288; const val IMAGE_LIMIT = 1048576; const val ORIGINAL_LIMIT = 12 * 1024 * 1024 }
 }

@@ -4,9 +4,10 @@
 frozen native contract through OkHttp 4.12.0: phone/password login, invited
 registration, own-session and library selection, invitation acceptance, paged
 gallery, authenticated thumbnails, asset details, literal captions and logout.
-It supports English and Simplified Chinese interface text. UI polish is deferred.
+It supports English and Simplified Chinese interface text, page-preserving photo
+navigation, and an explicit original-photo viewer with zoom/pan. UI polish is deferred.
 
-It is not the complete PhotoHouse product. Video/original download, uploads,
+It is not the complete PhotoHouse product. Video playback, file downloads, uploads,
 search, albums, voice, owner administration and persistent sign-in are absent.
 Real backend deployment and physical-device acceptance have not been verified.
 
@@ -57,11 +58,24 @@ only after acknowledgement. A cancelled/lost login or registration response may
 leave a server session until its expiry; there is no invented recovery endpoint.
 
 Each JSON response is limited to 512 KiB, each thumbnail to 1 MiB, and retained
-thumbnail bytes to 8 MiB. Image decoding rejects dimensions above 1024 pixels.
+thumbnail bytes to 8 MiB. Thumbnail decoding rejects dimensions above 1024 pixels.
 Only the exact same-origin, library-scoped thumbnail path is accepted. A missing
 thumbnail becomes a placeholder and never falls back to an original or provider.
 No photos, credentials or navigation are persisted; backup and saved-state
 restoration are disabled, with `FLAG_SECURE` protecting task snapshots.
+
+The original viewer is separate from thumbnail loading. It is offered only for
+image details with `originals_allowed=true`, and only an explicit user action
+requests `/assets/{id}/media?library=…`. The server still authorizes every request.
+Closing, changing views, backgrounding, logout and expiry cancel/clear original
+state; late bytes cannot reopen the viewer. No download/export or original-media
+fallback is performed. Original responses require HTTP 200 and JPEG, PNG or WebP
+content type, with a 12 MiB compressed-byte cap, including unknown-length bodies.
+The display decoder bounds dimensions, samples to at most four million pixels and
+applies EXIF orientation. Larger photos may be displayed at reduced resolution;
+unsupported or corrupt images show an unavailable state. Decoding is serialized
+off the UI thread. Pinch/pan, double-tap, zoom buttons and fit-to-screen controls
+operate on the in-memory bitmap, with no URI or file handed to another app.
 
 401 clears the affected view and checks the session once. 403 remains closed.
 429 blocks requests until `Retry-After` expires; retries are explicit. 503/offline
@@ -74,7 +88,8 @@ to check the UI components and separately check the unconfigured app. These test
 do not establish deployed authorization or a real successful sign-in. Test-only
 own-View renders leave `FLAG_SECURE` enabled; ordinary screenshots remain blocked.
 
-Evidence and remaining gates: [RESULT.md](../../docs/evidence/android/connected/RESULT.md).
+Original-viewer evidence: [RETURN.md](../../docs/evidence/android/originals/RETURN.md).
+Earlier connected implementation: [RESULT.md](../../docs/evidence/android/connected/RESULT.md).
 
 The optional [actual-backend interoperability suite](../integration/README.md)
 exercises this same Kotlin adapter against the pinned Python application over

@@ -36,6 +36,8 @@ private class Words(val zh: Boolean) {
         Message.RATE_LIMITED -> t("Too many attempts. Wait before trying again.", "尝试过于频繁，请稍后重试。")
         Message.INVALID_INPUT -> t("Check your inputs. Use a country code and a password of 15–128 characters. If already registered, sign in.", "请检查输入，使用含国家码的手机号和 15–128 个字符的密码。已注册请登录。")
         Message.INVALID_RESPONSE -> t("The server response could not be displayed safely.", "无法安全显示服务器响应。")
+        Message.TOO_LARGE -> t("This file is too large to display here.", "文件过大，无法在此处显示。")
+        Message.MEDIA_UNAVAILABLE -> t("This photo is unavailable.", "此照片不可用。")
     }
     fun membership(m: Membership) = when {
         m.available -> t("Available", "可访问")
@@ -59,7 +61,12 @@ private class Words(val zh: Boolean) {
     MaterialTheme(colorScheme = lightColorScheme(primary = Color(0xFF48634D), background = Color(0xFFFAF7F2), surface = Color(0xFFFAF7F2))) {
         Surface(Modifier.fillMaxSize()) {
             BackHandler(store != null && state.library != null && !state.covered) {
-                if (state.detail != null || state.photoNavigation != null) store?.backToPhotos() else store?.libraries()
+                if (state.viewingOriginal) store?.closeOriginalPhoto()
+                else if (state.detail != null || state.photoNavigation != null) store?.backToPhotos() else store?.libraries()
+            }
+            if (state.viewingOriginal && !state.covered && store != null) {
+                OriginalPhotoViewer(state.originalPhoto, state.busy, words.zh, store::closeOriginalPhoto)
+                return@Surface
             }
             LazyColumn(Modifier.fillMaxSize().safeDrawingPadding().testTag("connected-screen"), state = scroll,
                 contentPadding = PaddingValues(20.dp), verticalArrangement = Arrangement.spacedBy(16.dp)) {
@@ -125,6 +132,9 @@ private class Words(val zh: Boolean) {
                                         } }
                                     }
                                     state.detail?.let { detail ->
+                                    if (detail.asset.kind == "image" && detail.originals_allowed) item {
+                                        Button(onClick = store::openOriginalPhoto, enabled = !state.busy) { Text(t("Open original photo", "打开原始照片")) }
+                                    }
                                     item { Preview(detail.asset, state.previews[detail.asset.id], words) }
                                     item { Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
                                         Text(detail.asset.taken_at ?: t("Date unknown", "日期未知"))

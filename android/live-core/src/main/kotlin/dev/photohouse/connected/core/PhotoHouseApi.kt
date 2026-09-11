@@ -31,6 +31,7 @@ interface PhotoHouseApi {
     suspend fun detail(token: Bearer, library: String, assetId: String): Detail
     suspend fun captions(token: Bearer, library: String, assetId: String): Captions
     suspend fun thumbnail(token: Bearer, library: String, asset: Asset): ByteArray?
+    suspend fun originalPhoto(token: Bearer, library: String, assetId: String): ByteArray
 }
 
 object Admission {

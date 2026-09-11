@@ -1,0 +1,19 @@
+<?xml version='1.0' encoding='utf-8'?>
+<testsuite name="dev.photohouse.connected.core.HttpsApiTest" tests="16" skipped="0" failures="0" errors="0" timestamp="2026-09-11T01:44:12" time="3.28">
+  <testcase name="protectedSessionUsesOneHeaderAndDoesNotPersistCookie" classname="dev.photohouse.connected.core.HttpsApiTest" time="0.684" />
+  <testcase name="originAdmissionAndOpaqueTokenValidation" classname="dev.photohouse.connected.core.HttpsApiTest" time="0.006" />
+  <testcase name="nativeLoginAndRegistrationSendExactFieldsWithoutAmbientCredentials" classname="dev.photohouse.connected.core.HttpsApiTest" time="0.162" />
+  <testcase name="cancelStopsOutstandingTransport" classname="dev.photohouse.connected.core.HttpsApiTest" time="0.106" />
+  <testcase name="originalRejectsKnownAndUnknownOversizeAndIncompleteOrNonImageBodies" classname="dev.photohouse.connected.core.HttpsApiTest" time="0.874" />
+  <testcase name="requestLimitsRejectOversizedInvitationBeforeNetwork" classname="dev.photohouse.connected.core.HttpsApiTest" time="0.056" />
+  <testcase name="thumbnailMimeAndStreamingSizeAreBounded" classname="dev.photohouse.connected.core.HttpsApiTest" time="0.125" />
+  <testcase name="originalUsesFixedAuthenticatedNoStoreRouteAndAcceptsExactBudget" classname="dev.photohouse.connected.core.HttpsApiTest" time="0.544" />
+  <testcase name="originalDenialAndRedirectAreNeverFollowedOrRetried" classname="dev.photohouse.connected.core.HttpsApiTest" time="0.089" />
+  <testcase name="statusesDoNotDependOnErrorBodyAndNeverAutoRetry" classname="dev.photohouse.connected.core.HttpsApiTest" time="0.085" />
+  <testcase name="arbitraryThumbnailUrlsNeverSendBearer" classname="dev.photohouse.connected.core.HttpsApiTest" time="0.062" />
+  <testcase name="redirectsNeverFollowEvenOnSameOrigin" classname="dev.photohouse.connected.core.HttpsApiTest" time="0.075" />
+  <testcase name="frozenBrowsingAndMutationResponsesUseExactScopedRoutes" classname="dev.photohouse.connected.core.HttpsApiTest" time="0.09" />
+  <testcase name="missingThumbnailIsPlaceholderWithNoOriginalFallback" classname="dev.photohouse.connected.core.HttpsApiTest" time="0.066" />
+  <testcase name="boundedStreamingAndStrictJsonRejectMalformedResponses" classname="dev.photohouse.connected.core.HttpsApiTest" time="0.098" />
+  <testcase name="platformTrustRejectsSelfSignedServerAndHostnameValidationRemainsEnabled" classname="dev.photohouse.connected.core.HttpsApiTest" time="0.156" />
+  </testsuite>

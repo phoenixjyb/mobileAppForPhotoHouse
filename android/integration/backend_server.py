@@ -120,6 +120,10 @@ def main():
                     elif command == 'revoke-member':
                         service.decide_membership(LibraryReadTests.owner_token, 'family-a', LibraryReadTests.member_id,
                             expected_revision=service.profile(LibraryReadTests.member_token)['memberships'][0]['revision'], status='revoked')
+                    elif command in {'allow-originals', 'deny-originals'}:
+                        service.decide_membership(LibraryReadTests.owner_token, 'family-a', LibraryReadTests.member_id,
+                            expected_revision=service.profile(LibraryReadTests.member_token)['memberships'][0]['revision'],
+                            status='approved', originals=command == 'allow-originals')
                     elif command == 'expire-sessions':
                         db.execute('UPDATE access_sessions SET expires_at=0')
                         db.commit()

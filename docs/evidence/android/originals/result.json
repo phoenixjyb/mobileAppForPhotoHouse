@@ -1,0 +1,160 @@
+{
+  "task": "PH-ANDROID-ORIGINAL-PHOTO-01",
+  "date": "2026-09-11",
+  "base_commit": "93e9716d5cae2dc2086695d6b83fdbc3daa76934",
+  "branch": "codex/android-original-photo-viewer",
+  "backend_commit": "87a60b475b37b1d6873cd977bcb6e7254472da7e",
+  "android_source_sha256": {
+    "android/connected/README.md": "0dd1a44c324582851a86e94e38bfc575bd93e3eff6db341590da0e8677b7b153",
+    "android/connected/src/androidTest/java/dev/photohouse/connected/ConnectedUiTest.kt": "8313a0911e478f41c3ad1d54db9f198a4a2fe30482f41282beb01d7b11608a53",
+    "android/connected/src/main/java/dev/photohouse/connected/ConnectedApp.kt": "f9c5a91089c61a97dd43590b0fa1df844527fc59fd92e4bfbd157e8d4c1e6625",
+    "android/connected/src/main/java/dev/photohouse/connected/OriginalPhotoViewer.kt": "59fb31c53238bc0e9ee25d75c253280f30a74f800c3c7d6cb97db0e40814b215",
+    "android/integration/backend_server.py": "36bbb24d46efb9c494efbed85d870c1f0d004203b35ea3c51f53064911dbd21c",
+    "android/live-core/src/main/kotlin/dev/photohouse/connected/core/ConnectedStore.kt": "6ca0155724e90d4858ab3a1346caeab291c4c1b055410ff8616974430759bed2",
+    "android/live-core/src/main/kotlin/dev/photohouse/connected/core/HttpsPhotoHouseApi.kt": "7f48ee99f99314b677f182457208963ebb7fc6cba7f534062a4619fcfe50e692",
+    "android/live-core/src/main/kotlin/dev/photohouse/connected/core/PhotoHouseApi.kt": "297fc57601aaac360bdfc2e5a0ed8c1c6dbeddddbb587634d82c2b71032c8f9b",
+    "android/live-core/src/test/kotlin/dev/photohouse/connected/core/BackendIntegrationTest.kt": "17746f036eec219b35f72fda099edf44116e872d61594f307b12b4b40bfd8617",
+    "android/live-core/src/test/kotlin/dev/photohouse/connected/core/ConnectedStoreTest.kt": "d7c44c872d4f26b4a626b432366259f8b2bbc9efb68f8dc3966543040b2882e4",
+    "android/live-core/src/test/kotlin/dev/photohouse/connected/core/HttpsApiTest.kt": "27bb753e241eb906024e738c68397a8a1288bfe982d4302c765f47baff36dcf8",
+    "android/verify-connected-emulator.sh": "175b3fe9cddc3a6edcc8d5c6167a2c4a4a461a08eb8cff923149f7995ddd42ea"
+  },
+  "jvm_suites": [
+    {
+      "name": "dev.photohouse.fixture.core.FixtureTest",
+      "tests": "22",
+      "failures": "0",
+      "errors": "0",
+      "skipped": "0",
+      "time": "0.334"
+    },
+    {
+      "name": "dev.photohouse.connected.core.ConnectedStoreTest",
+      "tests": "25",
+      "failures": "0",
+      "errors": "0",
+      "skipped": "0",
+      "time": "0.316"
+    },
+    {
+      "name": "dev.photohouse.connected.core.HttpsApiTest",
+      "tests": "16",
+      "failures": "0",
+      "errors": "0",
+      "skipped": "0",
+      "time": "3.28"
+    }
+  ],
+  "lint": {
+    "app": [
+      {
+        "id": "OldTargetApi",
+        "severity": "Warning"
+      }
+    ],
+    "connected": [
+      {
+        "id": "ExifInterface",
+        "severity": "Warning"
+      },
+      {
+        "id": "OldTargetApi",
+        "severity": "Warning"
+      }
+    ]
+  },
+  "artifacts": {
+    "android/app/build/outputs/apk/debug/app-debug.apk": {
+      "sha256": "d16eb8f689b8700dc1c26fde09b9e8c0e9c6ea9d57572b650fb689a1a48ad88d",
+      "bytes": 8255351
+    },
+    "android/connected/build/outputs/apk/debug/connected-debug.apk": {
+      "sha256": "a05eb90ba576d4b649094b2c5982cc547f2f03c81ac55a1a19c230af56c5bf3a",
+      "bytes": 8795990
+    },
+    "android/connected/build/outputs/apk/androidTest/debug/connected-debug-androidTest.apk": {
+      "sha256": "036e4aeab67699bb7d0ece510d793a02d6d0b46d376ca72a7c0399373d72cd53",
+      "bytes": 1066185
+    }
+  },
+  "contract_changed": false,
+  "limits": {
+    "original_response_bytes": 12582912,
+    "decoded_pixels": 4000000,
+    "max_decode_dimension": 32768,
+    "zoom_min": 1,
+    "zoom_max": 5
+  },
+  "actual_backend_tls": {
+    "backend_commit": "87a60b475b37b1d6873cd977bcb6e7254472da7e",
+    "contract_version": "1.0.0-fixture.1",
+    "backend_source_checksums": 10,
+    "versions": {
+      "python": "3.14.7",
+      "uvicorn": "0.42.0",
+      "fastapi": "0.135.2",
+      "starlette": "1.0.0",
+      "sqlalchemy": "2.0.52",
+      "alembic": "1.19.2",
+      "httpx": "0.28.1",
+      "Pillow": "12.1.1"
+    },
+    "tests": 6,
+    "failures": 0,
+    "errors": 0,
+    "skipped": 0,
+    "transport": "real loopback TLS to pinned ASGI and temporary migrated SQLite",
+    "real_backend_deployment_accessed": false,
+    "backend_checkout_modified": false,
+    "source_export_removed": true
+  },
+  "connected_origin_configured": false,
+  "real_credentials_used": false,
+  "real_media_used": false,
+  "physical_phone_installed": false,
+  "deployment_performed": false,
+  "push_performed": false,
+  "merge_performed": false,
+  "emulator": {
+    "api": 36,
+    "synthetic_component_tests": {
+      "normal": {
+        "tests": 6,
+        "failures": 0,
+        "font_scale": 1.0,
+        "seconds": 147.132
+      },
+      "large": {
+        "tests": 6,
+        "failures": 0,
+        "font_scale": 2.0,
+        "seconds": 96.592
+      }
+    },
+    "screenshots_reviewed": [
+      "normal/original-photo-en.png",
+      "normal/original-photo-zh.png",
+      "large/original-photo-en.png",
+      "large/original-photo-zh.png"
+    ]
+  },
+  "screenshot_sha256": {
+    "screenshots/large/admission-en.png": "bc387daebecb663d432a2c0c73b1dfc6476b1cb8fe01bc7b0f7ea1a884a1116c",
+    "screenshots/large/literal-caption-en.png": "b4a2547004190ab0003cf3310dd8289b841fcbdc619572825d3a6c0805494aa8",
+    "screenshots/large/literal-caption-zh.png": "b635547fc40a8a48e66bb735b7f6c570cb91b77cd5b1a5181685551abebe607b",
+    "screenshots/large/original-photo-en.png": "0d44e0302289fecc0ac6c8d5b03a575c3fb6b5384881c7522cf90b3a09eb881f",
+    "screenshots/large/original-photo-zh.png": "e1e361a595ab43117496fe6f0b4ace7f3e79ccd17209bf80dbc1ca8739710b44",
+    "screenshots/large/photo-navigation-en.png": "67e9a0d52a0e6d3fe46145d58188d59d43846e8923d996b5fa17c9b31feb0dcf",
+    "screenshots/large/photo-navigation-zh.png": "f62fb53f151bb5607210bfd58d27dd9ecef0a1158deefeccbe15f5c6abdfc178",
+    "screenshots/large/unconfigured-en.png": "2a4c78e2afd334c4c99a2b1c02e6dbe6be5970b66e941e37d88c1f692c445afa",
+    "screenshots/large/unconfigured-zh.png": "4770e94b9a89eca01088dd3913e16b08c743f795f1f64a592c1f8a00cf907cef",
+    "screenshots/normal/admission-en.png": "64382a679ccfa6a27de1201deaf46576163fc6b8841b66c7c98edb4a0c5e66c1",
+    "screenshots/normal/literal-caption-en.png": "2d84ab8776a26fcd0f5ca3d7accc8eb2e2106ef7cd5cf6e985cd6af4ebda9b62",
+    "screenshots/normal/literal-caption-zh.png": "93160a65faaa3a740a1e321fe403daea04729be3e4f63d62c0308024a0cd1571",
+    "screenshots/normal/original-photo-en.png": "83e59f5d10ba72939de097c76d260a2708f2a2f479040826eaaba0faba9e5f5c",
+    "screenshots/normal/original-photo-zh.png": "b48658d04a088ae3dd83e5f8dc3778f2995d2104040b8508e2668a2515b66d7c",
+    "screenshots/normal/photo-navigation-en.png": "880a6a6158b5a7be44174ea76d5c97cfae72bfe8bc789e18283d1b1bcac0cd30",
+    "screenshots/normal/photo-navigation-zh.png": "20af51efa2d4a10b44a3b2898f6fc94282556074cbb8bc11c2b893073a9815a1",
+    "screenshots/normal/unconfigured-en.png": "a49c949bbc40447f283fa399610c93976d516e98f08bf28c313b86e70d5ef789",
+    "screenshots/normal/unconfigured-zh.png": "24d351f70235620fec52073c68efaf8555094ad0635b20456ddeebb5e9730a12"
+  }
+}

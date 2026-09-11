@@ -33,6 +33,51 @@ class HttpsApiTest {
         try { block() } catch (e: ApiFailure) { return e }
         throw AssertionError("Expected a classified failure")
     }
+    @Test fun originalUsesFixedAuthenticatedNoStoreRouteAndAcceptsExactBudget() = runBlocking {
+        TlsFixture().use { f ->
+            f.server.enqueue(MockResponse().setHeader("Content-Type", "image/jpeg").setBody("x".repeat(HttpsPhotoHouseApi.ORIGINAL_LIMIT)))
+            assertEquals(HttpsPhotoHouseApi.ORIGINAL_LIMIT, f.api.originalPhoto(token, "family", "1").size)
+            val request = f.server.takeRequest()
+            assertEquals("/assets/1/media?library=family", request.path); assertEquals("GET", request.method)
+            assertEquals(listOf("Bearer ${"T".repeat(43)}"), request.headers.values("Authorization"))
+            assertEquals("no-store", request.getHeader("Cache-Control"))
+            assertEquals("image/jpeg, image/png, image/webp", request.getHeader("Accept"))
+            assertNull(request.getHeader("Range")); assertNull(request.getHeader("Cookie"))
+            assertTrue(runCatching { f.api.originalPhoto(token, "family", "../collect") }.isFailure)
+            assertEquals(1, f.server.requestCount)
+        }
+    }
+    @Test fun originalRejectsKnownAndUnknownOversizeAndIncompleteOrNonImageBodies() = runBlocking {
+        TlsFixture().use { f ->
+            f.server.enqueue(MockResponse().setBody("x").setHeader("Content-Type", "image/png")
+                .setHeader("Content-Length", HttpsPhotoHouseApi.ORIGINAL_LIMIT + 1))
+            assertEquals(FailureKind.TOO_LARGE, failure { f.api.originalPhoto(token, "family", "1") }.kind)
+            f.server.enqueue(MockResponse().setHeader("Content-Type", "image/png")
+                .setChunkedBody("x".repeat(HttpsPhotoHouseApi.ORIGINAL_LIMIT + 1), 8192))
+            assertEquals(FailureKind.TOO_LARGE, failure { f.api.originalPhoto(token, "family", "1") }.kind)
+            for (response in listOf(
+                MockResponse().setResponseCode(206).setHeader("Content-Type", "image/png").setBody("partial"),
+                MockResponse().setHeader("Content-Type", "image/svg+xml").setBody("<svg/>"),
+                MockResponse().setHeader("Content-Type", "video/mp4").setBody("not a photo"),
+                MockResponse().setHeader("Content-Type", "image/png").setBody(""))) {
+                f.server.enqueue(response)
+                assertEquals(FailureKind.INVALID_RESPONSE, failure { f.api.originalPhoto(token, "family", "1") }.kind)
+            }
+        }
+    }
+    @Test fun originalDenialAndRedirectAreNeverFollowedOrRetried() = runBlocking {
+        TlsFixture().use { f ->
+            for (status in listOf(401, 403, 404, 302)) {
+                f.server.enqueue(MockResponse().setResponseCode(status).setHeader("Location", "https://other.invalid/collect"))
+                assertEquals(status, failure { f.api.originalPhoto(token, "family", "1") }.status)
+            }
+            assertEquals(4, f.server.requestCount)
+            f.server.enqueue(MockResponse().setSocketPolicy(SocketPolicy.NO_RESPONSE))
+            val task = launch(Dispatchers.Default) { f.api.originalPhoto(token, "family", "1"); fail("Cancelled original returned") }
+            repeat(5) { assertNotNull(f.server.takeRequest(5, TimeUnit.SECONDS)) }
+            withTimeout(2000) { task.cancelAndJoin() }; assertTrue(task.isCancelled)
+        }
+    }
     @Test fun nativeLoginAndRegistrationSendExactFieldsWithoutAmbientCredentials() = runBlocking {
         TlsFixture().use { f ->
             repeat(2) { f.server.enqueue(json("""{"expires_in":86400,"access_token":"${"T".repeat(43)}","token_type":"Bearer"}""").setHeader("Set-Cookie", "ambient=never")) }

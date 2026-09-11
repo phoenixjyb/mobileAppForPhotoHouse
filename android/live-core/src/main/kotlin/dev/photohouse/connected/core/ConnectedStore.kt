@@ -5,7 +5,7 @@ import kotlinx.coroutines.*
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.asStateFlow
 
-enum class Message { SIGNED_OUT_LOCAL, SIGNED_OUT_CONFIRMED, SESSION_ENDED, ACCESS_DENIED, UNAVAILABLE, TLS_ERROR, CLOSED, RATE_LIMITED, INVALID_INPUT, INVALID_RESPONSE }
+enum class Message { SIGNED_OUT_LOCAL, SIGNED_OUT_CONFIRMED, SESSION_ENDED, ACCESS_DENIED, UNAVAILABLE, TLS_ERROR, CLOSED, RATE_LIMITED, INVALID_INPUT, INVALID_RESPONSE, TOO_LARGE, MEDIA_UNAVAILABLE }
 data class LiveProblem(val message: Message, val retryAtMillis: Long = 0)
 /** Only the current page's IDs, never a persistent or cross-library history. */
 data class PhotoNavigation(val page: Int, val assetIds: List<String>, val index: Int)
@@ -15,6 +15,7 @@ data class LiveState(
     val previews: Map<String, ByteArray> = emptyMap(), val busy: Boolean = false,
     val covered: Boolean = false, val problem: LiveProblem? = null,
     val photoNavigation: PhotoNavigation? = null,
+    val viewingOriginal: Boolean = false, val originalPhoto: ByteArray? = null,
 )
 
 /** UI-dispatcher-confined; only the wire DTO module is shared with fixture code. */
@@ -133,6 +134,38 @@ class ConnectedStore(private val api: PhotoHouseApi, private val scope: Coroutin
     fun backToPhotos() {
         loadPage(state.value.photoNavigation?.page ?: state.value.gallery?.page ?: 1)
     }
+    fun openOriginalPhoto() {
+        if (!allowed() || state.value.busy || state.value.viewingOriginal || coolingDown()) return
+        val detail = state.value.detail ?: return
+        if (!detail.originals_allowed || detail.asset.kind != "image") return
+        val credential = token!!
+        val navigation = state.value.photoNavigation
+        retainDetail(viewingOriginal = true, busy = true)
+        launch { generation ->
+            try {
+                val bytes = api.originalPhoto(credential, detail.library_id, detail.asset.id)
+                if (!active(generation)) return@launch
+                if (bytes.size > HttpsPhotoHouseApi.ORIGINAL_LIMIT) throw ApiFailure(FailureKind.TOO_LARGE)
+                validResponse(bytes.isNotEmpty())
+                mutable.value = state.value.copy(originalPhoto = bytes, busy = false)
+            } catch (e: CancellationException) { throw e }
+            catch (e: Exception) {
+                // Retry reloads metadata/permission first; original access remains explicit.
+                readFailure(e, generation, credential) { openPhoto(detail.asset.id, navigation) }
+            }
+        }
+    }
+    fun closeOriginalPhoto() {
+        if (!usable()) return
+        if (state.value.viewingOriginal) retainDetail(viewingOriginal = false, busy = false)
+    }
+    private fun retainDetail(viewingOriginal: Boolean, busy: Boolean) {
+        val previous = state.value
+        invalidate(keepIdentity = true)
+        mutable.value = state.value.copy(library = previous.library, detail = previous.detail,
+            captions = previous.captions, previews = previous.previews, photoNavigation = previous.photoNavigation,
+            viewingOriginal = viewingOriginal, busy = busy)
+    }
     private fun openPhoto(assetId: String, navigation: PhotoNavigation?) {
         if (!allowed() || coolingDown()) return
         val library = state.value.library!!; val credential = token!!
@@ -157,7 +190,7 @@ class ConnectedStore(private val api: PhotoHouseApi, private val scope: Coroutin
     }
     private suspend fun readFailure(error: Exception, generation: Long, credential: Bearer, retryRead: () -> Unit) {
         if (!active(generation)) return
-        mutable.value = state.value.copy(gallery = null, detail = null, captions = null, previews = emptyMap(), photoNavigation = null, busy = false, problem = problem(error))
+        mutable.value = state.value.copy(gallery = null, detail = null, captions = null, previews = emptyMap(), photoNavigation = null, originalPhoto = null, viewingOriginal = false, busy = false, problem = problem(error))
         if (error is ApiFailure && error.status == 401) {
             mutable.value = state.value.copy(busy = true)
             try {
@@ -240,6 +273,8 @@ class ConnectedStore(private val api: PhotoHouseApi, private val scope: Coroutin
         if (error is IllegalArgumentException) return LiveProblem(Message.INVALID_INPUT)
         if (error !is ApiFailure) return LiveProblem(Message.INVALID_RESPONSE)
         val message = when {
+            error.kind == FailureKind.TOO_LARGE -> Message.TOO_LARGE
+            error.status == 404 -> Message.MEDIA_UNAVAILABLE
             error.kind == FailureKind.TLS -> Message.TLS_ERROR
             error.kind == FailureKind.OFFLINE || error.status in 500..599 -> Message.UNAVAILABLE
             error.status == 401 -> Message.ACCESS_DENIED
