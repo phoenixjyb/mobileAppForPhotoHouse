@@ -1,0 +1,10 @@
+{
+  "status": "PASS_SYNTHETIC_EXPORT_TO_ANDROID_FIXTURE",
+  "exporter_commit": "d8f20a073e42f93ad2b046c4ae01d0ccd68a05bf",
+  "serving_commit": "54f68427058c45f6bcc5a863cc6d708f5b325e45",
+  "source_hashes_verified": 21,
+  "fixture_sha256": "4e7e9a2aa54ece03323625fc0f2652c90977790450857d333c8536cdc1927e58",
+  "response_count": 6,
+  "final_enabled": false,
+  "real_data_accessed": false
+}

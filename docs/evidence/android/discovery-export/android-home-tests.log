@@ -1,0 +1,13 @@
+> Task :home-core:checkKotlinGradlePluginConfigurationErrors
+> Task :home-core:compileKotlin UP-TO-DATE
+> Task :home-core:compileJava NO-SOURCE
+> Task :home-core:processResources NO-SOURCE
+> Task :home-core:classes UP-TO-DATE
+> Task :home-core:compileTestKotlin UP-TO-DATE
+> Task :home-core:compileTestJava NO-SOURCE
+> Task :home-core:processTestResources UP-TO-DATE
+> Task :home-core:testClasses UP-TO-DATE
+> Task :home-core:test
+
+BUILD SUCCESSFUL in 3s
+5 actionable tasks: 2 executed, 3 up-to-date

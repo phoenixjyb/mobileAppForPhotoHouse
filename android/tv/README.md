@@ -194,3 +194,23 @@ playback/seek; neither clip is packaged in the application APK.
 
 [Current v2 integration and artifact evidence](../../docs/evidence/android/catalog-v2/RETURN.md).
 [Discovery implementation and artifact evidence](../../docs/evidence/android/discovery-v1/RETURN.md).
+
+## Synthetic metadata exporter compatibility
+
+The separate offline exporter is now implemented by the backend owner at
+`d8f20a073e42f93ad2b046c4ae01d0ccd68a05bf`. This is a test-input source pin;
+the app's discovery serving pin remains `54f68427058c45f6bcc5a863cc6d708f5b325e45`.
+No APK or production origin is changed by this integration.
+
+`android/home-core/integration/verify-discovery-export.py --backend CHECKOUT --python ACCESS_PYTHON`
+extracts and verifies the 19 frozen serving inputs plus two exporter/fixture
+sources, creates fresh synthetic SQLite and a reviewed disabled bundle, captures
+six actual ASGI responses and compares them to the JVM fixture. Only its own
+temporary fixture is enabled for requests, then disabled again; network and
+subprocess access are guarded. `--update-fixture` explicitly regenerates the
+test-only fixture after reviewing the exporter pin. Ordinary verification never
+overwrites it. `DiscoveryExportCompatibilityTest` sends those responses through
+the actual Android parser, including reviewed identity coverage, blocked tags,
+missing metadata and v2 photo/video availability.
+
+[Exporter integration evidence](../../docs/evidence/android/discovery-export/RETURN.md).
