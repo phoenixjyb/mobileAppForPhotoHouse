@@ -28,8 +28,8 @@ class TvUiTest {
         val base = HomeWire.feed(fixture("feed.json"), 1)
         val photos = (1..6).map { id -> base.items.single().copy(id = id,
             caption = "A quiet afternoon · 宁静的午后 <b>literal</b>",
-            grid = base.items.single().grid.copy(url = HomeWire.path(id, Variant.GRID, 1)),
-            display = base.items.single().display.copy(url = HomeWire.path(id, Variant.DISPLAY, 1))) }
+            grid = base.items.single().grid!!.copy(url = HomeWire.path(id, Variant.GRID, 1)),
+            display = base.items.single().display!!.copy(url = HomeWire.path(id, Variant.DISPLAY, 1))) }
         var displayReads = 0
         var feedReads = 0
         var denied = false
@@ -154,7 +154,9 @@ class TvUiTest {
         assertTrue(imageBounds.top >= viewerBounds.top && imageBounds.bottom <= viewerBounds.bottom)
         capture("display-caption")
         click("Captions"); rule.onNodeWithText("A quiet afternoon", substring = true).assertExists()
-        click("Close")
+        rule.waitUntil(10000) { rule.onAllNodes(hasText("Close") and isFocused()).fetchSemanticsNodes().size == 1 }
+        InstrumentationRegistry.getInstrumentation().sendKeyDownUpSync(KeyEvent.KEYCODE_DPAD_CENTER)
+        rule.waitForIdle()
         rule.onNodeWithTag("disconnect").performClick(); rule.waitForIdle()
         assertNull(store.state.value.feed); assertNull(store.state.value.display)
         assertTrue(store.state.value.grids.isEmpty())

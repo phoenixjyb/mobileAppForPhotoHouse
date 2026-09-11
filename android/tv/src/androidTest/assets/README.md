@@ -19,3 +19,9 @@ ffmpeg -hide_banner -loglevel error \
 This is a 20-second, 320×180, H.264/AAC MP4; general device/codec performance and
 physical speaker output are separate acceptance gates. No FFmpeg code or runtime
 is included in either Android APK.
+
+`catalog-video.mp4` is the byte-identical half-second 320×180 H.264/AAC synthetic
+fixture from backend runtime `a5d0f595d7cd26379ed2845a944ec1d58d7885cc`.
+SHA-256: `5ab7d5d27cc6b3f557068ce21cc07e332939ae92f8240233b5eb087c1012afe8`.
+It proves exact catalog fixture integration; the twenty-second clip above is used
+for the longer native seek/playback checks.

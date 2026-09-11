@@ -11,7 +11,8 @@ data class HomeState(
     val selected: Int? = null, val display: ByteArray? = null,
     val busy: Boolean = false, val covered: Boolean = true, val disconnected: Boolean = false,
     val problem: HomeError? = null, val retryAtMillis: Long = 0,
-    val missingGrids: Set<Int> = emptySet(), val displayMissing: Boolean = false
+    val missingGrids: Set<Int> = emptySet(), val displayMissing: Boolean = false,
+    val video: HomeVideoSource? = null, val videoFailed: Boolean = false
 ) {
     val asset: HomeAsset? get() = feed?.items?.firstOrNull { it.id == selected }
     val index: Int get() = feed?.items?.indexOfFirst { it.id == selected } ?: -1
@@ -29,13 +30,15 @@ class HomeStore(private val api: HomeApi, private val scope: CoroutineScope,
     private var failures = 0
     private var notBefore = 0L
     private var page = 1
+    private var revision: Int? = null
     private var detailJob: Job? = null
     private var detailGeneration = 0L
+    private var videoGeneration = 0L
     private fun current(g: Long) = visible && !paused && g == generation
-    private fun invalidate() { generation++; work?.cancel(); timer?.cancel(); detailJob?.cancel(); detailGeneration++ }
+    private fun invalidate() { videoGeneration++; state.value.video?.close(); generation++; work?.cancel(); timer?.cancel(); detailJob?.cancel(); detailGeneration++ }
     fun foreground() {
         if (visible || paused) return
-        visible = true; loadPage(page)
+        visible = true; if (api.catalogVersion == 2) { page = 1; revision = null }; loadPage(page)
     }
     fun background() {
         visible = false; invalidate(); mutable.value = HomeState(disconnected = paused)
@@ -44,7 +47,7 @@ class HomeStore(private val api: HomeApi, private val scope: CoroutineScope,
         paused = true; invalidate(); mutable.value = HomeState(covered = false, disconnected = true)
     }
     fun reconnect() {
-        paused = false; visible = true; loadPage(page)
+        paused = false; visible = true; if (api.catalogVersion == 2) { page = 1; revision = null }; loadPage(page)
     }
     fun canRetry() = visible && !paused && !state.value.busy && now() >= notBefore
     fun retry() { if (canRetry()) loadPage(page) }
@@ -58,13 +61,14 @@ class HomeStore(private val api: HomeApi, private val scope: CoroutineScope,
             if (!current(g)) return@launch
             mutable.value = HomeState(busy = true, covered = false)
             try {
-                val feed = api.feed(page)
+                val feed = api.feed(page, if (page == 1) null else revision)
                 if (!current(g)) return@launch
+                revision = feed.revision
                 mutable.value = HomeState(feed = feed, covered = false)
                 scheduleRefresh(g)
                 // Sequential grid requests keep well below the server's four-read budget.
                 for (asset in feed.items) {
-                    val bytes = api.preview(asset, Variant.GRID, feed.revision)
+                    val bytes = if (asset.grid == null) null else api.preview(asset, Variant.GRID, feed.revision)
                     if (!current(g)) return@launch
                     val s = state.value
                     // A page may describe 100 MiB of grids; retain at most 16 MiB.
@@ -83,10 +87,10 @@ class HomeStore(private val api: HomeApi, private val scope: CoroutineScope,
             delay(60000)
             if (!current(g)) return@launch
             try {
-                val fresh = api.feed(page)
+                val fresh = api.feed(page, revision)
                 if (!current(g)) return@launch
                 val old = state.value.feed
-                if (fresh != old) { loadPage(page); return@launch }
+                if (fresh != old) { if (api.catalogVersion == 2) { page = 1; revision = null }; loadPage(page); return@launch }
                 scheduleRefresh(g)
             } catch (e: CancellationException) { throw e }
               catch (e: HomeFailure) { if (current(g)) failed(e) }
@@ -94,6 +98,7 @@ class HomeStore(private val api: HomeApi, private val scope: CoroutineScope,
     }
     private fun failed(e: HomeFailure) {
         invalidate()
+        if (api.catalogVersion == 2) { page = 1; revision = null }
         val retryable = e.kind in setOf(HomeError.OFFLINE, HomeError.UNAVAILABLE, HomeError.BUSY, HomeError.CHANGED)
         val delays = longArrayOf(2000, 5000, 15000, 30000, 60000)
         val base = delays[failures.coerceAtMost(4)]
@@ -114,16 +119,39 @@ class HomeStore(private val api: HomeApi, private val scope: CoroutineScope,
     fun openAsset(asset: HomeAsset) {
         val s = state.value; val feed = s.feed ?: return
         if (!visible || paused || s.covered || asset !in feed.items) return
+        videoGeneration++; state.value.video?.close()
         detailJob?.cancel(); val d = ++detailGeneration; val g = generation
-        mutable.value = s.copy(selected = asset.id, display = null, busy = true, displayMissing = false)
+        mutable.value = s.copy(selected = asset.id, display = null, busy = true, displayMissing = false, video = null, videoFailed = false)
         detailJob = scope.launch {
             try {
-                val bytes = api.preview(asset, Variant.DISPLAY, feed.revision)
+                val bytes = if (asset.display == null) null else api.preview(asset, Variant.DISPLAY, feed.revision)
                 if (current(g) && d == detailGeneration)
                     mutable.value = state.value.copy(display = bytes, busy = false, displayMissing = bytes == null)
             } catch (e: CancellationException) { throw e }
               catch (e: HomeFailure) { if (current(g) && d == detailGeneration) failed(e) }
         }
+    }
+    fun openVideo() {
+        val s = state.value; val asset = s.asset ?: return; val feed = s.feed ?: return
+        if (!visible || paused || s.covered || s.busy || asset.video == null || asset.kind != AssetKind.VIDEO) return
+        s.video?.close()
+        val g = generation; val d = detailGeneration; val v = ++videoGeneration
+        try {
+            val source = api.video(asset, feed.revision) { error -> scope.launch {
+                if (current(g) && d == detailGeneration && v == videoGeneration) {
+                    if (error is HomeFailure) failed(error) else videoPlaybackFailed()
+                }
+            } }
+            mutable.value = s.copy(video = source, videoFailed = false)
+        } catch (e: HomeFailure) { failed(e) }
+    }
+    fun closeVideo() {
+        videoGeneration++
+        state.value.video?.close()
+        mutable.value = state.value.copy(video = null)
+    }
+    fun videoPlaybackFailed() {
+        closeVideo(); mutable.value = state.value.copy(videoFailed = true)
     }
     fun adjacentPhoto(delta: Int) {
         val s = state.value; val list = s.feed?.items ?: return
@@ -131,8 +159,9 @@ class HomeStore(private val api: HomeApi, private val scope: CoroutineScope,
         list.getOrNull(s.index + delta)?.let(::openAsset)
     }
     fun backToPhotos() {
+        videoGeneration++; state.value.video?.close()
         detailJob?.cancel(); detailGeneration++
-        mutable.value = state.value.copy(selected = null, display = null, busy = false, displayMissing = false)
+        mutable.value = state.value.copy(selected = null, display = null, busy = false, displayMissing = false, video = null, videoFailed = false)
     }
     companion object { const val GRID_CACHE_BYTES = 16 * 1024 * 1024 }
 }

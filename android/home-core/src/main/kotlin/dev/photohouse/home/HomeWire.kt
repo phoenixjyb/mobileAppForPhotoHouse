@@ -14,14 +14,24 @@ enum class Variant(val wire: String, val edge: Int, val pixels: Int, val bytes: 
     GRID("grid", 512, 262144, 2097152), DISPLAY("display", 4096, HomeLimits.DISPLAY_PIXELS, HomeLimits.DISPLAY_BYTES)
 }
 data class Preview(val width: Int, val height: Int, val bytes: Int, val sha256: String, val url: String)
-data class HomeAsset(val id: Int, val caption: String, val grid: Preview, val display: Preview) {
+enum class AssetKind { PHOTO, VIDEO, UNSUPPORTED }
+enum class MediaUnavailable { NOT_PREPARED, SOURCE_MISSING, UNSUPPORTED, PREPARATION_FAILED }
+data class HomeVideo(val width: Int, val height: Int, val durationMillis: Int, val bytes: Long,
+                     val sha256: String, val url: String, val audioCodec: String?)
+data class HomeAsset(val id: Int, val caption: String, val grid: Preview?, val display: Preview?,
+                     val kind: AssetKind = AssetKind.PHOTO, val video: HomeVideo? = null,
+                     val gridUnavailable: MediaUnavailable? = null, val displayUnavailable: MediaUnavailable? = null,
+                     val videoUnavailable: MediaUnavailable? = null) {
     fun preview(variant: Variant) = if (variant == Variant.GRID) grid else display
 }
 data class HomeFeed(val revision: Int, val id: String, val title: String, val page: Int,
-                    val pageSize: Int, val total: Int, val hasMore: Boolean, val items: List<HomeAsset>)
+                    val pageSize: Int, val total: Int, val hasMore: Boolean, val items: List<HomeAsset>, val version: Int = 1)
 enum class HomeError { INVALID, DENIED, CHANGED, BUSY, UNAVAILABLE, OFFLINE, TLS }
 class HomeFailure(val kind: HomeError, val retryAfterMillis: Long = 0) : Exception(kind.name)
 interface HomeApi {
+    val catalogVersion: Int get() = 1
+    suspend fun feed(page: Int, revision: Int?): HomeFeed = feed(page)
+    fun video(asset: HomeAsset, revision: Int, failed: (Exception) -> Unit): HomeVideoSource = throw HomeFailure(HomeError.INVALID)
     suspend fun feed(page: Int): HomeFeed
     suspend fun preview(asset: HomeAsset, variant: Variant, revision: Int): ByteArray?
 }
@@ -47,7 +57,7 @@ object HomeWire {
         return p.booleanOrNull ?: bad()
     }
     /** Small bounded JSON reader: rejects duplicate keys, deep nesting and invalid UTF-8. */
-    private fun parse(bytes: ByteArray): JsonElement {
+    internal fun parse(bytes: ByteArray): JsonElement {
         check(bytes.size in 1..HomeLimits.JSON)
         val s = Charsets.UTF_8.newDecoder().onMalformedInput(CodingErrorAction.REPORT)
             .onUnmappableCharacter(CodingErrorAction.REPORT).decode(ByteBuffer.wrap(bytes)).toString()

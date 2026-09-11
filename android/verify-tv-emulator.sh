@@ -5,6 +5,8 @@ cd "$(dirname "$0")/.."
 serial="${1:?Pass emulator-SERIAL}"
 scale="${2:-1.0}"
 evidence="${3:-docs/evidence/android/tv}"
+suite="${4:-all}"
+[[ "$suite" == all || "$suite" == catalog ]] || exit 2
 [[ "$serial" == emulator-* && ( "$scale" == 1.0 || "$scale" == 2.0 ) ]] || exit 2
 adb="${ANDROID_HOME:?}/platform-tools/adb"
 [[ "$("$adb" -s "$serial" shell getprop ro.kernel.qemu | tr -d '\r')" == 1 ]] || exit 2
@@ -21,14 +23,24 @@ trap '"$adb" -s "$serial" shell settings put system font_scale "$previous" >/dev
 "$adb" -s "$serial" install -r -t android/tv/build/outputs/apk/debug/tv-debug.apk
 "$adb" -s "$serial" install -r -t android/tv/build/outputs/apk/androidTest/debug/tv-debug-androidTest.apk
 mkdir -p "$evidence/screenshots/$scale"
-"$adb" -s "$serial" shell am instrument -w -r dev.photohouse.tv.test/androidx.test.runner.AndroidJUnitRunner | tee "$evidence/instrumentation-$scale.log"
-python3 - "$evidence/instrumentation-$scale.log" <<'PY'
+instrument=(-w -r)
+suffix=""
+expected=16
+names=(setup connection-needed grid-en grid-zh detail-en fullscreen covered display-caption denied empty photo-zoom video-paused catalog-grid catalog-unavailable catalog-pages)
+if [[ "$suite" == catalog ]]; then
+    instrument+=(-e class dev.photohouse.tv.TvCatalogTest)
+    suffix="-catalog"
+    expected=3
+    names=(catalog-grid catalog-unavailable catalog-pages)
+fi
+"$adb" -s "$serial" shell am instrument "${instrument[@]}" dev.photohouse.tv.test/androidx.test.runner.AndroidJUnitRunner | tee "$evidence/instrumentation-$scale$suffix.log"
+python3 - "$evidence/instrumentation-$scale$suffix.log" "$expected" <<'PY'
 import re,sys
 from pathlib import Path
 s=Path(sys.argv[1]).read_text()
-assert re.search(r'OK \(13 tests\)',s) and 'FAILURES!!!' not in s, 'TV component tests failed'
+assert re.search(r'OK \(' + sys.argv[2] + r' tests\)',s) and 'FAILURES!!!' not in s, 'TV component tests failed'
 PY
-for name in setup connection-needed grid-en grid-zh detail-en fullscreen covered display-caption denied empty photo-zoom video-paused; do
+for name in "${names[@]}"; do
     "$adb" -s "$serial" exec-out run-as dev.photohouse.tv cat "files/$name.png" > "$evidence/screenshots/$scale/$name.png"
     "$adb" -s "$serial" shell run-as dev.photohouse.tv rm "files/$name.png"
 done

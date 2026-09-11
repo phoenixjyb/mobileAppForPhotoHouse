@@ -19,17 +19,18 @@ originals, database memberships and ongoing caption/model work. No eager whole-
 library copy or conversion is implied. A revised contract returns exact source,
 schema/fixture checksums, media limits and error/revision behavior to Android.
 
-## Android implementation after the contract return
+## Android implementation status after the contract return
 
-1. Consume the new version through an independent TV adapter; preserve protected
+1. Implemented: consume the new version through an independent TV adapter; preserve protected
    phone contracts and v1 evidence. Keep the private in-app LAN mapping and TLS.
-2. Browse bounded pages containing image/video kinds, explicit missing/unsupported
+2. Implemented: browse bounded pages containing image/video kinds, explicit missing/unsupported
    states, lazy previews, remote focus and Back restoration. Do not fetch the entire
    catalog or every original into memory.
-3. Add explicit remote video play/pause, seek and close, aspect-fit surface, audio
+3. Implemented: add explicit remote video play/pause, seek and close, aspect-fit surface, audio
    focus, and stop/release on background, disconnect, denial or content revision.
-4. Validate synthetic parser/pagination/Range and lifecycle boundaries; exact
-   configured APK, authorized real feed reads, then JMGO user/device acceptance.
+4. Synthetic parser/pagination/Range, native lifecycle and actual-backend replay
+   are implemented and tested. Real v2 configuration/publication, prepared-media
+   coverage and JMGO acceptance remain distinct backend/device steps.
 
 The existing owned phone VideoPlayer and VideoReader provide a reviewed native
 MediaPlayer/MediaDataSource pattern: serialized bounded random reads, cancellation,
@@ -42,4 +43,8 @@ visible/audio output remain device checks.
 Backend task: 01a08410-d390-7632-86f2-1812b1dd5917. Android owns its existing TV
 worktree and APK/player only. Backend was sent the corrected full-library scope and
 asked to preserve current services/data while returning the next bounded contract.
-No full-library feed, TV video playback or real-video acceptance is claimed yet.
+Frozen runtime `a5d0f595d7cd26379ed2845a944ec1d58d7885cc` has been independently
+verified and wired in Android. V2 supports mixed catalog and native video in local
+synthetic tests; no real v2 publication or physical real-video acceptance is claimed.
+The backend owner is continuing the offline preparer and measured canary/deployment
+plan. Existing v1/DNS services and the user's previously working APK remain intact.

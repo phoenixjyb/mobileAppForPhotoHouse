@@ -21,8 +21,13 @@ class MainActivity : ComponentActivity() {
             override fun <T : ViewModel> create(modelClass: Class<T>): T {
                 val api = runCatching {
                     val origin = HomeOrigin.parse(BuildConfig.PHOTOHOUSE_ORIGIN)
-                    if (BuildConfig.PHOTOHOUSE_LAN_ADDRESS.isEmpty()) HttpsHomeApi(origin)
-                    else HttpsHomeApi(origin, HomeLanAddress.parse(BuildConfig.PHOTOHOUSE_LAN_ADDRESS))
+                    when (BuildConfig.PHOTOHOUSE_CATALOG_VERSION) {
+                        1 -> if (BuildConfig.PHOTOHOUSE_LAN_ADDRESS.isEmpty()) HttpsHomeApi(origin)
+                            else HttpsHomeApi(origin, HomeLanAddress.parse(BuildConfig.PHOTOHOUSE_LAN_ADDRESS))
+                        2 -> if (BuildConfig.PHOTOHOUSE_LAN_ADDRESS.isEmpty()) HttpsCatalogApi(origin)
+                            else HttpsCatalogApi(origin, HomeLanAddress.parse(BuildConfig.PHOTOHOUSE_LAN_ADDRESS))
+                        else -> error("Unsupported catalog")
+                    }
                 }.getOrNull()
                 return TvViewModel(api) as T
             }

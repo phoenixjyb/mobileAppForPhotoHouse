@@ -6,6 +6,8 @@ val localConfig = Properties().apply {
 }
 val configuredOrigin = providers.gradleProperty("photohouseTvOrigin").orElse(localConfig.getProperty("photohouseTvOrigin", "")).get()
 val configuredLanAddress = providers.gradleProperty("photohouseTvLanAddress").orElse(localConfig.getProperty("photohouseTvLanAddress", "")).get()
+val configuredCatalogVersion = providers.gradleProperty("photohouseTvCatalogVersion").orElse(localConfig.getProperty("photohouseTvCatalogVersion", "1")).get()
+require(configuredCatalogVersion in listOf("1", "2")) { "Unsupported TV catalog version" }
 // Private endpoint routing only; no credentials or certificate trust overrides.
 require(configuredLanAddress.isEmpty() || configuredOrigin.isNotEmpty()) { "LAN address requires an HTTPS origin" }
 require(configuredLanAddress.isEmpty() || configuredLanAddress.matches(Regex("[0-9.]{7,15}"))) { "Invalid LAN address" }
@@ -19,8 +21,9 @@ android {
         minSdk = 26
         targetSdk = 34
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
-        versionCode = 4
-        versionName = "0.4-tv-viewer-dev"
+        versionCode = 5
+        versionName = "0.5-tv-catalog-dev"
+        buildConfigField("int", "PHOTOHOUSE_CATALOG_VERSION", configuredCatalogVersion)
         buildConfigField("String", "PHOTOHOUSE_ORIGIN", "\"$configuredOrigin\"")
         buildConfigField("String", "PHOTOHOUSE_LAN_ADDRESS", "\"$configuredLanAddress\"")
     }

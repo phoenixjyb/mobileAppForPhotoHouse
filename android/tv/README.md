@@ -1,13 +1,18 @@
 # PhotoHouse TV — anonymous home feed
 
-`PH-ANDROID-HOME-FEED-01` replaces the earlier viewer prototype's personal API
-adapter with independent `home-core`. The home projector browses a deliberately
-selected LAN feed without sign-in, pairing, cookies or bearer credentials. The
-phone modules and their protected contract are unchanged.
+The home projector browses without sign-in, pairing, cookies or personal account
+credentials. `home-core` supports the frozen selected-photo v1 feed and the new
+whole-catalog v2 API through separate adapters. The phone contract is unchanged.
+Build-time catalog selection is explicit; there is no endpoint/version fallback.
 
 ## Implemented flow
 
-- Configured cold start and foreground fetch `/home/v1/feed` automatically.
+- Configured cold start/foreground fetch the selected API automatically: v1
+  `/home/v1/feed`, or v2 `/home/v2/catalog` starting at page 1.
+- V2 supports up to 100,000 published assets, 50 per page. Later pages carry the
+  snapshot revision. Remote page selection offers first/last and ±1/±10 jumps.
+  Photo/video/unsupported kinds and unprepared/missing/failed states are explicit.
+  No URL means no media request; it never falls back to originals or legacy routes.
 - Paged grid, remote D-pad/OK focus, Back to the selected tile, literal captions,
   EN/ZH/system-default UI and fit-to-frame display images.
 - Photo controls: Fit preserves the whole image; Fill crops to the viewport. Zoom
@@ -17,7 +22,7 @@ phone modules and their protected contract are unchanged.
   four seconds and return on a remote key. No higher-resolution bytes are fetched
   when zooming. The Play page button/media key controls an eight-second slideshow.
   Slideshow stops at the current page's end, missing
-  display image, errors, background, disconnect and leaving the viewer.
+  display image, a video/unsupported item, errors, background, disconnect and leaving the viewer.
 - Metadata refresh every 60 seconds while visible. Changed metadata clears the
   old page and images. Revision conflicts clear and refetch after bounded retry.
 - Network/server failures clear images and retry at 2/5/15/30/60 seconds with
@@ -28,7 +33,7 @@ phone modules and their protected contract are unchanged.
   Disconnect stays locally paused through background/foreground until Reconnect;
   a new process starts a fresh anonymous connection. No media/session persistence.
 
-## Native video component and full-library continuation
+## Native video and full-catalog integration
 
 The independent `TvVideoPlayer` and `HomeVideoReader` now implement explicit native
 play/pause, 10-second seeking, elapsed/duration display, aspect-fit rendering and
@@ -38,26 +43,34 @@ surface destruction and decode error release the source/player. No audio autopla
 URL delegated to MediaPlayer, disk media cache or personal account adapter.
 
 The reader serializes bounded random reads, cancels an in-flight read on close,
-rejects wrong chunk lengths and suppresses stale copies/errors. The eventual
-catalog adapter must independently validate the returned contract's Range metadata,
-revision, content type and total. Reader validation alone is not an HTTP contract.
+rejects wrong chunk lengths and suppresses stale copies/errors. The v2 adapter validates exact 206 status, Content-Range, Content-Length,
+content type, no-store and bounded received bytes for every read. It rejects a 200
+fallback, changed totals, redirects, truncation and malformed ranges. Server-side
+publication/chunk integrity remains distinct from client transport validation;
+the client does not download a whole movie to verify its whole-file hash.
 
 The native component is exercised with a test-APK-only synthetic H.264/AAC clip.
-**The v1 production gallery still has no video items or endpoint.** Full-catalog
-photo/video wiring awaits the backend's frozen v2 return; see
-[FULL_LIBRARY_PLAN.md](FULL_LIBRARY_PLAN.md) and [PLAYBACK_CAPSULE.md](PLAYBACK_CAPSULE.md).
-The new whole-library request supersedes selected-photo scope as the next outcome.
+The v2 gallery is wired through catalog metadata, availability and video opening
+into this player. Selecting Open video prepares it silently; Play starts playback.
+Closing returns to the selected viewer, then Back restores its grid tile. Decoder
+failure stays in the viewer; network denial/revision failure clears the generation.
+V1 remains photo-only. Real v2 media preparation and deployment are backend gates;
+see [FULL_LIBRARY_PLAN.md](FULL_LIBRARY_PLAN.md) and [CATALOG_V2_CAPSULE.md](CATALOG_V2_CAPSULE.md).
 
 ## Frozen contract and image quality
 
-Runtime pin: `e6b2827842b2c0b5223c85208299b60e8a1257f6`.
+V2 runtime pin: `a5d0f595d7cd26379ed2845a944ec1d58d7885cc`.
+V2 contract SHA-256: `13cf10892dc4e91631ad71b5ee4bed21baa44697f1e779851c19026dbe606120`.
+V2 schema/example and 16 source-input hashes: `../home-core/contract-v2/`.
+
+V1 runtime pin: `e6b2827842b2c0b5223c85208299b60e8a1257f6`.
 Contract SHA-256: `70328a653ddaa559bad6a4d654cf9870c89c5217e8e9e6c46a3501e9dd9e7548`.
 Exact Android-owned copies and backend input hashes: `../home-core/contract/`.
 Independent phone pin: `87a60b475b37b1d6873cd977bcb6e7254472da7e`.
 
 The server prepares grid and display baseline JPEGs. The client validates byte
 length, SHA-256, dimensions, metadata framing and revision-bound relative URLs.
-There are no original, Range, account or provider fallback requests. A missing
+V1 makes no Range requests. Neither adapter requests originals or account/provider fallback media. A missing
 variant stays a placeholder. Captions are plain text, not HTML.
 
 Display limits: 4,096 maximum edge, 8,847,360 pixels and 12 MiB compressed bytes.
@@ -93,7 +106,8 @@ adapter tests use a separate loopback-only synthetic TLS server.
 ## Delivery gates
 
 The default debug APK has an unset origin and shows setup. A private build can
-set `photohouseTvOrigin` and optional `photohouseTvLanAddress` through ignored
+set `photohouseTvOrigin`, optional `photohouseTvLanAddress`, and
+`photohouseTvCatalogVersion` (`1` default, or `2`) through ignored
 local properties or Gradle environment inputs. The address is the server's
 canonical RFC1918 IPv4 address. It maps only the configured HTTPS hostname inside
 PhotoHouse and uses a direct connection. The URL hostname, TLS SNI and platform
@@ -115,7 +129,8 @@ forwarding is needed for LAN-only routing. Actual JMGO firmware/API (minimum 26)
 launcher, remote keys, sleep/wake, image quality and installation/operator window
 still need device evidence. A landscape phone AVD is only a component test surface.
 Named albums/search, screensaver startup and offline storage are not implemented.
-Full-catalog/video transport is in the coordinated continuation described above.
+V2 catalog/video source integration is implemented; real prepared-media coverage
+and the v2 origin/publication remain a coordinated backend continuation.
 
 [App-contained LAN configuration return](../../docs/evidence/android/home-tv-lan-map/RETURN.md).
 
@@ -123,3 +138,15 @@ Full-catalog/video transport is in the coordinated continuation described above.
 [Historical prototype return](../../docs/evidence/android/tv/RETURN.md) predates
 the implemented backend and this anonymous adapter; its pending-backend statements
 are superseded by the current return.
+
+Verify v2 with `python3 android/verify-catalog-contract.py` from the repository root.
+`android/home-core/integration/verify-catalog-backend.py --backend CHECKOUT --python PYTHON`
+extracts all 16 pinned Git blobs and replays the actual backend's synthetic ASGI
+checks with listeners, subprocesses and SQLite blocked inside the replay. The
+reviewed replay came from backend evidence commit
+`868cbb48aec50fa9c01689ee071c9d999e0b8e0d`; the runtime pin above is independent.
+The v2 response contract and half-second synthetic MP4 are identical in JVM and
+instrumentation resources. A separate twenty-second synthetic clip covers native
+playback/seek; neither clip is packaged in the application APK.
+
+[Current v2 integration and artifact evidence](../../docs/evidence/android/catalog-v2/RETURN.md).

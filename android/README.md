@@ -8,9 +8,10 @@ and phone acceptance remain pending; the default APK origin is empty.
 Three separate apps: `connected` is the phone HTTPS viewer described in
 [connected/README.md](connected/README.md); `app` is the offline fixture demonstrator;
 [`tv`](tv/README.md) is the remote-controlled landscape viewer with a private build
-origin of its own and an independent anonymous selected home-feed adapter in `home-core`.
-It loads prepared display JPEGs up to 4K without sign-in or original-media fallback.
-See the [current TV integration evidence](../docs/evidence/android/home-feed/RETURN.md) before installing.
+origin of its own and independent anonymous v1/v2 adapters in `home-core`.
+It supports prepared photos up to 4K with fit/fill/zoom and v2 native video playback,
+without sign-in or original-media fallback. The v2 server/publication is a separate
+backend gate; see [TV configuration and status](tv/README.md) before installing.
 The shared `protocol` module contains wire DTOs only. The completed locked-profile
 replay is current; historical fixture/readiness returns remain evidence of their
 own commits. Use the [no-listener lane](readiness/README.md) for the current local

@@ -21,7 +21,7 @@ class HomeTest {
     @Test fun frozenFeedAndBothExactJpegs() {
         val f = fixture(); assertEquals("synthetic-home", f.id); assertEquals(1, f.items.size)
         for ((v, name) in listOf(Variant.GRID to "home-8x8.jpg", Variant.DISPLAY to "home-3840x2160.jpg")) {
-            HomeWire.verifyPreview(resource(name), f.items.single().preview(v), v)
+            HomeWire.verifyPreview(resource(name), requireNotNull(f.items.single().preview(v)), v)
         }
         assertEquals(3840 to 2160, HomeWire.jpegDimensions(resource("home-3840x2160.jpg")))
     }
@@ -41,7 +41,7 @@ class HomeTest {
             s.replace("Synthetic TV", "x".repeat(257)))) invalid { HomeWire.feed(bad.toByteArray(), 1) }
     }
     @Test fun previewRejectsHashDimensionsMetadataAndTrailingPayload() {
-        val data = resource("home-3840x2160.jpg"); val meta = fixture().items.single().display
+        val data = resource("home-3840x2160.jpg"); val meta = requireNotNull(fixture().items.single().display)
         invalid { HomeWire.verifyPreview(data.copyOf().apply { this[500] = 0 }, meta, Variant.DISPLAY) }
         invalid { HomeWire.verifyPreview(data, meta.copy(width = 3839), Variant.DISPLAY) }
         invalid { HomeWire.verifyPreview(data, meta, Variant.GRID) }
@@ -83,7 +83,7 @@ class HomeHttpTest {
         assertEquals(523448, api.preview(f.items.single(), Variant.DISPLAY, f.revision)!!.size)
         val feed = server.takeRequest(); val preview = server.takeRequest()
         assertEquals("/home/v1/feed?page=1&page_size=50", feed.path)
-        assertEquals(f.items.single().display.url, preview.path)
+        assertEquals(f.items.single().display!!.url, preview.path)
         for (r in listOf(feed, preview)) {
             assertEquals("GET", r.method)
             for (h in listOf("Authorization", "Cookie", "Range", "If-Range")) assertNull(r.getHeader(h))
@@ -116,7 +116,7 @@ class HomeHttpTest {
     }
     @Test fun changedPreviewUrlNeverSendsARequest() = runBlocking {
         val asset = fixture().items.single()
-        try { api.preview(asset.copy(display = asset.display.copy(url = "https://evil.example/media")), Variant.DISPLAY, 1); fail("Escaped origin") }
+        try { api.preview(asset.copy(display = asset.display!!.copy(url = "https://evil.example/media")), Variant.DISPLAY, 1); fail("Escaped origin") }
         catch (e: HomeFailure) { assertEquals(HomeError.INVALID, e.kind) }
         assertEquals(0, server.requestCount)
     }

@@ -16,11 +16,11 @@ class HomeLanPilotTest {
         val asset = feed.items.single()
         assertEquals(101, asset.id)
         val expected = fixture().items.single()
-        assertEquals(expected.grid.sha256, asset.grid.sha256)
-        assertEquals(expected.display.sha256, asset.display.sha256)
+        assertEquals(expected.grid!!.sha256, asset.grid!!.sha256)
+        assertEquals(expected.display!!.sha256, asset.display!!.sha256)
         assertArrayEquals(resource("home-8x8.jpg"), api.preview(asset, Variant.GRID, feed.revision))
         assertArrayEquals(resource("home-3840x2160.jpg"), api.preview(asset, Variant.DISPLAY, feed.revision))
-        assertEquals(3840, asset.display.width); assertEquals(2160, asset.display.height)
+        assertEquals(3840, asset.display!!.width); assertEquals(2160, asset.display!!.height)
         // The same in-app mapping serves metadata and image requests, with normal JVM trust.
         assertEquals(feed, api.feed(1))
     }
