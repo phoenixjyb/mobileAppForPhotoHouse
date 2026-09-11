@@ -1,0 +1,53 @@
+{
+  "task": "PH-ANDROID-HOME-TV-LAN-MAP-01",
+  "source_commit": "c42918a54991895a3869977f92aa29ffee2377e5",
+  "base_commit": "887db83eb96db136d85589276bc9c6e93081bb54",
+  "backend_implementation_commit": "e6b2827842b2c0b5223c85208299b60e8a1257f6",
+  "contract_sha256": "70328a653ddaa559bad6a4d654cf9870c89c5217e8e9e6c46a3501e9dd9e7548",
+  "sha256": "710c9d3aecd17dcc4b05f00e578504c0522cb1026652520242fe782b8b244b13",
+  "bytes": 8802427,
+  "package": "dev.photohouse.tv",
+  "version_code": 3,
+  "version_name": "0.3-home-lan-dev",
+  "signer_sha256": "56d7591b2b6c2538d506d1fe51327444f2307736cb12f5beefa08f1c410d6d28",
+  "mapping": "Exact HTTPS hostname to one private IPv4 in PhotoHouse only; direct connection; default TLS verification",
+  "normal_projector_dns_required": false,
+  "device_network_settings_changed": false,
+  "projector_install_verified": false,
+  "tests": "29 JVM home tests; 1 opt-in live synthetic LAN test making four real HTTPS requests; APK and lint checks",
+  "backend_writes": false,
+  "artifact_reference": "HOME-TV-V3-LAN-MAPPED",
+  "artifact_name": "PhotoHouse-TV-home-v3.apk",
+  "source_input_hashes": {
+    "android/home-core/build.gradle.kts": "f4f41b6bfbc8d52e19a6d6788547a817478e5c2d7b1bb2b2b3804117f305cf77",
+    "android/home-core/src/main/kotlin/dev/photohouse/home/HomeLanAddress.kt": "e2da596d4586ac7e0670c2f226209085509fd7713056811b2e4daf81413b7092",
+    "android/home-core/src/main/kotlin/dev/photohouse/home/HttpsHomeApi.kt": "78fde36d025a5a55148e14bea36376ad86bb0e7d10423b7f239d12ca119b9207",
+    "android/home-core/src/test/kotlin/dev/photohouse/home/HomeLanPilotTest.kt": "0afea728db21ea2f0b90468698e04cf7b8a0f675cb6fa9c95f8cba4a6614a2de",
+    "android/home-core/src/test/kotlin/dev/photohouse/home/HomeLanTest.kt": "46ff6d6c67c7b01004679e316b8172ff67b6de9514bb855a54b97a3292a9853c",
+    "android/tv/HOME_ACCESS_REQUEST.md": "969896d640bc9c5ebb77a9c1bb40dfb677f4dcbd2cfcc67264ac41add3c2c65d",
+    "android/tv/README.md": "fa03c64639c7d14dc523e7d72c7d416651e85586e7bc69c3e6db4662d857d8e3",
+    "android/tv/build.gradle.kts": "75baa967a086d44738937358457108d8a777e7fa3a17e69a9f2489d75e8479a4",
+    "android/tv/src/androidTest/java/dev/photohouse/tv/TvUiTest.kt": "b0fe461e968a402e984ea8ec4e7b2a0a8155acb870559602b209f416c6bf4b32",
+    "android/tv/src/main/java/dev/photohouse/tv/MainActivity.kt": "e994abd2c66332e56171b4d0b26cb210c3fe65de7d444b8581cd3e6dfc30c605",
+    "android/verify-tv-boundaries.py": "d5392980e2b0d8d76781f80e38bec9323b90707ba7267ca812e32389a714cc9a"
+  },
+  "unit_tests": 29,
+  "live_lan_tests": 1,
+  "live_https_requests": 4,
+  "emulator_tests": "previous UI evidence retained; not rerun for this network-only change",
+  "physical_test": "not yet verified",
+  "lint": [
+    {
+      "id": "OldTargetApi",
+      "severity": "Warning"
+    },
+    {
+      "id": "VectorRaster",
+      "severity": "Warning"
+    },
+    {
+      "id": "DiscouragedApi",
+      "severity": "Warning"
+    }
+  ]
+}
