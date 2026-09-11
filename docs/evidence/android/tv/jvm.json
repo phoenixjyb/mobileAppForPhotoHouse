@@ -1,0 +1,50 @@
+[
+  {
+    "name": "dev.photohouse.fixture.core.FixtureTest",
+    "tests": "22",
+    "failures": "0",
+    "errors": "0",
+    "skipped": "0",
+    "time": "0.77"
+  },
+  {
+    "name": "dev.photohouse.connected.core.ConnectedStoreTest",
+    "tests": "32",
+    "failures": "0",
+    "errors": "0",
+    "skipped": "0",
+    "time": "0.892"
+  },
+  {
+    "name": "dev.photohouse.connected.core.HttpsApiTest",
+    "tests": "19",
+    "failures": "0",
+    "errors": "0",
+    "skipped": "0",
+    "time": "11.991"
+  },
+  {
+    "name": "dev.photohouse.connected.core.ReadinessAdapterTest",
+    "tests": "5",
+    "failures": "0",
+    "errors": "0",
+    "skipped": "0",
+    "time": "0.112"
+  },
+  {
+    "name": "dev.photohouse.connected.core.TvPreviewTest",
+    "tests": "6",
+    "failures": "0",
+    "errors": "0",
+    "skipped": "0",
+    "time": "0.036"
+  },
+  {
+    "name": "dev.photohouse.connected.core.VideoReaderTest",
+    "tests": "3",
+    "failures": "0",
+    "errors": "0",
+    "skipped": "0",
+    "time": "0.021"
+  }
+]
