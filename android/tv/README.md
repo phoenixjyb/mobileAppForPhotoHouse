@@ -17,10 +17,10 @@ projectors that use custom launchers.
   a still preview; video playback is not part of this TV slice.
 - Original caption text in a scrollable dialog; EN/ZH/system-default interface.
 - No personal sign-in or registration fields on the TV. The viewer reuses approved
-  library access, memory-only sessions/content and background clearing. Automatic
-  home access is pending a backend contract: either one-time owner-approved device
-  access or an explicitly selected unauthenticated LAN feed. The current backend
-  supports neither TV mode. No password or invitation is embedded in the APK.
+  library access, memory-only sessions/content and background clearing. The user selected
+  an anonymous, explicitly selected home-LAN photo feed, with no one-time device
+  approval. Its separate `/home/v1` backend implementation is underway; Android
+  awaits the exact source/contract/checksum return before wiring automatic access. No password or invitation is embedded in the APK.
 
 ## Image quality
 
@@ -68,7 +68,7 @@ configuration and logs private because they embed the origin. Only debug is enab
 
 ## Home installation and next steps
 
-1. Resolve the [home-access contract request](HOME_ACCESS_REQUEST.md). Then confirm the JMGO O3 Ultra's firmware, Android API (minimum 26), supported APK
+1. Consume the pending [anonymous home-feed contract return](HOME_ACCESS_REQUEST.md). Then confirm the JMGO O3 Ultra's firmware, Android API (minimum 26), supported APK
    installation route, ABI, normal/Leanback launcher and actual remote key behavior.
 2. Verify the private home hostname route and system-trusted HTTPS from that unit.
    Public IP/port forwarding is unnecessary for LAN-only access. Local DNS may
@@ -77,8 +77,8 @@ configuration and logs private because they embed the origin. Only debug is enab
 3. Prepare a synthetic audience and appropriate image derivatives. Verify the exact
    TV APK/package/signer, then authorize installation and the selected operator.
 4. Test keyboard admission, remote focus, library/grid/page/back, full-screen fit,
-   captions, pause/end-of-page, 4K source decoding/output, original permission,
-   disconnect/revocation, sleep/wake, cold start and logout. Record real-device
+   captions, pause/end-of-page, 4K source decoding/output, feed disable/access boundaries,
+   disconnect, sleep/wake, cold start and logout. Record real-device
    results separately from synthetic emulator/source evidence.
 
 Named albums/search, automatic device access, screensaver
@@ -87,3 +87,8 @@ backend contracts; the app does not invent endpoints or treat LAN membership as
 identity. Real family-library cutover remains separate from synthetic staging.
 
 [Build and test return](../../docs/evidence/android/tv/RETURN.md).
+
+The decoder/original mode above describes the existing viewer prototype. The chosen
+anonymous home feed will serve prepared display JPEGs and exclude original routes;
+integration must use that exact contract rather than expose the prototype's original
+control. Historical build/test returns predate this settled access-model decision.
