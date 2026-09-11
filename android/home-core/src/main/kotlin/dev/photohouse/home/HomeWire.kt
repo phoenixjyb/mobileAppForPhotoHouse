@@ -30,6 +30,7 @@ enum class HomeError { INVALID, DENIED, CHANGED, BUSY, UNAVAILABLE, OFFLINE, TLS
 class HomeFailure(val kind: HomeError, val retryAfterMillis: Long = 0) : Exception(kind.name)
 interface HomeApi {
     val catalogVersion: Int get() = 1
+    val retryRevisionChanges: Boolean get() = true
     suspend fun feed(page: Int, revision: Int?): HomeFeed = feed(page)
     fun video(asset: HomeAsset, revision: Int, failed: (Exception) -> Unit): HomeVideoSource = throw HomeFailure(HomeError.INVALID)
     suspend fun feed(page: Int): HomeFeed

@@ -8,6 +8,9 @@ val configuredOrigin = providers.gradleProperty("photohouseTvOrigin").orElse(loc
 val configuredLanAddress = providers.gradleProperty("photohouseTvLanAddress").orElse(localConfig.getProperty("photohouseTvLanAddress", "")).get()
 val configuredCatalogVersion = providers.gradleProperty("photohouseTvCatalogVersion").orElse(localConfig.getProperty("photohouseTvCatalogVersion", "1")).get()
 require(configuredCatalogVersion in listOf("1", "2")) { "Unsupported TV catalog version" }
+val configuredDiscovery = providers.gradleProperty("photohouseTvDiscoveryEnabled").orElse(localConfig.getProperty("photohouseTvDiscoveryEnabled", "false")).get()
+require(configuredDiscovery in listOf("true", "false")) { "Invalid discovery switch" }
+require(configuredDiscovery != "true" || configuredCatalogVersion == "2") { "Discovery requires catalog v2" }
 // Private endpoint routing only; no credentials or certificate trust overrides.
 require(configuredLanAddress.isEmpty() || configuredOrigin.isNotEmpty()) { "LAN address requires an HTTPS origin" }
 require(configuredLanAddress.isEmpty() || configuredLanAddress.matches(Regex("[0-9.]{7,15}"))) { "Invalid LAN address" }
@@ -21,9 +24,10 @@ android {
         minSdk = 26
         targetSdk = 34
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
-        versionCode = 5
-        versionName = "0.5-tv-catalog-dev"
+        versionCode = 6
+        versionName = "0.6-tv-discovery-dev"
         buildConfigField("int", "PHOTOHOUSE_CATALOG_VERSION", configuredCatalogVersion)
+        buildConfigField("boolean", "PHOTOHOUSE_DISCOVERY_ENABLED", configuredDiscovery)
         buildConfigField("String", "PHOTOHOUSE_ORIGIN", "\"$configuredOrigin\"")
         buildConfigField("String", "PHOTOHOUSE_LAN_ADDRESS", "\"$configuredLanAddress\"")
     }

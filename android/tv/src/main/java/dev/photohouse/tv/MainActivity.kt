@@ -11,8 +11,9 @@ import androidx.lifecycle.ViewModelProvider
 import androidx.lifecycle.viewModelScope
 import dev.photohouse.home.*
 
-class TvViewModel(api: HomeApi?) : ViewModel() {
+class TvViewModel(api: HomeApi?, gateway: DiscoveryGateway? = null) : ViewModel() {
     val store = api?.let { HomeStore(it, viewModelScope) }
+    val discovery = if (store != null && gateway != null) DiscoveryController(gateway, store, viewModelScope) else null
 }
 class MainActivity : ComponentActivity() {
     private val model by viewModels<TvViewModel> {
@@ -29,7 +30,12 @@ class MainActivity : ComponentActivity() {
                         else -> error("Unsupported catalog")
                     }
                 }.getOrNull()
-                return TvViewModel(api) as T
+                val gateway = if (api != null && BuildConfig.PHOTOHOUSE_DISCOVERY_ENABLED) runCatching {
+                    val origin = HomeOrigin.parse(BuildConfig.PHOTOHOUSE_ORIGIN)
+                    if (BuildConfig.PHOTOHOUSE_LAN_ADDRESS.isEmpty()) HttpsDiscoveryGateway(origin)
+                    else HttpsDiscoveryGateway(origin, HomeLanAddress.parse(BuildConfig.PHOTOHOUSE_LAN_ADDRESS))
+                }.getOrNull() else null
+                return TvViewModel(api, gateway) as T
             }
         }
     }
@@ -37,8 +43,8 @@ class MainActivity : ComponentActivity() {
         super.onCreate(null)
         window.addFlags(WindowManager.LayoutParams.FLAG_SECURE)
         window.decorView.importantForAutofill = View.IMPORTANT_FOR_AUTOFILL_NO_EXCLUDE_DESCENDANTS
-        setContent { TvApp(model.store) }
+        setContent { TvApp(model.store, model.discovery) }
     }
-    override fun onPause() { model.store?.background(); super.onPause() }
+    override fun onPause() { model.discovery?.background(); model.store?.background(); super.onPause() }
     override fun onResume() { super.onResume(); model.store?.foreground() }
 }

@@ -99,7 +99,7 @@ class HomeStore(private val api: HomeApi, private val scope: CoroutineScope,
     private fun failed(e: HomeFailure) {
         invalidate()
         if (api.catalogVersion == 2) { page = 1; revision = null }
-        val retryable = e.kind in setOf(HomeError.OFFLINE, HomeError.UNAVAILABLE, HomeError.BUSY, HomeError.CHANGED)
+        val retryable = e.kind in setOf(HomeError.OFFLINE, HomeError.UNAVAILABLE, HomeError.BUSY) || e.kind == HomeError.CHANGED && api.retryRevisionChanges
         val delays = longArrayOf(2000, 5000, 15000, 30000, 60000)
         val base = delays[failures.coerceAtMost(4)]
         val wait = (base + (base * .2 * jitter().coerceIn(0.0, 1.0)).toLong()).coerceAtMost(60000)
@@ -116,6 +116,7 @@ class HomeStore(private val api: HomeApi, private val scope: CoroutineScope,
             }
         }
     }
+    internal fun failDiscovery(e: HomeFailure) { failed(e) }
     fun openAsset(asset: HomeAsset) {
         val s = state.value; val feed = s.feed ?: return
         if (!visible || paused || s.covered || asset !in feed.items) return

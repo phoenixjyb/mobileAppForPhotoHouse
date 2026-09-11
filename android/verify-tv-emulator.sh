@@ -6,7 +6,7 @@ serial="${1:?Pass emulator-SERIAL}"
 scale="${2:-1.0}"
 evidence="${3:-docs/evidence/android/tv}"
 suite="${4:-all}"
-[[ "$suite" == all || "$suite" == catalog ]] || exit 2
+[[ "$suite" == all || "$suite" == catalog || "$suite" == discovery ]] || exit 2
 [[ "$serial" == emulator-* && ( "$scale" == 1.0 || "$scale" == 2.0 ) ]] || exit 2
 adb="${ANDROID_HOME:?}/platform-tools/adb"
 [[ "$("$adb" -s "$serial" shell getprop ro.kernel.qemu | tr -d '\r')" == 1 ]] || exit 2
@@ -25,13 +25,19 @@ trap '"$adb" -s "$serial" shell settings put system font_scale "$previous" >/dev
 mkdir -p "$evidence/screenshots/$scale"
 instrument=(-w -r)
 suffix=""
-expected=16
-names=(setup connection-needed grid-en grid-zh detail-en fullscreen covered display-caption denied empty photo-zoom video-paused catalog-grid catalog-unavailable catalog-pages)
+expected=24
+names=(setup connection-needed grid-en grid-zh detail-en fullscreen covered display-caption denied empty photo-zoom video-paused catalog-grid catalog-unavailable catalog-pages discovery-home discovery-zh discovery-advanced discovery-dates discovery-unavailable discovery-results discovery-empty discovery-error)
 if [[ "$suite" == catalog ]]; then
     instrument+=(-e class dev.photohouse.tv.TvCatalogTest)
     suffix="-catalog"
     expected=3
     names=(catalog-grid catalog-unavailable catalog-pages)
+fi
+if [[ "$suite" == discovery ]]; then
+    instrument+=(-e class dev.photohouse.tv.TvDiscoveryTest,dev.photohouse.tv.TvDiscoveryResultsTest)
+    suffix="-discovery"
+    expected=8
+    names=(discovery-home discovery-zh discovery-advanced discovery-dates discovery-unavailable discovery-results discovery-empty discovery-error)
 fi
 "$adb" -s "$serial" shell am instrument "${instrument[@]}" dev.photohouse.tv.test/androidx.test.runner.AndroidJUnitRunner | tee "$evidence/instrumentation-$scale$suffix.log"
 python3 - "$evidence/instrumentation-$scale$suffix.log" "$expected" <<'PY'

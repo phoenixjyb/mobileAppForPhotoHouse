@@ -29,25 +29,35 @@ import androidx.compose.ui.unit.dp
 import dev.photohouse.home.*
 import kotlinx.coroutines.delay
 
-private val Ink = Color(0xFF10231F)
-private val Cream = Color(0xFFF6ECD9)
-private val Gold = Color(0xFFEBC384)
+internal val Ink = Color(0xFF10231F)
+internal val Cream = Color(0xFFF6ECD9)
+internal val Gold = Color(0xFFEBC384)
+internal val Moss = Color(0xFF233C32)
+internal val Muted = Color(0xFFC0C8BE)
+internal val Edge = Color(0xFF496258)
 
 @Composable internal fun TvButton(label: String, modifier: Modifier = Modifier, enabled: Boolean = true, onClick: () -> Unit) {
     var focused by remember { mutableStateOf(false) }
-    Button(onClick, modifier.onFocusChanged { focused = it.isFocused }, enabled = enabled,
+    Button(onClick, modifier.heightIn(min = 52.dp).onFocusChanged { focused = it.isFocused }, enabled = enabled,
         shape = RoundedCornerShape(12.dp),
-        border = BorderStroke(if (focused) 3.dp else 1.dp, if (focused) Gold else Color(0xFF496258)),
-        colors = ButtonDefaults.buttonColors(containerColor = if (focused) Gold else Color(0xFF233C32),
+        border = BorderStroke(if (focused) 3.dp else 1.dp, if (focused) Gold else Edge),
+        colors = ButtonDefaults.buttonColors(containerColor = if (focused) Gold else Moss,
             contentColor = if (focused) Ink else Cream)) { Text(label) }
 }
 
-@Composable fun TvApp(store: HomeStore?) {
+@Composable fun TvApp(browseStore: HomeStore?, discovery: DiscoveryController? = null) {
+    val discoveryState = discovery?.state?.collectAsState()?.value ?: DiscoveryState()
+    val store = discoveryState.results ?: browseStore
     var language by remember { mutableStateOf("system") }
     val zh = language == "zh" || language == "system" && LocalConfiguration.current.locales[0].language == "zh"
     fun t(en: String, cn: String) = if (zh) cn else en
-    val state = store?.state?.collectAsState()?.value ?: HomeState()
+    // A result store is replaced on each query. Do not briefly reuse its covered/error
+    // state while Compose subscribes to the browse store after clearing the search.
+    val state = key(store) { store?.state?.collectAsState()?.value ?: HomeState() }
     val viewer = state.asset != null
+    var exploring by remember { mutableStateOf(false) }
+    var restoreExplore by remember { mutableStateOf(false) }
+    val exploreFocus = remember { FocusRequester() }
     var playing by remember(state.feed?.id) { mutableStateOf(false) }
     var immersive by remember { mutableStateOf(false) }
     var transform by remember(state.selected, state.feed?.revision, state.covered) { mutableStateOf(PhotoTransform()) }
@@ -58,23 +68,27 @@ private val Gold = Color(0xFFEBC384)
     var captions by remember { mutableStateOf(false) }
     var lastAsset by remember(state.feed?.id) { mutableStateOf<Int?>(null) }
     val first = remember { FocusRequester() }
-    val route = when { state.covered -> "covered"; store == null -> "setup"; state.feed == null -> "connection"; state.video != null -> "video"; viewer -> "viewer"; else -> "grid" }
+    val route = when { state.covered -> "covered"; store == null -> "setup"; exploring -> "explore"; state.feed == null -> "connection"; state.video != null -> "video"; viewer -> "viewer"; else -> "grid" }
     val grid = rememberLazyGridState()
     val view = LocalView.current
+    val focusedWindow = LocalWindowInfo.current.isWindowFocused
     DisposableEffect(playing, state.covered, view) {
         view.keepScreenOn = playing && !state.covered
         onDispose { view.keepScreenOn = false }
     }
-    LaunchedEffect(route, state.feed?.page) {
+    LaunchedEffect(route, state.feed?.page, store, focusedWindow) {
+        if (!focusedWindow) return@LaunchedEffect
         // Re-request after a remote navigation transition, but not on every thumbnail update.
         if (route == "grid") {
             val index = state.feed?.items?.indexOfFirst { it.id == lastAsset } ?: -1
             if (index >= 0) grid.scrollToItem(index)
         }
         withFrameNanos { }
-        runCatching { first.requestFocus() }
+        if (route != "explore") runCatching { if (route == "grid" && restoreExplore) { exploreFocus.requestFocus(); restoreExplore = false } else first.requestFocus() }
     }
     LaunchedEffect(state.covered, state.problem, viewer, state.disconnected, state.asset?.kind) {
+        if (state.covered || state.disconnected || state.problem == HomeError.DENIED) { exploring = false; restoreExplore = false }
+        if (discoveryState.results != null) state.problem?.let { discovery?.invalidateResults(it) }
         if (state.covered || state.problem != null || !viewer || state.disconnected || state.asset?.kind != AssetKind.PHOTO) {
             playing = false; immersive = false; captions = false
         }
@@ -90,6 +104,9 @@ private val Gold = Color(0xFFEBC384)
     }
     fun back() { playing = false; store?.backToPhotos() }
     BackHandler(viewer && !state.covered) { if (transform.zoom > 1f) transform = PhotoTransform() else if (immersive) immersive = false else back() }
+    BackHandler(!viewer && !exploring && !state.covered && discoveryState.query != null) {
+        restoreExplore = true; discovery?.clearResults()
+    }
     MaterialTheme(colorScheme = darkColorScheme(primary = Gold, background = Ink, surface = Ink, onBackground = Cream, onSurface = Cream)) {
         if (pages && state.feed != null && !state.covered && !viewer) {
             PageJump(state.feed!!.page, state.feed!!.total, zh, { pages = false }, { pages = false; store?.loadPage(it) })
@@ -150,17 +167,19 @@ private val Gold = Color(0xFFEBC384)
             Column(Modifier.fillMaxSize().safeDrawingPadding().padding(horizontal = 32.dp, vertical = 20.dp).testTag("tv-screen")) {
                 Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(12.dp), verticalAlignment = Alignment.CenterVertically) {
                     Column(Modifier.weight(1f)) {
-                        Text(t("PhotoHouse", "拾光相册"), fontFamily = FontFamily.Serif, style = MaterialTheme.typography.headlineMedium)
-                        Text(t("A little closer to home · TV preview", "把回忆带回家 · 电视预览版"), style = MaterialTheme.typography.labelMedium, color = Gold)
+                        Text(t("PhotoHouse", "拾光相册"), fontFamily = FontFamily.Serif, style = MaterialTheme.typography.titleLarge)
+                        Text(t("A little closer to home", "把回忆带回家"), style = MaterialTheme.typography.bodySmall, color = Muted)
                     }
                     TvButton(if (zh) "English" else "简体中文", Modifier.testTag("language")) { language = if (zh) "en" else "zh" }
-                    if (state.feed != null && !state.covered) TvButton(t("Disconnect", "断开连接"), Modifier.testTag("disconnect")) { playing = false; store?.disconnect() }
+                    if (state.feed != null && !state.covered) TvButton(t("Disconnect", "断开连接"), Modifier.testTag("disconnect")) { playing = false; discovery?.background(); browseStore?.disconnect() }
                 }
                 Spacer(Modifier.height(12.dp))
                 if (state.busy) LinearProgressIndicator(Modifier.fillMaxWidth())
                 state.problem?.let { problem ->
                     Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(12.dp)) {
-                        Text(problemText(problem, zh), Modifier.weight(1f), style = MaterialTheme.typography.bodyMedium)
+                        Text(if (problem == HomeError.CHANGED && discoveryState.query != null)
+                            t("The library changed. Edit filters to start a fresh search.", "媒体库已更新，请修改条件后重新搜索。") else problemText(problem, zh),
+                            Modifier.weight(1f), style = MaterialTheme.typography.bodyMedium)
                     }
                 }
                 when {
@@ -173,6 +192,14 @@ private val Gold = Color(0xFFEBC384)
                     state.covered -> Column {
                         Text(t("Private content is covered.", "私人内容已隐藏。"), Modifier.testTag("covered"))
                     }
+                    exploring -> TvDiscovery(discoveryState.snapshot?.options, zh, discoveryState.query ?: DiscoveryDraft(),
+                        onClose = { discovery?.close(); exploring = false; restoreExplore = true },
+                        onApply = if (discoveryState.snapshot != null && !discoveryState.loading && discoveryState.problem == null) {
+                            { query -> discovery?.search(query); exploring = false }
+                        } else null,
+                        loading = discoveryState.loading, problem = discoveryState.problem,
+                        onRetry = { discovery?.open() }, more = discoveryState.snapshot?.nextPages?.keys.orEmpty(),
+                        onMore = { discovery?.more(it) })
                     state.feed == null -> Column(Modifier.weight(1f).verticalScroll(rememberScrollState()), verticalArrangement = Arrangement.Center) {
                         Text(if (state.disconnected) t("Display disconnected", "屏幕已断开") else if (state.problem != null) t("Home photos unavailable", "暂时无法查看家庭照片") else t("Connecting to your home photos…", "正在连接家庭照片…"),
                             style = MaterialTheme.typography.headlineLarge, modifier = Modifier.testTag("home-access-needed"))
@@ -180,6 +207,10 @@ private val Gold = Color(0xFFEBC384)
                         Text(t("No personal sign-in is needed on this screen.", "此屏幕无需个人登录。"))
                         if (state.disconnected) TvButton(t("Reconnect", "重新连接"), Modifier.focusRequester(first)) { store.reconnect() }
                         else TvButton(t("Retry", "重试"), Modifier.focusRequester(first), !state.busy) { store.retry() }
+                        if (discoveryState.query != null) {
+                            TvButton(t("Edit filters", "修改条件"), Modifier.testTag("edit-search")) { exploring = true; discovery?.open() }
+                            TvButton(t("Clear search", "清除搜索"), Modifier.testTag("clear-results")) { discovery?.clearResults() }
+                        }
                     }
                     viewer -> {
                         val bytes = state.display
@@ -224,15 +255,21 @@ private val Gold = Color(0xFFEBC384)
                     else -> {
                         val gallery = state.feed
                         Row(Modifier.horizontalScroll(rememberScrollState()), horizontalArrangement = Arrangement.spacedBy(10.dp), verticalAlignment = Alignment.CenterVertically) {
-                            Text(gallery?.title.orEmpty(), Modifier.widthIn(max = 240.dp), maxLines = 1)
+                            Text(if (discoveryState.query != null) t("Search results", "搜索结果") else gallery?.title.orEmpty(), Modifier.widthIn(max = 220.dp), maxLines = 1, style = MaterialTheme.typography.titleMedium)
+                            TvButton(t("Explore", "探索"), Modifier.testTag("explore").focusRequester(exploreFocus)) { exploring = true; discovery?.open() }
                             TvButton(t("Refresh", "刷新"), if (gallery?.items.isNullOrEmpty()) Modifier.focusRequester(first) else Modifier, enabled = !state.busy) { store.loadPage(gallery?.page ?: 1) }
                             TvButton(t("Previous page", "上一页"), enabled = !state.busy && gallery != null && gallery.page > 1) { store.loadPage(gallery!!.page - 1) }
                             TvButton(t("Next page", "下一页"), enabled = !state.busy && gallery != null && gallery.hasMore && gallery.page < 2000) { store.loadPage(gallery!!.page + 1) }
                         }
+                        if (discoveryState.query != null) Row(Modifier.horizontalScroll(rememberScrollState()), horizontalArrangement = Arrangement.spacedBy(10.dp), verticalAlignment = Alignment.CenterVertically) {
+                            Text(t("${discoveryState.query!!.count} filters applied", "已应用 ${discoveryState.query!!.count} 类条件"), color = Gold, modifier = Modifier.testTag("applied-search"))
+                            TvButton(t("Edit filters", "修改条件"), Modifier.testTag("edit-search")) { exploring = true; discovery?.open() }
+                            TvButton(t("Clear search", "清除搜索"), Modifier.testTag("clear-results")) { discovery?.clearResults() }
+                        }
                         if (gallery != null && gallery.total > 50) TvButton(t("Go to page", "跳转页面"), Modifier.testTag("page-jump"), enabled = !state.busy) { pages = true }
                         if (gallery != null) Text(t("Page ${gallery.page} · ${gallery.total} assets", "第 ${gallery.page} 页 · 共 ${gallery.total} 项"), style = MaterialTheme.typography.labelSmall)
-                        if (gallery != null && gallery.items.isEmpty()) Text(t("No photos here yet.", "这里还没有照片。"))
-                        LazyVerticalGrid(GridCells.Adaptive(180.dp), Modifier.weight(1f).testTag("grid"), state = grid,
+                        if (gallery != null && gallery.items.isEmpty()) Text(if (discoveryState.query != null) t("No matching memories. Try fewer filters.", "没有匹配的回忆，试试减少筛选条件。") else t("No photos here yet.", "这里还没有照片。"))
+                        LazyVerticalGrid(GridCells.Adaptive(if (LocalConfiguration.current.fontScale >= 1.5f) 240.dp else 180.dp), Modifier.weight(1f).testTag("grid"), state = grid,
                             contentPadding = PaddingValues(vertical = 12.dp), horizontalArrangement = Arrangement.spacedBy(12.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
                             items(gallery?.items.orEmpty(), key = { it.id }) { asset ->
                                 val target = gallery?.items?.firstOrNull { it.id == lastAsset }?.id ?: gallery?.items?.firstOrNull()?.id
@@ -241,7 +278,8 @@ private val Gold = Color(0xFFEBC384)
                                     Modifier.fillMaxWidth().height(158.dp).then(if (asset.id == target) Modifier.focusRequester(first) else Modifier)
                                         .onFocusChanged { focused = it.isFocused }.testTag("asset-${asset.id}"),
                                     shape = RoundedCornerShape(14.dp), contentPadding = PaddingValues(6.dp),
-                                    border = BorderStroke(if (focused) 3.dp else 1.dp, if (focused) Gold else Color(0xFF355044))) {
+                                    colors = ButtonDefaults.outlinedButtonColors(containerColor = Moss, contentColor = Cream),
+                                    border = BorderStroke(if (focused) 3.dp else 1.dp, if (focused) Gold else Moss)) {
                                     Column(Modifier.fillMaxSize()) {
                                         TvImage(state.grids[asset.id], t("Photo", "照片") + " ${asset.id}", Modifier.fillMaxWidth().weight(1f), if (asset.kind == AssetKind.VIDEO && asset.video != null) t("Ready to play", "可以播放") else unavailableText(asset.gridUnavailable, zh), maxPixels = 262144)
                                         if (asset.kind != AssetKind.PHOTO) Text(if (asset.kind == AssetKind.VIDEO) t("Video", "视频") else t("Unsupported format", "不支持的格式"), Modifier.testTag("asset-kind-${asset.id}"), style = MaterialTheme.typography.labelSmall)

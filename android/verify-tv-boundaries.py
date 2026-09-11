@@ -20,8 +20,13 @@ assert categories == {'android.intent.category.LAUNCHER', 'android.intent.catego
 for name in ['network_security_config.xml', 'data_extraction_rules.xml']:
     assert (main/'res/xml'/name).read_bytes() == (root/'connected/src/main/res/xml'/name).read_bytes()
 source = '\n'.join(p.read_text() for p in (main/'java').rglob('*.kt'))
-for forbidden in ['SharedPreferences', 'rememberSaveable', 'SavedStateHandle', 'FileOutputStream', 'WebView', 'hostnameVerifier', 'sslSocketFactory', 'android.util.Log', 'java.io.File', 'MediaStore', 'dev.photohouse.fixture', 'OutlinedTextField', 'store.authenticate(', 'dev.photohouse.connected', 'originalPhoto', 'viewingOriginal', 'state.session', 'Bearer']:
+for forbidden in ['SharedPreferences', 'rememberSaveable', 'SavedStateHandle', 'FileOutputStream', 'WebView', 'hostnameVerifier', 'sslSocketFactory', 'android.util.Log', 'java.io.File', 'MediaStore', 'dev.photohouse.fixture', 'PasswordVisualTransformation', 'KeyboardType.Password', 'store.authenticate(', 'dev.photohouse.connected', 'originalPhoto', 'viewingOriginal', 'state.session', 'Bearer']:
     assert forbidden not in source, forbidden
+# The user authorized search input. Only its memory-only editor may collect text;
+# setup, connection and playback retain their no-personal-sign-in boundary.
+for path in (main/'java').rglob('*.kt'):
+    if path.name != 'TvDiscovery.kt':
+        assert 'OutlinedTextField' not in path.read_text() and 'BasicTextField' not in path.read_text(), path.name
 for required in ['FLAG_SECURE', 'store?.background()', 'store?.foreground()', 'HomeOrigin.parse', 'HomeLanAddress.parse(BuildConfig.PHOTOHOUSE_LAN_ADDRESS)', 'state.display', 'state.feed']:
     assert required in source, required
 build = (root/'tv/build.gradle.kts').read_text()

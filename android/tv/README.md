@@ -57,7 +57,48 @@ failure stays in the viewer; network denial/revision failure clears the generati
 V1 remains photo-only. Real v2 media preparation and deployment are backend gates;
 see [FULL_LIBRARY_PLAN.md](FULL_LIBRARY_PLAN.md) and [CATALOG_V2_CAPSULE.md](CATALOG_V2_CAPSULE.md).
 
-## Frozen contract and image quality
+## Discovery and advanced search
+
+The TV now has a dedicated Explore screen with a warm green/cream/gold palette,
+bilingual people shortcuts, date browsing, caption text, tags, reviewed places and
+media type. Advanced search combines categories with AND; people and tags each
+offer Any/All. Year shortcuts and inclusive date ranges use recorded capture dates.
+Search results reuse the existing photo fit/fill/zoom/full-screen and native video
+controls. Back returns to the selected asset, then to browsing; clearing search
+revalidates the catalog. Empty matches never fall back to all media.
+
+Shortcuts use server-published reviewed person IDs, labels, aliases and pin order.
+No family names or private person mappings are compiled into the app or test
+fixtures. Caption mentions never establish identity. Only existing published tags
+are searchable; captioning/tag generation is a separate backend process. Coverage
+counts describe available metadata, not an assertion that tagging is complete.
+
+The independent frozen discovery v1 pin is
+`54f68427058c45f6bcc5a863cc6d708f5b325e45`, with contract/schema/examples and
+19 source-input hashes in `../home-core/discovery-contract/`. The adapter uses
+same-origin HTTPS GET facets and POST search, revision-bound pages, an isolated
+result store and unchanged v2 media URLs. Editing revalidates metadata and retains
+loaded facet pages only under the identical verified metadata binding. Revision
+conflicts ask for a fresh search instead of retrying an obsolete query. Filters,
+metadata and results are memory-only and clear on background/disconnect.
+
+Enable only for a separately approved discovery-capable v2 server using
+`photohouseTvCatalogVersion=2` and `photohouseTvDiscoveryEnabled=true`.
+Discovery defaults to **false**, including the existing v1 home profile. There is
+no endpoint probing, version fallback or fixture fallback. On an older server,
+Explore explains that search is not available yet and browsing remains usable.
+The production contract deliberately leaves themes/topics unavailable until a
+reviewed taxonomy exists. Places are reviewed coarse regions; map/radius search,
+raw GPS queries, named albums, semantic search and tag generation are not
+implemented in this slice. See [DISCOVERY_PLAN.md](DISCOVERY_PLAN.md).
+
+Verify with `python3 android/verify-discovery-contract.py` from the repository root.
+`android/home-core/integration/verify-discovery-backend.py --backend CHECKOUT --python PYTHON`
+replays the pinned backend's actual discovery ASGI against disposable synthetic
+inputs with network, subprocess and database access blocked. This is separate
+from Kotlin loopback TLS tests, emulator tests and real server/device acceptance.
+
+## Frozen media contracts and image quality
 
 V2 runtime pin: `a5d0f595d7cd26379ed2845a944ec1d58d7885cc`.
 V2 contract SHA-256: `13cf10892dc4e91631ad71b5ee4bed21baa44697f1e779851c19026dbe606120`.
@@ -128,7 +169,9 @@ app mapping is a separate resolution path from ordinary projector system DNS. No
 forwarding is needed for LAN-only routing. Actual JMGO firmware/API (minimum 26),
 launcher, remote keys, sleep/wake, image quality and installation/operator window
 still need device evidence. A landscape phone AVD is only a component test surface.
-Named albums/search, screensaver startup and offline storage are not implemented.
+Named albums, screensaver startup and offline storage are not implemented.
+Discovery/search source is implemented behind the explicit v2 discovery switch;
+real reviewed metadata publication and projector acceptance remain pending.
 V2 catalog/video source integration is implemented; real prepared-media coverage
 and the v2 origin/publication remain a coordinated backend continuation.
 
@@ -150,3 +193,4 @@ instrumentation resources. A separate twenty-second synthetic clip covers native
 playback/seek; neither clip is packaged in the application APK.
 
 [Current v2 integration and artifact evidence](../../docs/evidence/android/catalog-v2/RETURN.md).
+[Discovery implementation and artifact evidence](../../docs/evidence/android/discovery-v1/RETURN.md).
