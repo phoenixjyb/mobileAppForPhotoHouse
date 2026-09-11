@@ -1,5 +1,11 @@
 # PhotoHouse independent session handoffs
 
+**Historical foundation document.** Platform/backend status statements below describe
+that handoff's baseline. For current Android implementation and remaining live gates,
+use [Android MVP status](../android/MVP_STATUS.md) and
+[pilot acceptance](../android/PILOT_ACCEPTANCE.md). Do not restart the Android
+foundation capsule or treat an earlier blocker as current without those records.
+
 Updated 2026-09-09 after the backend foundation and recovery slices. **Android and
 iOS fixture app work can start directly from the frozen local baseline below.**
 This document prepares assignments; it does not create sessions or start agents.

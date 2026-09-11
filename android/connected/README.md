@@ -1,12 +1,17 @@
 # Connected Android development app
 
+Current [MVP status and source/test mapping](../MVP_STATUS.md) ·
+[pilot acceptance/configuration](../PILOT_ACCEPTANCE.md). The scoped browsing MVP is
+locally implemented; deployed-service and phone acceptance remain pending.
+
 `dev.photohouse.connected` is a separate debug-only application. It implements the
 frozen native contract through OkHttp 4.12.0: phone/password login, invited
 registration, own-session and library selection, invitation acceptance, paged
 gallery, authenticated thumbnails, asset details, literal captions and logout.
 It supports English and Simplified Chinese interface text, page-preserving photo
 navigation, an original-photo viewer with zoom/pan, and permission-aware native
-video playback with play/pause/seek. UI polish is deferred.
+video playback with play/pause/seek. The gallery, details, admission and Settings
+layouts have completed the local UI refinement slice.
 
 It is not the complete PhotoHouse product. File downloads, uploads,
 search, albums, voice, owner administration and persistent sign-in are absent.
@@ -14,9 +19,13 @@ Real backend deployment and physical-device acceptance have not been verified.
 
 ## Configuration
 
+These are instructions for a later approved pilot, not authorization to build,
+open listeners or run a device in the current no-listener scope. Initial viewer
+original access must remain off. See the ordered pilot handoff above.
+
 The default build has an empty origin, displays “Server setup needed”, and cannot
 collect credentials or make requests. After the operator identifies a reviewed
-HTTPS deployment of the frozen backend, place `photohouseOrigin` in the ignored
+HTTPS deployment and approves the configuration/build lane, place `photohouseOrigin` in the ignored
 `android/local.properties` file. Its value must be an HTTPS origin with no
 credentials, path prefix, query or fragment. Do not commit that file or a configured
 APK containing a private origin. Passwords, tokens and invitations are never build
@@ -47,8 +56,8 @@ encoded explicitly, including `transport: "native"`.
 Production construction uses system certificate roots and normal hostname
 validation. Cleartext, redirects, cookies, disk cache, HTTP logging, automatic
 authentication retries and refresh tokens are disabled. The internal custom-client
-constructor is used only by JVM tests with runtime-generated certificates on
-loopback. No trust overrides or test certificate are packaged into the app.
+constructor is used only by JVM tests: either synthetic in-process interceptors
+or runtime-generated certificates on loopback in the separately authorized TLS lane. No trust overrides or test certificate are packaged into the app.
 
 Bearer credentials stay in memory. Logout, account/library changes and background
 events cancel outstanding calls and clear private views. Late responses cannot
@@ -98,8 +107,8 @@ service, picture-in-picture, download, playlist or casting support.
 is shown as unavailable. Invitation acceptance is never automatically replayed
 after an uncertain response; retry refreshes session membership instead.
 
-Tests use synthetic inputs only. JVM tests exercise real local TLS sockets and
-state transitions. Emulator tests substitute a synthetic API in the test process
+Tests use synthetic inputs only. The no-listener JVM lane exercises state and
+interceptor responses; the broader historical transport lane uses local TLS sockets. Emulator tests substitute a synthetic API in the test process
 to check the UI components and separately check the unconfigured app. These tests
 do not establish deployed authorization or a real successful sign-in. Test-only
 own-View renders leave `FLAG_SECURE` enabled; ordinary screenshots remain blocked.
@@ -123,4 +132,4 @@ At large text sizes the gallery uses one column and action groups wrap.
 
 The UI remains a development build with memory-only sign-in. Dates are source text,
 captions stay literal, and unavailable previews never fall back to original files.
-See `docs/evidence/android/ui/RETURN.md` for the independently recorded UI check.
+See [UI evidence](../../docs/evidence/android/ui/RETURN.md) for the independently recorded UI check.

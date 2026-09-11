@@ -1,10 +1,19 @@
 # Android PhotoHouse development apps
 
-Two separate application modules are available. `app` remains the offline fixture
-APK described below. `connected` implements HTTPS authentication and browsing; see
-[connected/README.md](connected/README.md) for scope, configuration and evidence.
-The shared `protocol` module has wire DTOs only, with no transport dependencies.
-The verification script builds and tests both apps.
+The connected invitation-based browsing MVP is locally implemented. Start with
+[current MVP status and requirement mapping](MVP_STATUS.md), then
+[the pilot acceptance/configuration handoff](PILOT_ACCEPTANCE.md). Live deployment
+and phone acceptance remain pending; the default APK origin is empty.
+
+Two distinct apps remain: `connected` is the HTTPS viewer described in
+[connected/README.md](connected/README.md); `app` is the offline fixture demonstrator.
+The shared `protocol` module contains wire DTOs only. The completed locked-profile
+replay is current; historical fixture/readiness returns remain evidence of their
+own commits. Use the [no-listener lane](readiness/README.md) for the current local
+scope; Gradle/TLS/device scripts require a separately authorized lane.
+
+The sections below document the offline fixture app/toolchain. Their no-network,
+metadata-only-video statements apply to `app`, not the connected viewer.
 
 ## Offline fixture app
 
