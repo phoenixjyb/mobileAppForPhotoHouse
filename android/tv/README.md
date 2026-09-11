@@ -67,22 +67,34 @@ adapter tests use a separate loopback-only synthetic TLS server.
 
 ## Delivery gates
 
-The default debug APK has an unset origin and shows setup. The anonymous backend
-is implemented and locally verified; it is not yet confirmed served. A reviewed
-private build may set `photohouseTvOrigin` in ignored `android/local.properties`.
-Only a canonical DNS HTTPS origin is accepted; normal system trust is required.
-The phone's `photohouseOrigin` setting is independent. Keep configured artifacts
-and logs private. Never substitute the older protected server as a home feed.
+The default debug APK has an unset origin and shows setup. A private build can
+set `photohouseTvOrigin` and optional `photohouseTvLanAddress` through ignored
+local properties or Gradle environment inputs. The address is the server's
+canonical RFC1918 IPv4 address. It maps only the configured HTTPS hostname inside
+PhotoHouse and uses a direct connection. The URL hostname, TLS SNI and platform
+certificate/hostname verification remain in place. Unexpected hosts and invalid
+addresses fail closed; there is no public-DNS/proxy fallback for the mapped feed.
+When no LAN mapping is supplied, ordinary system DNS remains the default.
+
+The user explicitly requested this APK-contained LAN configuration after the
+manual projector DNS plan. The mapped APK requires no projector DNS change and
+does not change the device's IP, gateway or DNS settings. Other TV apps continue
+to use their system settings. If the server's LAN address changes, rebuild with
+the newly verified address. Keep configured APKs and logs private. The phone's
+`photohouseOrigin` remains independent; never substitute its server for /home/v1.
 
 Backend owns separately authorized synthetic LAN deployment, normal local DNS/TLS,
-peer isolation, selection publication and lifecycle/rollback. No public IP or port
+peer isolation, selection publication and lifecycle/rollback. The user-requested
+app mapping is a separate resolution path from ordinary projector system DNS. No public IP or port
 forwarding is needed for LAN-only routing. Actual JMGO firmware/API (minimum 26),
 launcher, remote keys, sleep/wake, image quality and installation/operator window
 still need device evidence. A landscape phone AVD is only a component test surface.
 Named albums/search, video, screensaver startup and offline storage remain outside
 this read-only selected-photo feed.
 
-[Current integration return](../../docs/evidence/android/home-feed/RETURN.md).
+[App-contained LAN configuration return](../../docs/evidence/android/home-tv-lan-map/RETURN.md).
+
+[Original integration return](../../docs/evidence/android/home-feed/RETURN.md).
 [Historical prototype return](../../docs/evidence/android/tv/RETURN.md) predates
 the implemented backend and this anonymous adapter; its pending-backend statements
 are superseded by the current return.

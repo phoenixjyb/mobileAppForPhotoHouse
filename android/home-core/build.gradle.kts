@@ -9,3 +9,19 @@ dependencies {
     testImplementation("org.jetbrains.kotlinx:kotlinx-coroutines-test:1.8.1")
     testImplementation("junit:junit:4.13.2")
 }
+
+// Ordinary tests remain synthetic and loopback-only. Real LAN reads need explicit opt-in.
+tasks.test { exclude("**/HomeLanPilotTest*") }
+tasks.register<Test>("lanPilotTest") {
+    description = "Read the explicitly authorized synthetic LAN feed using in-app address mapping"
+    group = "verification"
+    testClassesDirs = sourceSets.test.get().output.classesDirs
+    classpath = sourceSets.test.get().runtimeClasspath
+    include("**/HomeLanPilotTest.class")
+    outputs.upToDateWhen { false }
+    doFirst {
+        require(System.getenv("PHOTOHOUSE_HOME_TEST_ORIGIN") != null && System.getenv("PHOTOHOUSE_HOME_TEST_ADDRESS") != null) {
+            "Explicit private synthetic home-feed origin and address are required"
+        }
+    }
+}

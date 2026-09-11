@@ -28,6 +28,18 @@ Earlier prototype notes saying the backend/adapter was pending are historical.
 - Approved serving origin and exact service/package identities, then a private
   configured APK and separately authorized JMGO installation/acceptance.
 
-No serving origin or real selection is approved. The older protected staging
-origin is not a /home/v1 server. Public evidence and the current APK contain no
-private origin, credentials or real media. No deployment, push or merge is implied.
+The later synthetic LAN pilot supplied a private home-feed origin; no real selection
+is approved. The older protected staging origin is not a /home/v1 server. Public
+evidence contains no private origin, credentials or real media; configured APKs
+are private. Current build-specific status is recorded in the update below.
+
+## APK-contained LAN connection update
+
+The user subsequently requested storing connection information in the private APK.
+The optional server IPv4 mapping now resolves only the PhotoHouse HTTPS hostname
+inside the app, retaining normal TLS hostname/chain verification. Manual projector
+DNS is not required for this mapped build. Projector IP/gateway/system DNS remain
+OS settings; the APK does not silently edit them. Backend reports its scoped
+synthetic HTTPS feed running. See the newer
+[LAN mapping return](../../docs/evidence/android/home-tv-lan-map/RETURN.md).
+Earlier unconfigured/normal-DNS-only statements describe their respective builds.

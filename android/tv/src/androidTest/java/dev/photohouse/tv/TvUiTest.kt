@@ -76,6 +76,7 @@ class TvUiTest {
     }
     @Test fun setupIsClosedAndWindowRemainsSecure() {
         assertEquals("", BuildConfig.PHOTOHOUSE_ORIGIN)
+        assertEquals("", BuildConfig.PHOTOHOUSE_LAN_ADDRESS)
         rule.onNodeWithTag("setup").assertIsDisplayed()
         rule.onAllNodes(hasSetTextAction()).assertCountEquals(0)
         assertTrue(rule.activity.window.attributes.flags and WindowManager.LayoutParams.FLAG_SECURE != 0)

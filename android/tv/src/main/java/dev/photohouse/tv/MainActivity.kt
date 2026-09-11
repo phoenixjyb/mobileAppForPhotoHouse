@@ -19,8 +19,12 @@ class MainActivity : ComponentActivity() {
         object : ViewModelProvider.Factory {
             @Suppress("UNCHECKED_CAST")
             override fun <T : ViewModel> create(modelClass: Class<T>): T {
-                val origin = runCatching { HomeOrigin.parse(BuildConfig.PHOTOHOUSE_ORIGIN) }.getOrNull()
-                return TvViewModel(origin?.let { HttpsHomeApi(it) }) as T
+                val api = runCatching {
+                    val origin = HomeOrigin.parse(BuildConfig.PHOTOHOUSE_ORIGIN)
+                    if (BuildConfig.PHOTOHOUSE_LAN_ADDRESS.isEmpty()) HttpsHomeApi(origin)
+                    else HttpsHomeApi(origin, HomeLanAddress.parse(BuildConfig.PHOTOHOUSE_LAN_ADDRESS))
+                }.getOrNull()
+                return TvViewModel(api) as T
             }
         }
     }

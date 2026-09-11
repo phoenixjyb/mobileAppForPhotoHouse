@@ -31,6 +31,7 @@ class HomeOrigin private constructor(internal val url: HttpUrl) {
 /** Only the JVM test friend source set may inject a synthetic TLS client. */
 class HttpsHomeApi internal constructor(private val origin: HomeOrigin, client: OkHttpClient) : HomeApi {
     constructor(origin: HomeOrigin) : this(origin, OkHttpClient())
+    constructor(origin: HomeOrigin, address: HomeLanAddress) : this(origin, homeLanClient(origin, address))
     private val client = client.newBuilder().followRedirects(false).followSslRedirects(false)
         .retryOnConnectionFailure(false).cookieJar(CookieJar.NO_COOKIES).cache(null)
         .authenticator(Authenticator.NONE).proxyAuthenticator(Authenticator.NONE)
