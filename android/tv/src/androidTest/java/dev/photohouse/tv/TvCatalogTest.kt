@@ -18,7 +18,7 @@ class TvCatalogTest {
     private val scope = CoroutineScope(SupervisorJob() + Dispatchers.Main.immediate)
     @After fun finish() { scope.cancel() }
     private fun fixture(name: String) = InstrumentationRegistry.getInstrumentation().context.assets.open(name).use { it.readBytes() }
-    private inner class CatalogApi(private val missingVideo: Boolean = false, private val total: Int = 2, private val missingAll: Boolean = false) : HomeApi {
+    private inner class CatalogApi(private val missingVideo: Boolean = false, private val total: Int = 2, private val missingAll: Boolean = false, private val malformedFirst: Boolean = false) : HomeApi {
         override val catalogVersion = 2
         val sources = mutableListOf<HomeVideoReader>()
         val pages = mutableListOf<Int>()
@@ -37,7 +37,7 @@ class TvCatalogTest {
         }
         override suspend fun preview(asset: HomeAsset, variant: Variant, revision: Int) = fixture("home-8x8.jpg")
         override fun video(asset: HomeAsset, revision: Int, failed: (Exception) -> Unit): HomeVideoSource {
-            val bytes = fixture("catalog-video.mp4")
+            val bytes = if (malformedFirst && sources.isEmpty()) byteArrayOf(1, 2, 3) else fixture("catalog-video.mp4")
             return HomeVideoReader(bytes.size.toLong(), 65536, { p, n -> bytes.copyOfRange(p.toInt(), p.toInt() + n) }, failed).also { sources += it }
         }
     }
@@ -88,6 +88,27 @@ class TvCatalogTest {
         rule.runOnUiThread { store.background() }
         rule.onAllNodesWithTag("tv-image").assertCountEquals(0)
         rule.onNodeWithTag("covered").assertExists()
+    }
+    @Test fun nativeFailureShowsSafeCodeAndRetryReplacesClosedSource() {
+        val api = CatalogApi(malformedFirst = true); val store = install(api)
+        rule.onNodeWithTag("asset-102").performClick()
+        rule.waitUntil(15000) { rule.onAllNodesWithTag("video-error").fetchSemanticsNodes().size == 1 }
+        rule.onNodeWithTag("video-error").assertTextContains("TV-", substring = true).assertIsDisplayed()
+        assertTrue(api.sources.single().isClosed)
+        assertNotNull(store.state.value.feed)
+        capture("video-error")
+        rule.onNodeWithTag("language").performClick()
+        rule.onNodeWithTag("video-error").assertTextContains("TV-", substring = true).assertIsDisplayed()
+        capture("video-error-zh")
+        rule.onNodeWithTag("open-video").assertIsDisplayed().performClick()
+        rule.waitUntil(15000) { rule.onAllNodes(hasTestTag("video-play") and isEnabled()).fetchSemanticsNodes().size == 1 }
+        rule.onNodeWithTag("video-error").assertDoesNotExist()
+        assertEquals(2, api.sources.size)
+        assertFalse(api.sources.last().isClosed)
+        key(KeyEvent.KEYCODE_BACK)
+        rule.onNodeWithTag("video-error").assertDoesNotExist()
+        rule.runOnUiThread { store.background() }
+        assertTrue(api.sources.all { it.isClosed })
     }
     @Test fun remotePageDialogReachesLastPageOfLargeCatalog() {
         val api = CatalogApi(total = 27842); install(api)

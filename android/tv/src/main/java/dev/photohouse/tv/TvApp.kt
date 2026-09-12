@@ -63,6 +63,7 @@ internal val Edge = Color(0xFF496258)
     var playing by remember(state.feed?.id) { mutableStateOf(false) }
     var immersive by remember { mutableStateOf(false) }
     var transform by remember(state.selected, state.feed?.revision, state.covered) { mutableStateOf(PhotoTransform()) }
+    var playbackFailure by remember(store, state.selected, state.feed?.revision, state.covered) { mutableStateOf<TvPlaybackFailure?>(null) }
     var hintTick by remember { mutableStateOf(0) }
     var showHint by remember { mutableStateOf(true) }
     LaunchedEffect(immersive, hintTick) { showHint = true; if (immersive) { delay(4000); showHint = false } }
@@ -134,7 +135,7 @@ internal val Edge = Color(0xFF496258)
             val video = state.video
             if (video != null && !state.covered && state.problem == null) {
                 TvVideoPlayer(video, zh, { if (store?.state?.value?.video === video) store.closeVideo() },
-                    { if (store?.state?.value?.video === video) store.videoPlaybackFailed() })
+                    { reason -> if (store?.state?.value?.video === video) { playbackFailure = reason; store.videoPlaybackFailed() } })
                 return@Surface
             }
             if (immersive && viewer && !state.covered && state.feed != null) {
@@ -223,9 +224,9 @@ internal val Edge = Color(0xFF496258)
 
                         }
                         if (state.asset?.kind == AssetKind.VIDEO) {
-                            Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(12.dp)) {
-                                if (state.asset?.video != null) TvButton(t("Open video", "打开视频"), Modifier.testTag("open-video"), enabled = !state.busy) { playing = false; store.openVideo() }
-                                if (state.videoFailed) Text(t("Playback unavailable. Retry or choose another video.", "暂时无法播放。请重试或选择其他视频。"), Modifier.testTag("video-error"))
+                            Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                                if (state.asset?.video != null) TvButton(t("Open video", "打开视频"), Modifier.testTag("open-video"), enabled = !state.busy) { playing = false; playbackFailure = null; store.openVideo() }
+                                if (state.videoFailed) Text(playbackFailure?.message(zh) ?: t("Playback unavailable. Retry or choose another video. [TV-READ]", "暂时无法播放。请重试或选择其他视频。[TV-READ]"), Modifier.testTag("video-error"))
                                 else if (state.asset?.video == null) Text(unavailableText(state.asset?.videoUnavailable, zh), Modifier.testTag("video-unavailable"))
                                 else Text(t("Video · Press Play after opening", "视频 · 打开后按播放"))
                             }

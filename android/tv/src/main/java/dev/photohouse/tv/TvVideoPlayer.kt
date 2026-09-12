@@ -40,11 +40,12 @@ internal class VideoDataSource(private val reader: HomeVideoSource) : MediaDataS
     override fun close() { }
 }
 internal data class Playback(val ready: Boolean = false, val playing: Boolean = false, val position: Int = 0,
-    val duration: Int = 0, val width: Int = 16, val height: Int = 9, val seeking: Boolean = false)
+    val duration: Int = 0, val width: Int = 16, val height: Int = 9, val seeking: Boolean = false,
+    val audioFocusDenied: Boolean = false)
 
 /** Every platform-player operation runs on one looper; close cancels HTTP before release. */
 internal class NativeVideoPlayer(context: Context, private val reader: HomeVideoSource,
-    private val changed: (Playback) -> Unit, private val failed: () -> Unit) {
+    private val changed: (Playback) -> Unit, private val failed: (TvPlaybackFailure) -> Unit) {
     private val thread = HandlerThread("PhotoHouseVideo").apply { start() }
     private val handler = Handler(thread.looper)
     private val main = Handler(Looper.getMainLooper())
@@ -65,15 +66,17 @@ internal class NativeVideoPlayer(context: Context, private val reader: HomeVideo
         reader.onClose(::close)
     }
     private fun publish() { val value = state; main.post { if (!closed.get()) changed(value) } }
-    private fun command(block: () -> Unit) { handler.post { if (!closed.get()) try { block() } catch (_: Exception) { error() } } }
+    private fun command(stage: TvPlaybackFailure.Stage = TvPlaybackFailure.Stage.CONTROL, block: () -> Unit) {
+        handler.post { if (!closed.get()) try { block() } catch (_: Exception) { error(TvPlaybackFailure(stage)) } }
+    }
     private val failureSent = AtomicBoolean(false)
-    private fun error() {
+    private fun error(reason: TvPlaybackFailure) {
         if (!closed.get() && failureSent.compareAndSet(false, true)) {
             close() // Stop audio and cancel reads before publishing an error.
-            main.post { failed() }
+            main.post { failed(reason) }
         }
     }
-    fun attach(texture: SurfaceTexture) = command {
+    fun attach(texture: SurfaceTexture) = command(TvPlaybackFailure.Stage.SETUP) {
         if (player != null) return@command
         surface = Surface(texture)
         val p = MediaPlayer()
@@ -95,17 +98,19 @@ internal class NativeVideoPlayer(context: Context, private val reader: HomeVideo
             }
             p.setOnCompletionListener { state = state.copy(playing = false, position = state.duration); audio.abandonAudioFocusRequest(focus); publish() }
             p.setOnSeekCompleteListener { state = state.copy(seeking = false, position = p.currentPosition); publish() }
-            p.setOnErrorListener { _, _, _ -> error(); true }
+            p.setOnErrorListener { _, what, extra -> error(TvPlaybackFailure(TvPlaybackFailure.Stage.NATIVE, what, extra)); true }
             p.setDataSource(VideoDataSource(reader))
             p.prepareAsync()
-            handler.postDelayed({ if (!closed.get() && !state.ready) error() }, 30000)
+            handler.postDelayed({ if (!closed.get() && !state.ready) error(TvPlaybackFailure(TvPlaybackFailure.Stage.PREPARE_TIMEOUT)) }, 30000)
         }
     }
     fun playPause() = command {
         if (!state.ready || state.seeking) return@command
         if (state.playing) pauseNow()
         else if (audio.requestAudioFocus(focus) == AudioManager.AUDIOFOCUS_REQUEST_GRANTED) {
-            player?.start(); state = state.copy(playing = true); publish()
+            player?.start(); state = state.copy(playing = true, audioFocusDenied = false); publish()
+        } else {
+            state = state.copy(audioFocusDenied = true); publish()
         }
     }
     private fun pauseNow() {
@@ -135,14 +140,14 @@ internal class NativeVideoPlayer(context: Context, private val reader: HomeVideo
 }
 
 /** Native TV player: explicit Play, remote seeking, aspect-fit surface and owned teardown. */
-@Composable internal fun TvVideoPlayer(source: HomeVideoSource, zh: Boolean, close: () -> Unit, failure: () -> Unit) {
+@Composable internal fun TvVideoPlayer(source: HomeVideoSource, zh: Boolean, close: () -> Unit, failure: (TvPlaybackFailure) -> Unit) {
     val current by rememberUpdatedState(source)
     val onClose by rememberUpdatedState(close)
     val onFailure by rememberUpdatedState(failure)
-    key(source) { TvVideoContent(source, zh, { if (current === source) onClose() }, { if (current === source) onFailure() }) }
+    key(source) { TvVideoContent(source, zh, { if (current === source) onClose() }, { if (current === source) onFailure(it) }) }
 }
 
-@Composable private fun TvVideoContent(source: HomeVideoSource, zh: Boolean, close: () -> Unit, failure: () -> Unit) {
+@Composable private fun TvVideoContent(source: HomeVideoSource, zh: Boolean, close: () -> Unit, failure: (TvPlaybackFailure) -> Unit) {
     fun t(en: String, cn: String) = if (zh) cn else en
     var state by remember(source) { mutableStateOf(Playback()) }
     var immersive by remember(source) { mutableStateOf(false) }
@@ -152,7 +157,7 @@ internal class NativeVideoPlayer(context: Context, private val reader: HomeVideo
     val view = LocalView.current
     val onFailure by rememberUpdatedState(failure)
     val onClose by rememberUpdatedState(close)
-    val player = remember(source) { NativeVideoPlayer(context, source, { state = it }, { onFailure() }) }
+    val player = remember(source) { NativeVideoPlayer(context, source, { state = it }, { onFailure(it) }) }
     val first = remember { FocusRequester() }
     DisposableEffect(player) { onDispose { player.close() } }
     DisposableEffect(state.playing, view) {
@@ -216,6 +221,8 @@ internal class NativeVideoPlayer(context: Context, private val reader: HomeVideo
             } }, modifier = Modifier.size(width, height).testTag("video-surface"))
             if (immersive) Box(Modifier.matchParentSize().testTag("video-immersive").focusRequester(first).focusable())
             if (!state.ready) Text(t("Loading video…", "正在加载视频…"), color = Color.White)
+            if (state.audioFocusDenied) Text(t("Audio is busy. Close other playback and press Play again. [TV-AUDIO-FOCUS]", "音频被占用。请关闭其他播放后，再按播放。[TV-AUDIO-FOCUS]"),
+                Modifier.align(Alignment.Center).background(Color.Black.copy(alpha = 0.85f)).padding(16.dp).testTag("video-audio-focus"), color = Color.White)
             if (immersive && showHint) Text(t("← → Seek 10s · OK Play/Pause · Back Controls", "← → 快进/后退 10 秒 · 确定 播放/暂停 · 返回 控制栏"),
                 Modifier.align(Alignment.BottomCenter).background(Color.Black.copy(alpha = 0.7f)).padding(8.dp), color = Color.White)
         }

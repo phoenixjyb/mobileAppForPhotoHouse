@@ -25,13 +25,13 @@ trap '"$adb" -s "$serial" shell settings put system font_scale "$previous" >/dev
 mkdir -p "$evidence/screenshots/$scale"
 instrument=(-w -r -e notAnnotation dev.photohouse.tv.LiveCatalogOnly)
 suffix=""
-expected=25
-names=(setup connection-needed grid-en grid-zh detail-en fullscreen covered display-caption denied empty photo-zoom video-paused catalog-grid catalog-unavailable catalog-pages catalog-pages-zh discovery-home discovery-zh discovery-advanced discovery-dates discovery-unavailable discovery-results discovery-empty discovery-error)
+expected=26
+names=(setup connection-needed grid-en grid-zh detail-en fullscreen covered display-caption denied empty photo-zoom video-paused video-error video-error-zh catalog-grid catalog-unavailable catalog-pages catalog-pages-zh discovery-home discovery-zh discovery-advanced discovery-dates discovery-unavailable discovery-results discovery-empty discovery-error)
 if [[ "$suite" == catalog ]]; then
     instrument+=(-e class dev.photohouse.tv.TvCatalogTest)
     suffix="-catalog"
-    expected=4
-    names=(catalog-grid catalog-unavailable catalog-pages catalog-pages-zh)
+    expected=5
+    names=(catalog-grid catalog-unavailable catalog-pages catalog-pages-zh video-error video-error-zh)
 fi
 if [[ "$suite" == discovery ]]; then
     instrument+=(-e class dev.photohouse.tv.TvDiscoveryTest,dev.photohouse.tv.TvDiscoveryResultsTest)
