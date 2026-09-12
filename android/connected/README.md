@@ -9,8 +9,9 @@ frozen native contract through OkHttp 4.12.0: phone/password login, invited
 registration, own-session and library selection, invitation acceptance, paged
 gallery, authenticated thumbnails, asset details, literal captions and logout.
 It supports English and Simplified Chinese interface text, page-preserving photo
-navigation, an original-photo viewer with zoom/pan, and permission-aware native
-video playback with play/pause/seek. The gallery, details, admission and Settings
+navigation, an original-photo viewer with zoom/pan/fit/fill/fullscreen and a
+current-page slideshow, plus permission-aware native video playback with
+play/pause/seek/fit/fill/fullscreen. The gallery, details, admission and Settings
 layouts have completed the local UI refinement slice.
 
 It is not the complete PhotoHouse product. File downloads, uploads,
@@ -76,7 +77,9 @@ restoration are disabled, with `FLAG_SECURE` protecting task snapshots.
 
 The original viewer is separate from thumbnail loading. It is offered only for
 image details with `originals_allowed=true`, and only an explicit user action
-requests `/assets/{id}/media?library=…`. The server still authorizes every request.
+opens `/assets/{id}/media?library=…`. Explicit next/previous and an explicitly
+started current-page slideshow may request subsequent permitted photos, with
+fresh detail/permission checks. The server still authorizes every request.
 Closing, changing views, backgrounding, logout and expiry cancel/clear original
 state; late bytes cannot reopen the viewer. No download/export or original-media
 fallback is performed. Original responses require HTTP 200 and JPEG, PNG or WebP
@@ -96,7 +99,8 @@ The reader stores no chunk cache and gives the native player neither URLs nor
 tokens. Codec support and internal playback buffering remain platform-dependent.
 
 Playback prepares off the UI thread and starts only after Play. Audio focus loss
-and headphone disconnection pause it; it does not resume automatically. Back,
+and headphone disconnection pause it; it does not resume automatically. Back
+first restores controls when immersive display is active. Otherwise Back,
 Close, navigation, logout, expiry and backgrounding close the reader, cancel its
 calls and release the player/surface/audio focus. Failure retries reload detail
 and permission first, never silently resume playback. There is no background
@@ -133,3 +137,7 @@ At large text sizes the gallery uses one column and action groups wrap.
 The UI remains a development build with memory-only sign-in. Dates are source text,
 captions stay literal, and unavailable previews never fall back to original files.
 See [UI evidence](../../docs/evidence/android/ui/RETURN.md) for the independently recorded UI check.
+
+The [phone/TV parity record](../PHONE_TV_PARITY.md) describes the media continuation,
+its privacy behavior, and the remaining protected discovery and prepared-media
+contracts. Discovery is not enabled by copying the TV's anonymous API adapter.

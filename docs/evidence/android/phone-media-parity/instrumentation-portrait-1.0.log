@@ -1,0 +1,128 @@
+> Task :live-core:checkKotlinGradlePluginConfigurationErrors
+> Task :protocol:checkKotlinGradlePluginConfigurationErrors
+> Task :protocol:compileKotlin UP-TO-DATE
+> Task :protocol:compileJava NO-SOURCE
+> Task :live-core:compileKotlin UP-TO-DATE
+> Task :live-core:compileJava NO-SOURCE
+> Task :live-core:processResources NO-SOURCE
+> Task :live-core:classes UP-TO-DATE
+> Task :live-core:jar UP-TO-DATE
+> Task :protocol:processResources NO-SOURCE
+> Task :protocol:classes UP-TO-DATE
+> Task :protocol:jar UP-TO-DATE
+> Task :connected:checkKotlinGradlePluginConfigurationErrors
+> Task :connected:preBuild UP-TO-DATE
+> Task :connected:preDebugBuild UP-TO-DATE
+> Task :connected:generateDebugBuildConfig UP-TO-DATE
+> Task :connected:checkDebugAarMetadata UP-TO-DATE
+> Task :connected:generateDebugResValues UP-TO-DATE
+> Task :connected:mapDebugSourceSetPaths UP-TO-DATE
+> Task :connected:generateDebugResources UP-TO-DATE
+> Task :connected:mergeDebugResources UP-TO-DATE
+> Task :connected:packageDebugResources UP-TO-DATE
+> Task :connected:parseDebugLocalResources UP-TO-DATE
+> Task :connected:createDebugCompatibleScreenManifests UP-TO-DATE
+> Task :connected:extractDeepLinksDebug UP-TO-DATE
+> Task :connected:processDebugMainManifest UP-TO-DATE
+> Task :connected:processDebugManifest UP-TO-DATE
+> Task :connected:processDebugManifestForPackage UP-TO-DATE
+> Task :connected:processDebugResources UP-TO-DATE
+> Task :connected:compileDebugKotlin UP-TO-DATE
+> Task :connected:javaPreCompileDebug UP-TO-DATE
+> Task :connected:compileDebugJavaWithJavac UP-TO-DATE
+> Task :connected:bundleDebugClassesToCompileJar UP-TO-DATE
+> Task :connected:preDebugAndroidTestBuild SKIPPED
+> Task :connected:processDebugAndroidTestManifest UP-TO-DATE
+> Task :connected:generateDebugAndroidTestBuildConfig UP-TO-DATE
+> Task :connected:checkDebugAndroidTestAarMetadata UP-TO-DATE
+> Task :connected:generateDebugAndroidTestResValues UP-TO-DATE
+> Task :connected:mapDebugAndroidTestSourceSetPaths UP-TO-DATE
+> Task :connected:generateDebugAndroidTestResources UP-TO-DATE
+> Task :connected:mergeDebugAndroidTestResources UP-TO-DATE
+> Task :connected:processDebugAndroidTestResources UP-TO-DATE
+> Task :connected:javaPreCompileDebugAndroidTest UP-TO-DATE
+> Task :connected:mergeDebugAndroidTestShaders UP-TO-DATE
+> Task :connected:compileDebugAndroidTestShaders NO-SOURCE
+> Task :connected:generateDebugAndroidTestAssets UP-TO-DATE
+> Task :connected:mergeDebugAndroidTestAssets UP-TO-DATE
+> Task :connected:compressDebugAndroidTestAssets UP-TO-DATE
+> Task :connected:desugarDebugAndroidTestFileDependencies UP-TO-DATE
+> Task :connected:checkDebugAndroidTestDuplicateClasses UP-TO-DATE
+> Task :connected:mergeExtDexDebugAndroidTest UP-TO-DATE
+> Task :connected:mergeLibDexDebugAndroidTest UP-TO-DATE
+> Task :connected:mergeDebugAndroidTestJniLibFolders UP-TO-DATE
+> Task :connected:mergeDebugJniLibFolders UP-TO-DATE
+> Task :connected:mergeDebugNativeLibs NO-SOURCE
+> Task :connected:mergeDebugAndroidTestNativeLibs NO-SOURCE
+> Task :connected:stripDebugAndroidTestDebugSymbols NO-SOURCE
+> Task :connected:validateSigningDebugAndroidTest UP-TO-DATE
+> Task :connected:writeDebugAndroidTestSigningConfigVersions UP-TO-DATE
+> Task :connected:mergeDebugShaders UP-TO-DATE
+> Task :connected:compileDebugShaders NO-SOURCE
+> Task :connected:generateDebugAssets UP-TO-DATE
+> Task :connected:mergeDebugAssets UP-TO-DATE
+> Task :connected:compressDebugAssets UP-TO-DATE
+> Task :connected:desugarDebugFileDependencies UP-TO-DATE
+> Task :connected:dexBuilderDebug UP-TO-DATE
+> Task :connected:mergeDebugGlobalSynthetics UP-TO-DATE
+> Task :connected:processDebugJavaRes UP-TO-DATE
+> Task :connected:mergeDebugJavaResource UP-TO-DATE
+> Task :connected:checkDebugDuplicateClasses UP-TO-DATE
+> Task :connected:mergeDebugStartupProfile UP-TO-DATE
+> Task :connected:mergeExtDexDebug UP-TO-DATE
+> Task :connected:mergeLibDexDebug UP-TO-DATE
+> Task :connected:mergeProjectDexDebug UP-TO-DATE
+> Task :connected:stripDebugDebugSymbols NO-SOURCE
+> Task :connected:validateSigningDebug UP-TO-DATE
+> Task :connected:writeDebugAppMetadata UP-TO-DATE
+> Task :connected:writeDebugSigningConfigVersions UP-TO-DATE
+> Task :connected:packageDebug UP-TO-DATE
+> Task :connected:createDebugApkListingFileRedirect UP-TO-DATE
+> Task :connected:compileDebugAndroidTestKotlin
+> Task :connected:compileDebugAndroidTestJavaWithJavac UP-TO-DATE
+> Task :connected:dexBuilderDebugAndroidTest
+> Task :connected:mergeDebugAndroidTestGlobalSynthetics UP-TO-DATE
+> Task :connected:processDebugAndroidTestJavaRes UP-TO-DATE
+> Task :connected:mergeDebugAndroidTestJavaResource UP-TO-DATE
+> Task :connected:mergeProjectDexDebugAndroidTest
+> Task :connected:packageDebugAndroidTest
+> Task :connected:createDebugAndroidTestApkListingFileRedirect UP-TO-DATE
+> Task :connected:assembleDebugAndroidTest
+
+> Task :connected:connectedDebugAndroidTest
+Starting 12 tests on Medium_Phone_API_36.0(AVD) - 16
+
+dev.photohouse.connected.ConnectedUiTest > photoFitFillFullscreenAndSlideshowPreservePageAndClearOnBackground[Medium_Phone_API_36.0(AVD) - 16] [31mFAILED [0m
+	java.lang.AssertionError: Action performScrollTo() failed.
+	Reason: Expected exactly '1' node but could not find any node that satisfies: ((Text + EditableText contains 'Pause slideshow' (ignoreCase: false)) && (OnClick is defined))
+
+Medium_Phone_API_36.0(AVD) - 16 Tests 1/12 completed. (0 skipped) (1 failed)
+Medium_Phone_API_36.0(AVD) - 16 Tests 3/12 completed. (0 skipped) (1 failed)
+Medium_Phone_API_36.0(AVD) - 16 Tests 4/12 completed. (0 skipped) (1 failed)
+Medium_Phone_API_36.0(AVD) - 16 Tests 6/12 completed. (0 skipped) (1 failed)
+Medium_Phone_API_36.0(AVD) - 16 Tests 7/12 completed. (0 skipped) (1 failed)
+Medium_Phone_API_36.0(AVD) - 16 Tests 8/12 completed. (0 skipped) (1 failed)
+Medium_Phone_API_36.0(AVD) - 16 Tests 9/12 completed. (0 skipped) (1 failed)
+Medium_Phone_API_36.0(AVD) - 16 Tests 10/12 completed. (0 skipped) (1 failed)
+Medium_Phone_API_36.0(AVD) - 16 Tests 11/12 completed. (0 skipped) (1 failed)
+Finished 12 tests on Medium_Phone_API_36.0(AVD) - 16
+
+> Task :connected:connectedDebugAndroidTest
+Tests on Medium_Phone_API_36.0(AVD) - 16 failed: There was 1 failure(s).
+
+> Task :connected:connectedDebugAndroidTest FAILED
+
+FAILURE: Build failed with an exception.
+
+* What went wrong:
+Execution failed for task ':connected:connectedDebugAndroidTest'.
+> There were failing tests. See the report at: file:///Users/yanbo/Projects/mobileAppForPhotoHouse-android-phone-parity/android/connected/build/reports/androidTests/connected/debug/index.html
+
+* Try:
+> Run with --stacktrace option to get the stack trace.
+> Run with --info or --debug option to get more log output.
+> Run with --scan to get full insights.
+> Get more help at https://help.gradle.org.
+
+BUILD FAILED in 2m 1s
+73 actionable tasks: 8 executed, 65 up-to-date

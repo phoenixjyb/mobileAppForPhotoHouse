@@ -62,9 +62,14 @@ private class Words(val zh: Boolean) {
     val words = Words(language == "zh" || language == "system" && config.locales[0].language == "zh")
     val t = words::t
     val state = store?.state?.collectAsState()?.value ?: LiveState()
+    var jumpPage by remember(state.generation) { mutableStateOf(false) }
     val scroll = rememberLazyListState()
     LaunchedEffect(state.generation) { scroll.scrollToItem(0) }
     PhotoHouseTheme {
+        val galleryForJump = state.gallery
+        if (jumpPage && galleryForJump != null && !state.covered && store != null) PhonePageJump(
+            galleryForJump.page, galleryForJump.page_size, galleryForJump.total, words.zh,
+            { jumpPage = false }, { target -> jumpPage = false; store.loadPage(target) })
         if (settings) AlertDialog(
             onDismissRequest = { settings = false },
             title = { Text(t("Settings", "设置")) },
@@ -94,7 +99,9 @@ private class Words(val zh: Boolean) {
                 return@Surface
             }
             if (state.viewingOriginal && !state.covered && store != null) {
-                OriginalPhotoViewer(state.originalPhoto, state.busy, words.zh, store::closeOriginalPhoto)
+                OriginalPhotoViewer(state.originalPhoto, state.busy, words.zh, store::closeOriginalPhoto,
+                    state.photoNavigation, state.photoSlideshow, { store.adjacentOriginalPhoto(it) },
+                    store::togglePhotoSlideshow, store::stopPhotoSlideshow, store::advancePhotoSlideshow)
                 return@Surface
             }
             LazyColumn(Modifier.fillMaxSize().safeDrawingPadding().testTag("connected-screen"), state = scroll,
@@ -221,6 +228,7 @@ private class Words(val zh: Boolean) {
                                                 OutlinedButton(onClick = { store.loadPage(gallery.page - 1) }, enabled = !state.busy && gallery.page > 1) { Text(t("Previous", "上一页")) }
                                                 OutlinedButton(onClick = { store.loadPage(gallery.page + 1) }, enabled = !state.busy && gallery.page < 100000 && gallery.page.toLong() * gallery.page_size < gallery.total) { Text(t("Next", "下一页")) }
                                                 OutlinedButton(onClick = { store.loadPage() }, enabled = !state.busy) { Text(t("Refresh", "刷新")) }
+                                                OutlinedButton(onClick = { jumpPage = true }, enabled = !state.busy) { Text(t("Go to page", "跳转页面")) }
                                             }
                                         }
                                     }
