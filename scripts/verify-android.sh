@@ -10,6 +10,7 @@ python3 android/verify-catalog-contract.py
 python3 android/verify-discovery-contract.py
 python3 android/verify-phone-discovery-contract.py
 python3 android/verify-tv-boundaries.py
+python3 android/verify-on-demand-contract.py
 if [[ -z "${JAVA_HOME:-}" && "$(uname -s)" == Darwin ]]; then
   export JAVA_HOME="$(/usr/libexec/java_home -v 17)"
 fi

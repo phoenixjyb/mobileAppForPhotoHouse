@@ -107,3 +107,20 @@ keeps the feature disabled; protected server wiring, provenance/index admission 
 physical-device acceptance remain separate.
 High-resolution prepared media for non-original viewers is a distinct remaining
 contract. See this slice's [validation return](../docs/evidence/android/phone-media-parity/RETURN.md).
+
+## On-demand delivery candidate — 13 September 2026
+
+Both app formats now have an opt-in photo delivery path. TV v3 advertises
+on-demand previews and explicitly permitted originals; the phone opens optimized
+protected display images first, including for viewers without original grants.
+Both expose an explicit original-quality action where permitted and keep bounded
+EXIF-aware decoding, fit/zoom/fullscreen, navigation and memory-only state.
+TV now also consumes conservatively indexed H.264 original streams without
+conversion; existing prepared v2 video and phone authenticated original Range
+remain available. This does not add protected prepared-video access for phone
+viewers without original permission, HEVC/4K direct-play negotiation, tiled zoom,
+or automatic full-library preparation. The live v2 feed and physical projector
+playback remain separate rollout/acceptance gates.
+
+See [candidate contract](on-demand-contract/README.md) and
+[validation return](../docs/evidence/android/on-demand-media/RETURN.md).

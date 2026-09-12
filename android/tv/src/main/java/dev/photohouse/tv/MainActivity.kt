@@ -25,8 +25,8 @@ class MainActivity : ComponentActivity() {
                     when (BuildConfig.PHOTOHOUSE_CATALOG_VERSION) {
                         1 -> if (BuildConfig.PHOTOHOUSE_LAN_ADDRESS.isEmpty()) HttpsHomeApi(origin)
                             else HttpsHomeApi(origin, HomeLanAddress.parse(BuildConfig.PHOTOHOUSE_LAN_ADDRESS))
-                        2 -> if (BuildConfig.PHOTOHOUSE_LAN_ADDRESS.isEmpty()) HttpsCatalogApi(origin)
-                            else HttpsCatalogApi(origin, HomeLanAddress.parse(BuildConfig.PHOTOHOUSE_LAN_ADDRESS))
+                        2, 3 -> if (BuildConfig.PHOTOHOUSE_LAN_ADDRESS.isEmpty()) HttpsCatalogApi(origin, version = BuildConfig.PHOTOHOUSE_CATALOG_VERSION)
+                            else HttpsCatalogApi(origin, HomeLanAddress.parse(BuildConfig.PHOTOHOUSE_LAN_ADDRESS), BuildConfig.PHOTOHOUSE_CATALOG_VERSION)
                         else -> error("Unsupported catalog")
                     }
                 }.getOrNull()

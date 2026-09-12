@@ -7,7 +7,7 @@ val localConfig = Properties().apply {
 val configuredOrigin = providers.gradleProperty("photohouseTvOrigin").orElse(localConfig.getProperty("photohouseTvOrigin", "")).get()
 val configuredLanAddress = providers.gradleProperty("photohouseTvLanAddress").orElse(localConfig.getProperty("photohouseTvLanAddress", "")).get()
 val configuredCatalogVersion = providers.gradleProperty("photohouseTvCatalogVersion").orElse(localConfig.getProperty("photohouseTvCatalogVersion", "1")).get()
-require(configuredCatalogVersion in listOf("1", "2")) { "Unsupported TV catalog version" }
+require(configuredCatalogVersion in listOf("1", "2", "3")) { "Unsupported TV catalog version" }
 val configuredDiscovery = providers.gradleProperty("photohouseTvDiscoveryEnabled").orElse(localConfig.getProperty("photohouseTvDiscoveryEnabled", "false")).get()
 require(configuredDiscovery in listOf("true", "false")) { "Invalid discovery switch" }
 require(configuredDiscovery != "true" || configuredCatalogVersion == "2") { "Discovery requires catalog v2" }
@@ -25,8 +25,8 @@ android {
         minSdk = 26
         targetSdk = 34
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
-        versionCode = 10
-        versionName = "0.10-tv-playback-diagnostics"
+        versionCode = 11
+        versionName = "0.11-tv-on-demand"
         buildConfigField("int", "PHOTOHOUSE_CATALOG_VERSION", configuredCatalogVersion)
         buildConfigField("boolean", "PHOTOHOUSE_DISCOVERY_ENABLED", configuredDiscovery)
         buildConfigField("String", "PHOTOHOUSE_ORIGIN", "\"$configuredOrigin\"")

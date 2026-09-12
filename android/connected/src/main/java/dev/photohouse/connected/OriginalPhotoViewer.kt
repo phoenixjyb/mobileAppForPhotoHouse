@@ -50,7 +50,7 @@ internal fun decodeOriginalPhoto(bytes: ByteArray): DecodedPhoto? {
         val options = BitmapFactory.Options().apply { inJustDecodeBounds = true }
         BitmapFactory.decodeByteArray(bytes, 0, bytes.size, options)
         val width = options.outWidth; val height = options.outHeight
-        if (width !in 1..32768 || height !in 1..32768) return null
+        if (width !in 1..32768 || height !in 1..32768 || width.toLong() * height > 256_000_000) return null
         var sample = 1
         while (((width.toLong() + sample - 1) / sample) * ((height.toLong() + sample - 1) / sample) > 4_000_000) sample *= 2
         options.inJustDecodeBounds = false
@@ -87,7 +87,8 @@ internal fun orientPhoto(bitmap: Bitmap, orientation: Int): Bitmap {
 @Composable internal fun OriginalPhotoViewer(bytes: ByteArray?, loading: Boolean, zh: Boolean, onClose: () -> Unit,
     navigation: PhotoNavigation? = null, slideshow: Boolean = false,
     onAdjacent: (Int) -> Unit = {}, onToggleSlideshow: () -> Unit = {},
-    onStopSlideshow: () -> Unit = {}, onAdvanceSlideshow: () -> Unit = {}) {
+    onStopSlideshow: () -> Unit = {}, onAdvanceSlideshow: () -> Unit = {},
+    originalQuality: Boolean = true, onOriginal: (() -> Unit)? = null) {
     fun t(en: String, cn: String) = if (zh) cn else en
     val decodedState by produceState(DecodeResult(), bytes) {
         value = DecodeResult()
@@ -136,7 +137,7 @@ internal fun orientPhoto(bitmap: Bitmap, orientation: Int): Bitmap {
             if (decoded != null) {
             val fitted = MediaViewport.measure(decoded.bitmap.width.toFloat(), decoded.bitmap.height.toFloat(), maxWidth.value, maxHeight.value, fill)
             Image(decoded.bitmap.asImageBitmap(),
-                contentDescription = t("Original photo. Pinch or use the zoom controls.", "原始照片。可双指缩放或使用缩放按钮。"),
+                contentDescription = t("Photo. Pinch or use the zoom controls.", "照片。可双指缩放或使用缩放按钮。"),
                 // Keep the full fitted bitmap in the layer. Cropping the Image
                 // before translation would pan an already-clipped rectangle and
                 // expose black gaps instead of revealing its hidden edges.
@@ -152,12 +153,14 @@ internal fun orientPhoto(bitmap: Bitmap, orientation: Int): Bitmap {
         if (!fullScreen) Column(Modifier.fillMaxWidth().heightIn(max = panelLimit).verticalScroll(rememberScrollState()).testTag("photo-controls")) {
             FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalArrangement = Arrangement.spacedBy(4.dp)) {
                 TextButton(onClick = onClose) { Text(t("Close photo", "关闭照片")) }
+                if (onOriginal != null && !originalQuality) TextButton(onClick = onOriginal, enabled = !loading) { Text(t("Original quality", "原图画质")) }
                 TextButton(onClick = { fullScreen = true }, enabled = photo != null) { Text(t("Full screen", "全屏")) }
                 TextButton(onClick = { updateZoom(1.5f) }, enabled = photo != null && zoom < 5f) { Text(t("Zoom in", "放大")) }
                 TextButton(onClick = { updateZoom(1 / 1.5f) }, enabled = photo != null && zoom > 1f) { Text(t("Zoom out", "缩小")) }
                 TextButton(onClick = { fill = false; zoom = 1f; offset = Offset.Zero }, enabled = photo != null) { Text(t("Fit photo", "适合屏幕")) }
                 TextButton(onClick = { fill = true; zoom = 1f; offset = Offset.Zero }, enabled = photo != null) { Text(t("Fill screen", "填满屏幕")) }
             }
+            Text(if (originalQuality) t("Original file", "原始文件") else t("Optimized display image", "高清展示图"))
             if (photo != null) Text("${(zoom * 100).toInt()}%", Modifier.testTag("photo-zoom"))
             Text(if (fill) t("Fill · edges cropped", "填满 · 边缘已裁切") else t("Fit · whole photo", "适合 · 完整照片"), Modifier.testTag("photo-fit-mode"), style = MaterialTheme.typography.labelMedium)
             if (photo?.downsampled == true) Text(t("Large photo shown at reduced resolution.", "大图已降低显示分辨率。"))
@@ -170,7 +173,7 @@ internal fun orientPhoto(bitmap: Bitmap, orientation: Int): Bitmap {
                         Text(if (slideshow) t("Pause slideshow", "暂停幻灯片") else t("Start slideshow", "开始幻灯片"))
                     }
                 }
-                Text(t("8 seconds per photo on this page. Stops at videos or unavailable originals.", "本页每张照片停留 8 秒，遇到视频或不可用原图时停止。"), style = MaterialTheme.typography.bodySmall)
+                Text(t("8 seconds per photo on this page. Stops at videos or unavailable photos.", "本页每张照片停留 8 秒，遇到视频或不可用照片时停止。"), style = MaterialTheme.typography.bodySmall)
             }
         }
     }

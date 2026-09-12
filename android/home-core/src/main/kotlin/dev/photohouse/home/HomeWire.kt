@@ -13,15 +13,16 @@ object HomeLimits {
 enum class Variant(val wire: String, val edge: Int, val pixels: Int, val bytes: Int) {
     GRID("grid", 512, 262144, 2097152), DISPLAY("display", 4096, HomeLimits.DISPLAY_PIXELS, HomeLimits.DISPLAY_BYTES)
 }
-data class Preview(val width: Int, val height: Int, val bytes: Int, val sha256: String, val url: String)
+data class Preview(val width: Int, val height: Int, val bytes: Int, val sha256: String, val url: String, val onDemand: Boolean = false)
 enum class AssetKind { PHOTO, VIDEO, UNSUPPORTED }
 enum class MediaUnavailable { NOT_PREPARED, SOURCE_MISSING, UNSUPPORTED, PREPARATION_FAILED }
 data class HomeVideo(val width: Int, val height: Int, val durationMillis: Int, val bytes: Long,
-                     val sha256: String, val url: String, val audioCodec: String?)
+                     val sha256: String, val url: String, val audioCodec: String?, val direct: Boolean = false)
+data class HomeOriginal(val mime: String, val bytes: Int, val width: Int, val height: Int, val url: String)
 data class HomeAsset(val id: Int, val caption: String, val grid: Preview?, val display: Preview?,
                      val kind: AssetKind = AssetKind.PHOTO, val video: HomeVideo? = null,
                      val gridUnavailable: MediaUnavailable? = null, val displayUnavailable: MediaUnavailable? = null,
-                     val videoUnavailable: MediaUnavailable? = null) {
+                     val videoUnavailable: MediaUnavailable? = null, val original: HomeOriginal? = null) {
     fun preview(variant: Variant) = if (variant == Variant.GRID) grid else display
 }
 data class HomeFeed(val revision: Int, val id: String, val title: String, val page: Int,
@@ -33,6 +34,7 @@ interface HomeApi {
     val retryRevisionChanges: Boolean get() = true
     suspend fun feed(page: Int, revision: Int?): HomeFeed = feed(page)
     fun video(asset: HomeAsset, revision: Int, failed: (Exception) -> Unit): HomeVideoSource = throw HomeFailure(HomeError.INVALID)
+    suspend fun original(asset: HomeAsset, revision: Int): ByteArray = throw HomeFailure(HomeError.INVALID)
     suspend fun feed(page: Int): HomeFeed
     suspend fun preview(asset: HomeAsset, variant: Variant, revision: Int): ByteArray?
 }

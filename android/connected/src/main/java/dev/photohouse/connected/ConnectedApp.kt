@@ -103,7 +103,9 @@ private class Words(val zh: Boolean) {
             if (state.viewingOriginal && !state.covered && store != null) {
                 OriginalPhotoViewer(state.originalPhoto, state.busy, words.zh, store::closeOriginalPhoto,
                     state.photoNavigation, state.photoSlideshow, { store.adjacentOriginalPhoto(it) },
-                    store::togglePhotoSlideshow, store::stopPhotoSlideshow, store::advancePhotoSlideshow)
+                    store::togglePhotoSlideshow, store::stopPhotoSlideshow, store::advancePhotoSlideshow,
+                    originalQuality = state.photoOriginalQuality,
+                    onOriginal = if (state.detail?.originals_allowed == true) store::openOriginalPhoto else null)
                 return@Surface
             }
             LazyColumn(Modifier.fillMaxSize().safeDrawingPadding().testTag("connected-screen"), state = scroll,
@@ -178,6 +180,9 @@ private class Words(val zh: Boolean) {
                                         } }
                                     }
                                     state.detail?.let { detail ->
+                                    if (detail.asset.kind == "image" && store.photoDeliveryEnabled) item {
+                                        Button(onClick = store::openDisplayPhoto, enabled = !state.busy) { Text(t("View photo", "查看照片")) }
+                                    }
                                     if (detail.asset.kind == "image" && detail.originals_allowed) item {
                                         Button(onClick = store::openOriginalPhoto, enabled = !state.busy) { Text(t("Open original photo", "打开原始照片")) }
                                     }
@@ -310,7 +315,7 @@ private class Words(val zh: Boolean) {
     }
 }
 
-@Composable private fun PhotoHouseTheme(content: @Composable () -> Unit) {
+@Composable internal fun PhotoHouseTheme(content: @Composable () -> Unit) {
     MaterialTheme(
         colorScheme = lightColorScheme(
             primary = Color(0xFF365347), onPrimary = Color.White,

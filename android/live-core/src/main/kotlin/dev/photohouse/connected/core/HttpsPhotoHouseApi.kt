@@ -30,8 +30,8 @@ class TrustedOrigin private constructor(internal val url: HttpUrl) {
 /** Application construction always uses platform trust and hostname validation.
  * The internal overload is visible only to this module's JVM test friend source set.
  */
-class HttpsPhotoHouseApi internal constructor(private val origin: TrustedOrigin, client: OkHttpClient, private val detailPreviewSize: Int = 256, override val discoveryEnabled: Boolean = false) : PhotoHouseApi {
-    constructor(origin: TrustedOrigin, detailPreviewSize: Int = 256, discoveryEnabled: Boolean = false) : this(origin, OkHttpClient(), detailPreviewSize, discoveryEnabled)
+class HttpsPhotoHouseApi internal constructor(private val origin: TrustedOrigin, client: OkHttpClient, private val detailPreviewSize: Int = 256, override val discoveryEnabled: Boolean = false, override val photoDeliveryEnabled: Boolean = false) : PhotoHouseApi {
+    constructor(origin: TrustedOrigin, detailPreviewSize: Int = 256, discoveryEnabled: Boolean = false, photoDeliveryEnabled: Boolean = false) : this(origin, OkHttpClient(), detailPreviewSize, discoveryEnabled, photoDeliveryEnabled)
     init { require(detailPreviewSize in 64..1024) }
     private val client = client.newBuilder()
         .followRedirects(false).followSslRedirects(false).retryOnConnectionFailure(false)
@@ -53,12 +53,37 @@ class HttpsPhotoHouseApi internal constructor(private val origin: TrustedOrigin,
         require(id.matches(Regex("[1-9][0-9]{0,18}")) && id.toLongOrNull() != null)
         return id
     }
+    /** Known lengths allocate once; large originals never grow and copy a second full buffer. */
+    private fun readBody(body: ResponseBody, limit: Int): ByteArray {
+        val length = body.contentLength()
+        if (length > limit || length < 0 && limit > DISPLAY_LIMIT) throw ApiFailure(FailureKind.TOO_LARGE)
+        return body.byteStream().use { stream ->
+            if (length >= 0) {
+                val data = ByteArray(length.toInt()); var offset = 0
+                while (offset < data.size) {
+                    val n = stream.read(data, offset, data.size - offset)
+                    if (n <= 0) throw ApiFailure(FailureKind.INVALID_RESPONSE)
+                    offset += n
+                }
+                if (stream.read() != -1) throw ApiFailure(FailureKind.INVALID_RESPONSE)
+                data
+            } else {
+                val out = ByteArrayOutputStream(); val buffer = ByteArray(8192)
+                while (true) {
+                    val n = stream.read(buffer); if (n < 0) break
+                    if (out.size() + n > limit) throw ApiFailure(FailureKind.TOO_LARGE)
+                    out.write(buffer, 0, n)
+                }
+                out.toByteArray()
+            }
+        }
+    }
     private suspend fun packet(url: HttpUrl, token: Bearer?, body: String? = null, limit: Int = JSON_LIMIT, missingAllowed: Boolean = false, accept: String = "application/json", rangeStart: Long? = null, requestLimit: Int = 2048): Packet {
         require(url.scheme == "https" && url.host == origin.url.host && url.port == origin.url.port)
         val bytes = body?.toByteArray(Charsets.UTF_8)
         if (bytes != null && bytes.size > requestLimit) throw ApiFailure(FailureKind.INVALID_INPUT)
         val request = Request.Builder().url(url).header("Accept", accept)
-            .header("Cache-Control", "no-store")
+            .header("Cache-Control", "no-store").header("Accept-Encoding", "identity")
             .apply { rangeStart?.let { header("Range", "bytes=$it-${it + limit - 1}"); header("Accept-Encoding", "identity") } }
             .apply { token?.let { header("Authorization", it.header()) } }
             .apply { if (bytes != null) post(bytes.toRequestBody("application/json; charset=utf-8".toMediaType())) }
@@ -95,20 +120,13 @@ class HttpsPhotoHouseApi internal constructor(private val origin: TrustedOrigin,
                             }
                             val responseBody = it.body ?: throw ApiFailure(FailureKind.INVALID_RESPONSE)
                             if (responseBody.contentLength() > limit) throw ApiFailure(FailureKind.TOO_LARGE)
-                            val out = ByteArrayOutputStream()
-                            responseBody.byteStream().use { stream ->
-                                val buffer = ByteArray(8192)
-                                while (true) {
-                                    val count = stream.read(buffer)
-                                    if (count < 0) break
-                                    if (out.size() + count > limit) throw ApiFailure(FailureKind.TOO_LARGE)
-                                    out.write(buffer, 0, count)
-                                }
-                            }
-                            if (expectedBytes >= 0 && out.size().toLong() != expectedBytes) throw ApiFailure(FailureKind.INVALID_RESPONSE)
-                            Packet(it.code, it.header("Content-Type"), out.toByteArray(), total)
+                            val data = readBody(responseBody, limit)
+                            if (expectedBytes >= 0 && data.size.toLong() != expectedBytes) throw ApiFailure(FailureKind.INVALID_RESPONSE)
+                            Packet(it.code, it.header("Content-Type"), data, total)
                         }
                         if (continuation.isActive) continuation.resume(result)
+                    } catch (_: OutOfMemoryError) {
+                        if (continuation.isActive) continuation.resumeWithException(ApiFailure(FailureKind.TOO_LARGE))
                     } catch (e: Exception) {
                         if (continuation.isActive) continuation.resumeWithException(when (e) {
                             is ApiFailure -> e
@@ -185,6 +203,13 @@ class HttpsPhotoHouseApi internal constructor(private val origin: TrustedOrigin,
         if (packet.contentType?.substringBefore(';')?.lowercase() !in setOf("image/jpeg", "image/png", "image/webp")) throw ApiFailure(FailureKind.INVALID_RESPONSE)
         return packet.bytes
     }
+    override suspend fun displayPhoto(token: Bearer, library: String, assetId: String): ByteArray {
+        require(photoDeliveryEnabled)
+        val packet = packet(url("/assets/${assetId(assetId)}/display", library), token,
+            limit = DISPLAY_LIMIT, accept = "image/jpeg")
+        if (packet.code != 200 || packet.bytes.isEmpty() || packet.contentType?.substringBefore(';')?.trim()?.lowercase() != "image/jpeg") throw ApiFailure(FailureKind.INVALID_RESPONSE)
+        return packet.bytes
+    }
     override suspend fun originalPhoto(token: Bearer, library: String, assetId: String): ByteArray {
         // Construct the protected route; never accept a URL from metadata or UI.
         val packet = packet(url("/assets/${assetId(assetId)}/media", library), token,
@@ -202,5 +227,5 @@ class HttpsPhotoHouseApi internal constructor(private val origin: TrustedOrigin,
     companion object {
         const val VIDEO_CHUNK_LIMIT = 256 * 1024
         const val VIDEO_FILE_LIMIT = 32L * 1024 * 1024 * 1024
-        const val JSON_LIMIT = 524288; const val IMAGE_LIMIT = 1048576; const val ORIGINAL_LIMIT = 12 * 1024 * 1024 }
+        const val JSON_LIMIT = 524288; const val IMAGE_LIMIT = 1048576; const val DISPLAY_LIMIT = 12 * 1024 * 1024; const val ORIGINAL_LIMIT = 64 * 1024 * 1024 }
 }

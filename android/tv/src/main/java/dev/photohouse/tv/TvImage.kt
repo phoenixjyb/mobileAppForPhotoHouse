@@ -2,6 +2,9 @@ package dev.photohouse.tv
 
 import android.graphics.Bitmap
 import android.graphics.BitmapFactory
+import android.graphics.Matrix
+import android.media.ExifInterface
+import java.io.ByteArrayInputStream
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.layout.*
 import androidx.compose.material3.*
@@ -49,14 +52,53 @@ internal fun decodeTvPhoto(bytes: ByteArray, maxPixels: Int = 8_847_360): Decode
       catch (_: OutOfMemoryError) { null }
 }
 
+internal fun decodeTvOriginal(bytes: ByteArray): DecodedPhoto? {
+    if (bytes.isEmpty() || bytes.size > dev.photohouse.home.CatalogWire.ORIGINAL_MAX_BYTES) return null
+    return try {
+        val options = BitmapFactory.Options().apply { inJustDecodeBounds = true }
+        BitmapFactory.decodeByteArray(bytes, 0, bytes.size, options)
+        val width = options.outWidth; val height = options.outHeight
+        if (width !in 1..32768 || height !in 1..32768 || width.toLong() * height > 256_000_000) return null
+        var sample = 1
+        while (((width.toLong() + sample - 1) / sample) * ((height.toLong() + sample - 1) / sample) > 8_847_360) sample *= 2
+        options.inJustDecodeBounds = false
+        options.inSampleSize = sample
+        options.inPreferredConfig = Bitmap.Config.ARGB_8888
+        val decoded = BitmapFactory.decodeByteArray(bytes, 0, bytes.size, options) ?: return null
+        if (decoded.width.toLong() * decoded.height > 8_847_360) { decoded.recycle(); return null }
+        val orientation = runCatching {
+            ExifInterface(ByteArrayInputStream(bytes)).getAttributeInt(ExifInterface.TAG_ORIENTATION, ExifInterface.ORIENTATION_NORMAL)
+        }.getOrDefault(ExifInterface.ORIENTATION_NORMAL)
+        DecodedPhoto(orientTvOriginal(decoded, orientation), sample > 1)
+    } catch (_: IllegalArgumentException) { null }
+      catch (_: OutOfMemoryError) { null }
+}
+
+internal fun orientTvOriginal(bitmap: Bitmap, orientation: Int): Bitmap {
+    val matrix = Matrix()
+    when (orientation) {
+        ExifInterface.ORIENTATION_FLIP_HORIZONTAL -> matrix.setScale(-1f, 1f)
+        ExifInterface.ORIENTATION_ROTATE_180 -> matrix.setRotate(180f)
+        ExifInterface.ORIENTATION_FLIP_VERTICAL -> matrix.setScale(1f, -1f)
+        ExifInterface.ORIENTATION_TRANSPOSE -> { matrix.setRotate(90f); matrix.postScale(-1f, 1f) }
+        ExifInterface.ORIENTATION_ROTATE_90 -> matrix.setRotate(90f)
+        ExifInterface.ORIENTATION_TRANSVERSE -> { matrix.setRotate(-90f); matrix.postScale(-1f, 1f) }
+        ExifInterface.ORIENTATION_ROTATE_270 -> matrix.setRotate(270f)
+        else -> return bitmap
+    }
+    val oriented = Bitmap.createBitmap(bitmap, 0, 0, bitmap.width, bitmap.height, matrix, false)
+    if (oriented !== bitmap) bitmap.recycle()
+    return oriented
+}
+
 private data class DecodeResult(val complete: Boolean = false, val photo: DecodedPhoto? = null)
 private val decodePermit = Semaphore(1)
 /** One decode at a time, off the UI thread. A new byte identity cannot show an old photo. */
-@Composable internal fun TvImage(bytes: ByteArray?, description: String, modifier: Modifier = Modifier, missing: String, maxPixels: Int = 8_847_360, transform: PhotoTransform = PhotoTransform(), loading: Boolean = false) {
+@Composable internal fun TvImage(bytes: ByteArray?, description: String, modifier: Modifier = Modifier, missing: String, maxPixels: Int = 8_847_360, transform: PhotoTransform = PhotoTransform(), loading: Boolean = false, original: Boolean = false) {
     key(bytes) {
         val result by produceState(DecodeResult(complete = bytes == null)) {
             if (bytes != null) value = DecodeResult(true, withContext(Dispatchers.Default) {
-                decodePermit.withPermit { decodeTvPhoto(bytes, maxPixels) }
+                decodePermit.withPermit { if (original) decodeTvOriginal(bytes) else decodeTvPhoto(bytes, maxPixels) }
             })
         }
         var viewport by remember { mutableStateOf(IntSize.Zero) }

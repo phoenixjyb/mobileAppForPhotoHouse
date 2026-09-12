@@ -35,6 +35,20 @@ class HttpsApiTest {
     }
     private fun range(body: String = "abcd", header: String = "bytes 0-3/10") = MockResponse().setResponseCode(206)
         .setHeader("Content-Type", "video/mp4").setHeader("Content-Range", header).setBody(body)
+    @Test fun optimizedPhotoUsesProtectedDisplayRouteAndNeverOriginalFallback() = runBlocking {
+        TlsFixture().use { f ->
+            val api = HttpsPhotoHouseApi(f.origin, f.client, photoDeliveryEnabled = true)
+            f.server.enqueue(MockResponse().setHeader("Content-Type", "image/jpeg").setBody("synthetic"))
+            assertEquals("synthetic", api.displayPhoto(token, "family", "1").toString(Charsets.UTF_8))
+            val request = f.server.takeRequest()
+            assertEquals("/assets/1/display?library=family", request.path)
+            assertEquals("Bearer " + "T".repeat(43), request.getHeader("Authorization"))
+            f.server.enqueue(MockResponse().setResponseCode(503))
+            assertEquals(503, failure { api.displayPhoto(token, "family", "1") }.status)
+            assertEquals(2, f.server.requestCount)
+        }
+    }
+
     @Test fun videoRangesAuthenticateEverySeekWithStrictSameOriginHeaders() = runBlocking {
         TlsFixture().use { f ->
             f.server.enqueue(range()); f.server.enqueue(range("ij", "bytes 8-9/10"))
