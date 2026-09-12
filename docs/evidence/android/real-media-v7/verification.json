@@ -85,5 +85,13 @@
     "catalog_response_sha256": "63173d7a099b77a2d0a1b238c7a98d4d4290c799b052c6af8a30e75ea75457d2",
     "metadata_body_saved": false,
     "after_backend_scoped_restart": true
+  },
+  "backend_evidence_commit": "6b9c24c7ad978c7f3f73e826fd9527ad25a4ce98",
+  "backend_final_return_reviewed": true,
+  "backend_caption_continuity": {
+    "rows_before": 41762,
+    "rows_after": 41810,
+    "paused": false,
+    "restarted": false
   }
 }
