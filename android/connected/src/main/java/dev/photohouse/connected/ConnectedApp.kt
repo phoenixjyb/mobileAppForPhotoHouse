@@ -212,12 +212,15 @@ private class Words(val zh: Boolean) {
                                         if (gallery.items.isEmpty()) item { Text(t("This page has no photos", "此页没有照片")) }
                                         val columns = if (config.fontScale > 1.3f || config.screenWidthDp < 360) 1 else 2
                                         items(gallery.items.chunked(columns)) { row -> Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
-                                            row.forEach { asset -> Card(onClick = { store.openAsset(asset) }, modifier = Modifier.weight(1f)) {
+                                            row.forEach { asset -> Card(onClick = { store.openMedia(asset) }, modifier = Modifier.weight(1f).testTag("media-${asset.id}")) {
                                                 Preview(asset, state.previews[asset.id], words)
                                                 Column(Modifier.padding(14.dp), verticalArrangement = Arrangement.spacedBy(4.dp)) {
                                                     Text(asset.taken_at ?: t("Date unknown", "日期未知"), style = MaterialTheme.typography.titleSmall)
                                                     Text(t(if (asset.kind == "video") "Video" else "Photo", if (asset.kind == "video") "视频" else "照片"),
                                                         style = MaterialTheme.typography.labelMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                                                    TextButton(onClick = { store.openAsset(asset) }, modifier = Modifier.testTag("details-${asset.id}")) {
+                                                        Text(t("Details", "详情"))
+                                                    }
                                                 }
                                             } }
                                             if (row.size < columns) Spacer(Modifier.weight(1f))

@@ -25,10 +25,10 @@ python3 - "$evidence_dir/instrumentation-$size.log" <<'PY'
 from pathlib import Path
 import re, sys
 text = Path(sys.argv[1]).read_text()
-assert re.search(r'OK \(13 tests\)', text), 'Instrumentation did not pass all thirteen tests'
+assert re.search(r'OK \(15 tests\)', text), 'Instrumentation did not pass all fifteen tests'
 PY
-for name in unconfigured-en unconfigured-zh admission-en literal-caption-en literal-caption-zh photo-navigation-en photo-navigation-zh original-photo-en original-photo-zh video-en video-zh video-en-frame video-zh-frame libraries-en libraries-zh gallery-en gallery-zh detail-en detail-zh settings-zh parity-photo-fullscreen parity-photo-slideshow video-parity-fullscreen video-parity-fullscreen-frame; do
+for name in unconfigured-en unconfigured-zh admission-en literal-caption-en literal-caption-zh photo-navigation-en photo-navigation-zh original-photo-en original-photo-zh video-en video-zh video-en-frame video-zh-frame libraries-en libraries-zh gallery-en gallery-zh detail-en detail-zh settings-zh parity-photo-fullscreen parity-photo-slideshow video-parity-fullscreen video-parity-fullscreen-frame video-long-en video-long-en-frame; do
   "$adb_bin" -s "$serial" exec-out run-as dev.photohouse.connected cat "files/$name.png" > "$evidence_dir/screenshots/$size/$name.png"
   "$adb_bin" -s "$serial" shell run-as dev.photohouse.connected rm "files/$name.png"
 done
-printf 'PASS 13 emulator component UI tests; font scale %s; synthetic own-View renders retained.\n' "$scale"
+printf 'PASS 15 emulator component UI tests; font scale %s; synthetic own-View renders retained.\n' "$scale"

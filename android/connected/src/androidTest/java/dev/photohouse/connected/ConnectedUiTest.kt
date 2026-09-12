@@ -62,6 +62,13 @@ class ConnectedUiTest {
         } else reveal(matcher)
         rule.onNode(matcher).performClick(); rule.waitForIdle()
     }
+    private fun details(id: String) {
+        reveal(hasTestTag("details-$id")); rule.onNodeWithTag("details-$id").performClick(); rule.waitForIdle()
+    }
+    private fun positionSeconds(): Int {
+        val clock = rule.onNodeWithTag("video-position").fetchSemanticsNode().config[androidx.compose.ui.semantics.SemanticsProperties.Text].first().text.substringBefore(" / ")
+        return clock.split(':').fold(0) { total, part -> total * 60 + part.toInt() }
+    }
     private fun input(label: String, text: String) { val matcher = hasText(label) and hasSetTextAction(); reveal(matcher); rule.onNode(matcher).performTextInput(text) }
     private fun screenAwake(): Boolean {
         fun awake(view: android.view.View): Boolean = view.keepScreenOn || view is android.view.ViewGroup &&
@@ -105,6 +112,49 @@ class ConnectedUiTest {
             bitmap.recycle()
         }
     }
+    @Test fun galleryTapOpensPhotoAndDetailsActionKeepsMetadataReachable() {
+        val api = SyntheticApi().apply { photos = listOf(photo.copy(kind = "image")); originalsAllowed = true; total = 100 }
+        val store = ConnectedStore(api, scope)
+        rule.runOnUiThread { rule.activity.setContent { ConnectedApp(store) }; store.authenticate("+12025550123", "synthetic-password-only") }
+        click("Open library"); click("Next")
+        reveal(hasTestTag("media-1")); rule.onNodeWithTag("media-1").performClick()
+        rule.waitUntil(5000) { rule.onAllNodesWithTag("original-image").fetchSemanticsNodes().size == 1 }
+        assertEquals(2, store.state.value.photoNavigation?.page)
+        rule.runOnUiThread { rule.activity.onBackPressedDispatcher.onBackPressed() }
+        assertNull(store.state.value.originalPhoto)
+        click("Back to Photos"); details("1")
+        assertFalse(store.state.value.viewingOriginal)
+        reveal(hasText("<b>Literal 原文</b>")); rule.onNodeWithText("<b>Literal 原文</b>").assertIsDisplayed()
+    }
+    @Test fun longVideoStartsWithoutFullDownloadAndSeeksPastOneMinute() {
+        val api = SyntheticApi().apply {
+            originalsAllowed = true
+            videoBytes = androidx.test.platform.app.InstrumentationRegistry.getInstrumentation().context.assets.open("synthetic-long-video.mp4").use { it.readBytes() }
+        }
+        val store = ConnectedStore(api, scope)
+        rule.runOnUiThread { rule.activity.setContent { ConnectedApp(store) }; store.authenticate("+12025550123", "synthetic-password-only") }
+        click("Open library")
+        reveal(hasTestTag("media-1")); rule.onNodeWithTag("media-1").performClick()
+        fun ready() { rule.waitUntil(30000) { rule.onAllNodes(hasText("Play") and isEnabled()).fetchSemanticsNodes().isNotEmpty() } }
+        ready()
+        rule.onNodeWithTag("video-position").assertTextEquals("0:00 / 2:05")
+        val reader = store.state.value.video!!
+        // The decoder can request headers and a small read-ahead. It must not
+        // require all bytes before presenting Play for this fast-start fixture.
+        val ranges = api.videoReads.map { it.first until minOf(api.videoBytes.size.toLong(), it.first + it.second) }
+        assertTrue(ranges.sumOf { it.last - it.first + 1 } < api.videoBytes.size)
+        for (target in listOf(90000f, 123000f, 2000f)) {
+            rule.onNodeWithTag("video-seek").performScrollTo().performSemanticsAction(androidx.compose.ui.semantics.SemanticsActions.SetProgress) { it(target) }
+            ready(); rule.waitUntil(10000) { positionSeconds() in (target.toInt() / 1000 - 1)..(target.toInt() / 1000 + 1) }
+        }
+        rule.onNodeWithText("Play").performScrollTo().performClick()
+        rule.waitUntil(10000) { positionSeconds() >= 3 }
+        rule.onNodeWithText("Pause").performScrollTo().performClick(); ready()
+        capture("video-long-en")
+        assertTrue(api.videoReads.all { it.second in 1..262144 })
+        rule.runOnUiThread { store.background() }; rule.waitForIdle()
+        assertTrue(reader.isClosed); assertNull(store.state.value.video)
+    }
     @Test fun unconfiguredAppDisablesAdmissionAndKeepsSecureWindow() {
         assertEquals("", BuildConfig.PHOTOHOUSE_ORIGIN)
         rule.onNodeWithTag("server-not-configured").assertIsDisplayed()
@@ -120,7 +170,7 @@ class ConnectedUiTest {
         input("Phone with country code", "+12025550123"); input("Password (15–128 characters)", "synthetic-password-only")
         click("Sign in"); click("Open library")
         rule.onNodeWithText("Preview unavailable").assertExists()
-        click("2026-01-01")
+        details("1")
         reveal(hasText("<b>Literal 原文</b>")); rule.onNodeWithText("<b>Literal 原文</b>").assertIsDisplayed(); capture("literal-caption-en")
         click("简体中文"); reveal(hasText("<b>Literal 原文</b>")); rule.onNodeWithText("<b>Literal 原文</b>").assertIsDisplayed(); capture("literal-caption-zh")
         click("退出登录"); assertFalse(store.hasSession)
@@ -149,7 +199,7 @@ class ConnectedUiTest {
         click("Open library")
         rule.waitUntil(5000) { store.state.value.previews.size == 3 }
         reveal(hasText("Photos")); capture("gallery-en")
-        click("2026-01-01")
+        details("1")
         reveal(hasContentDescription("Photo 1")); rule.onNodeWithContentDescription("Photo 1").assertIsDisplayed(); capture("detail-en")
         click("简体中文")
         reveal(hasContentDescription("照片 1")); rule.onNodeWithContentDescription("照片 1").assertIsDisplayed(); capture("detail-zh")
@@ -182,7 +232,7 @@ class ConnectedUiTest {
             rule.activity.setContent { ConnectedApp(store) }
             store.authenticate("+12025550123", "synthetic-password-only")
         }
-        click("Open library"); click("2026-01-01"); click("Open video")
+        click("Open library"); details("1"); click("Open video")
         val reader = store.state.value.video!!
         fun ready(label: String) { rule.waitUntil(30000) {
             rule.onAllNodes(hasText(label) and isEnabled()).fetchSemanticsNodes().isNotEmpty()
@@ -190,7 +240,7 @@ class ConnectedUiTest {
         ready("Play")
         rule.onNodeWithText("Play").performScrollTo().performClick()
         rule.waitUntil(15000) {
-            rule.onNodeWithTag("video-position").fetchSemanticsNode().config[androidx.compose.ui.semantics.SemanticsProperties.Text].first().text.substringBefore(" / ").toInt() >= 1
+            positionSeconds() >= 1
         }
         // A competing transient audio focus request must pause, without auto-resume.
         val audio = rule.activity.getSystemService(android.media.AudioManager::class.java)
@@ -204,16 +254,16 @@ class ConnectedUiTest {
         rule.onNodeWithText("Play").performScrollTo().performClick(); ready("Pause")
         rule.onNodeWithText("Pause").performScrollTo().performClick(); ready("Play")
         rule.onNodeWithText("Forward 10s").performScrollTo().performClick(); ready("Play")
-        rule.waitUntil(10000) { rule.onNodeWithTag("video-position").fetchSemanticsNode().config[androidx.compose.ui.semantics.SemanticsProperties.Text].first().text.substringBefore(" / ").toInt() >= 10 }
+        rule.waitUntil(10000) { positionSeconds() >= 10 }
         capture("video-en")
         rule.onNodeWithTag("video-seek").performScrollTo().performSemanticsAction(androidx.compose.ui.semantics.SemanticsActions.SetProgress) { it(3000f) }
         ready("Play")
-        rule.waitUntil(10000) { rule.onNodeWithTag("video-position").fetchSemanticsNode().config[androidx.compose.ui.semantics.SemanticsProperties.Text].first().text.substringBefore(" / ").toInt() in 2..4 }
+        rule.waitUntil(10000) { positionSeconds() in 2..4 }
         rule.runOnUiThread { rule.activity.onBackPressedDispatcher.onBackPressed() }
         assertTrue(reader.isClosed); assertNull(store.state.value.video)
         click("简体中文"); click("打开视频"); ready("播放")
         rule.onNodeWithText("播放").performScrollTo().performClick()
-        rule.waitUntil(15000) { rule.onNodeWithTag("video-position").fetchSemanticsNode().config[androidx.compose.ui.semantics.SemanticsProperties.Text].first().text.substringBefore(" / ").toInt() >= 1 }
+        rule.waitUntil(15000) { positionSeconds() >= 1 }
         rule.onNodeWithText("暂停").performScrollTo().performClick(); ready("播放"); capture("video-zh")
         val second = store.state.value.video!!
         rule.onNodeWithText("关闭视频").performScrollTo().performClick(); assertTrue(second.isClosed)
@@ -229,7 +279,7 @@ class ConnectedUiTest {
         val api = SyntheticApi().apply { originalsAllowed = true; videoBytes = ByteArray(128) { 7 } }
         val store = ConnectedStore(api, scope)
         rule.runOnUiThread { rule.activity.setContent { ConnectedApp(store) }; store.authenticate("+12025550123", "synthetic-password-only") }
-        click("Open library"); click("2026-01-01"); click("Open video")
+        click("Open library"); details("1"); click("Open video")
         rule.waitUntil(30000) { store.state.value.video == null && store.state.value.problem != null }
         assertEquals(Message.MEDIA_UNAVAILABLE, store.state.value.problem?.message)
         assertFalse(store.canRetry()); rule.onNodeWithTag("video-player").assertDoesNotExist()
@@ -241,7 +291,7 @@ class ConnectedUiTest {
             rule.activity.setContent { ConnectedApp(store) }
             store.authenticate("+12025550123", "synthetic-password-only")
         }
-        click("Open library"); click("2026-01-01"); click("Open original photo")
+        click("Open library"); details("1"); click("Open original photo")
         rule.waitUntil(5000) { rule.onAllNodesWithTag("original-image").fetchSemanticsNodes().size == 1 }
         rule.onNodeWithTag("photo-zoom").assertTextEquals("100%")
         rule.onNode(hasText("Zoom in") and hasClickAction()).performScrollTo().performClick()
@@ -280,7 +330,7 @@ class ConnectedUiTest {
         }
         val store = ConnectedStore(api, scope)
         rule.runOnUiThread { rule.activity.setContent { ConnectedApp(store) }; store.authenticate("+12025550123", "synthetic-password-only") }
-        click("Open library"); click("Next"); click("2026-01-01"); click("Open original photo")
+        click("Open library"); click("Next"); details("1"); click("Open original photo")
         fun ready() { rule.waitUntil(5000) { rule.onAllNodesWithTag("original-image").fetchSemanticsNodes().size == 1 } }
         fun mediaClick(label: String) { rule.onNode(hasText(label) and hasClickAction()).performScrollTo().performClick() }
         ready(); val original = store.state.value.originalPhoto
@@ -332,13 +382,13 @@ class ConnectedUiTest {
         }
         val store = ConnectedStore(api, scope)
         rule.runOnUiThread { rule.activity.setContent { ConnectedApp(store) }; store.authenticate("+12025550123", "synthetic-password-only") }
-        click("Open library"); click("2026-01-01"); click("Open video")
+        click("Open library"); details("1"); click("Open video")
         rule.waitUntil(30000) { rule.onAllNodes(hasText("Play") and isEnabled()).fetchSemanticsNodes().isNotEmpty() }
         val reader = store.state.value.video!!
         fun mediaClick(label: String) { rule.onNode(hasText(label) and hasClickAction()).performScrollTo().performClick() }
         mediaClick("Fill screen"); rule.onNodeWithTag("video-fit-mode").assertTextEquals("Fill · edges cropped")
         mediaClick("Fit video"); mediaClick("Play")
-        rule.waitUntil(15000) { rule.onNodeWithTag("video-position").fetchSemanticsNode().config[androidx.compose.ui.semantics.SemanticsProperties.Text].first().text.substringBefore(" / ").toInt() >= 1 }
+        rule.waitUntil(15000) { positionSeconds() >= 1 }
         mediaClick("Full screen"); rule.onNodeWithTag("video-exit-fullscreen").assertIsDisplayed()
         assertTrue(screenAwake())
         rule.onNodeWithTag("video-controls").assertDoesNotExist()
@@ -423,7 +473,7 @@ class ConnectedUiTest {
             rule.activity.setContent { ConnectedApp(store) }
             store.authenticate("+12025550123", "synthetic-password-only")
         }
-        click("Open library"); click("Next"); click("2026-01-01")
+        click("Open library"); click("Next"); details("1")
         reveal(hasText("Photo 1 of 2 · Page 2"))
         rule.onNodeWithText("Photo 1 of 2 · Page 2").assertIsDisplayed()
         rule.onNode(hasText("Previous photo") and hasClickAction()).assertIsNotEnabled()
@@ -437,7 +487,7 @@ class ConnectedUiTest {
         capture("photo-navigation-zh")
         click("上一张"); click("返回照片")
         reveal(hasText("第 2 页 · 100 张照片")); rule.onNodeWithText("第 2 页 · 100 张照片").assertIsDisplayed()
-        click("2026-01-01")
+        details("1")
         rule.runOnUiThread { rule.activity.onBackPressedDispatcher.onBackPressed() }
         rule.waitForIdle()
         reveal(hasText("第 2 页 · 100 张照片")); rule.onNodeWithText("第 2 页 · 100 张照片").assertIsDisplayed()

@@ -120,12 +120,13 @@ class ConnectedStore(private val api: PhotoHouseApi, private val scope: Coroutin
             catch (e: Exception) { readFailure(e, generation, credential) { loadPage(page) } }
         }
     }
-    fun openAsset(asset: Asset) {
+    fun openMedia(asset: Asset) = openAsset(asset, viewMedia = true)
+    fun openAsset(asset: Asset, viewMedia: Boolean = false) {
         val gallery = state.value.gallery
         val ids = gallery?.items?.map { it.id }.orEmpty()
         val index = ids.indexOf(asset.id)
         val navigation = if (gallery != null && index >= 0) PhotoNavigation(gallery.page, ids, index) else null
-        openPhoto(asset.id, navigation)
+        openPhoto(asset.id, navigation, mediaAfterLoad = viewMedia)
     }
     fun adjacentPhoto(direction: Int) {
         if (state.value.busy || direction !in listOf(-1, 1)) return
@@ -219,7 +220,7 @@ class ConnectedStore(private val api: PhotoHouseApi, private val scope: Coroutin
             captions = previous.captions, previews = previous.previews, photoNavigation = previous.photoNavigation,
             viewingOriginal = viewingOriginal, busy = busy)
     }
-    private fun openPhoto(assetId: String, navigation: PhotoNavigation?, originalAfterLoad: Boolean = false, slideshow: Boolean = false) {
+    private fun openPhoto(assetId: String, navigation: PhotoNavigation?, originalAfterLoad: Boolean = false, slideshow: Boolean = false, mediaAfterLoad: Boolean = false) {
         if (!allowed() || coolingDown()) return
         val library = state.value.library!!; val credential = token!!
         invalidate(keepIdentity = true)
@@ -236,7 +237,7 @@ class ConnectedStore(private val api: PhotoHouseApi, private val scope: Coroutin
                 val bytes = api.detailPreview(credential, library, detail.asset)
                 if (!active(generation)) return@launch
                 validResponse(bytes == null || bytes.size <= HttpsPhotoHouseApi.IMAGE_LIMIT)
-                val openOriginal = originalAfterLoad && detail.originals_allowed && detail.asset.kind == "image"
+                val openOriginal = (originalAfterLoad || mediaAfterLoad) && detail.originals_allowed && detail.asset.kind == "image"
                 mutable.value = state.value.copy(detail = detail, captions = captions, busy = openOriginal,
                     viewingOriginal = openOriginal, photoSlideshow = state.value.photoSlideshow && openOriginal,
                     previews = if (bytes == null) emptyMap() else mapOf(assetId to bytes))
@@ -248,6 +249,9 @@ class ConnectedStore(private val api: PhotoHouseApi, private val scope: Coroutin
                     mutable.value = state.value.copy(originalPhoto = original, busy = false,
                         photoSlideshow = state.value.photoSlideshow && navigation != null && navigation.index < navigation.assetIds.lastIndex)
                 }
+                // The gallery tap requests viewing; returned detail and each byte read
+                // still authorize access. Preparing a player never starts its audio.
+                if (mediaAfterLoad && detail.originals_allowed && detail.asset.kind == "video") openVideo()
             } catch (e: CancellationException) { throw e }
             catch (e: Exception) { readFailure(e, generation, credential) { openPhoto(assetId, navigation) } }
         }

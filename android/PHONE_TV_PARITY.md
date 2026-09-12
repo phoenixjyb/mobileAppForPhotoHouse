@@ -13,7 +13,7 @@ green and cream phone design. UI language does not rewrite caption content.
 | Photo fit/fill, zoom/pan, immersive display | Implemented; explicit original permission and bounded decode | Implemented on prepared display bytes |
 | Next/previous within a page | Implemented in detail and original viewer | Implemented |
 | Photo slideshow | Explicit start, 8 seconds, current page only; stops at page end, video, denied/unavailable originals | Implemented on prepared media |
-| Video play/pause, seek, fit/fill, immersive display | Implemented; original permission and authenticated Range | Implemented for prepared v2 video |
+| Video play/pause, seek, fit/fill, immersive display | Implemented; original permission, authenticated Range, 32 GiB bounded reader and long-video feedback | Implemented for prepared v2 video |
 | Page selection | Numeric touch entry, bounds checked | Remote page controls |
 | People/aliases, dates, captions, tags, coarse places, combined search | Awaiting a reviewed protected contract and adapter | Source implemented; real publication/configuration/device acceptance pending |
 | Themes/topics, named albums, GPS/radius search | Not implemented | Not implemented; theme/topic controls remain unavailable |
@@ -25,7 +25,20 @@ The current phone's original media path is not a prepared derivative endpoint;
 prepared playback for viewers without original access needs its own protected
 capability and contract. Do not grant originals merely to match TV behavior.
 
-## This phone media slice
+## Phone continuation, 12 September 2026
+
+Branch `codex/android-phone-parity-streaming` starts from integrated default
+`8fdd280be55724ca020d12113cacc7a40463d08b`. Phone build 3 (`0.4-phone-streaming-dev`)
+adds direct gallery-to-viewer opening, a separate Details action, 32 GiB Range
+handling and long-video seek/buffering feedback. Returned metadata controls media
+kind and original permission; a video still requires Play. Persistent caching is
+not enabled. See [streaming/cache policy](MEDIA_STREAMING.md).
+
+Protected discovery and prepared derivatives remain blocked on their own reviewed
+HTTP contracts. The backend owner is progressing discovery transport source and
+real full-library qualification separately. No phone route is inferred from TV.
+
+## Earlier phone media slice
 
 Base `838d392861a474ad8b9e2faf0994f35f26b085cd`; isolated branch
 `codex/android-phone-media-parity`. Application `dev.photohouse.connected`,
@@ -53,7 +66,7 @@ versionCode 2, versionName `0.3-phone-media-dev`, debug only and origin unset.
 Phone media source `fd7a72ac400c604bf078d04f3fb62cbdee4be806` and TV v8 source
 `efadba4702c322f14d097640fad93fc6f07f46d0` are now combined in the integration
 history. This preserves both APKs; it does not automatically port TV-only UI
-behavior into the authenticated phone module. The v8 direct player opening,
+behavior into the authenticated phone module. Phone now also supports direct permitted-media opening. The v8
 readiness-aware catalog navigation and remote focus changes remain in the home-TV
 path. Phone prepared-media access and protected discovery still need their own
 reviewed contracts/adapters.

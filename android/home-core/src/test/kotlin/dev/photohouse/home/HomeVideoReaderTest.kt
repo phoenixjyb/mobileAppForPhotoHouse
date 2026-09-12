@@ -10,6 +10,25 @@ import java.util.concurrent.TimeUnit
 import java.util.concurrent.atomic.AtomicInteger
 
 class HomeVideoReaderTest {
+    @Test fun multiGigabyteMovieSupportsTailAndBackwardReadsWithSmallBuffers() {
+        val total = 8193114694L
+        val requests = mutableListOf<Pair<Long, Int>>()
+        val reader = HomeVideoReader(total, CatalogWire.READ_BYTES, { start, count ->
+            requests += start to count
+            ByteArray(count) { ((start + it) % 251).toByte() }
+        }, { fail("Unexpected failure") })
+        reader.use {
+            val buffer = ByteArray(32) { 77 }
+            assertEquals(total, it.size())
+            assertEquals(32, it.readAt(4294967296L, buffer, 0, 32))
+            assertEquals((4294967296L % 251).toByte(), buffer[0])
+            assertEquals(4, it.readAt(total - 4, buffer, 2, 16))
+            assertEquals(((total - 4) % 251).toByte(), buffer[2])
+            assertEquals(16, it.readAt(0, buffer, 0, 16))
+            assertEquals(-1, it.readAt(total, buffer, 0, 1))
+            assertEquals(listOf(4294967296L to 32, total - 4 to 4, 0L to 16), requests)
+        }
+    }
     @Test fun boundedRandomReadsPreserveOffsetsAndReturnEofWithoutFetching() {
         val reads = mutableListOf<Pair<Long, Int>>()
         val reader = HomeVideoReader(20, 4, { start, size ->

@@ -72,6 +72,35 @@ class ConnectedStoreTest {
     private fun TestScope.store(api: FakeApi) = ConnectedStore(api, backgroundScope) { testScheduler.currentTime }
     private fun TestScope.signIn(store: ConnectedStore) { store.authenticate("+12025550123", "synthetic-password-only"); runCurrent(); assertNotNull(store.state.value.session) }
 
+    @Test fun galleryMediaTapUsesFreshKindAndPermissionAndDetailsRemainSeparate() = runTest {
+        for (kind in listOf("image", "video")) for (permitted in listOf(false, true)) {
+            val api = FakeApi().apply { assets = listOf(asset.copy(kind = kind)); originalsAllowed = permitted }
+            val store = store(api); signIn(store); store.selectLibrary("family"); runCurrent()
+            store.openMedia(asset); runCurrent() // Deliberately stale gallery kind for video.
+            assertEquals(permitted && kind == "image", store.state.value.viewingOriginal)
+            assertEquals(permitted && kind == "video", store.state.value.video != null)
+            assertEquals(if (permitted && kind == "image") 1 else 0, api.originalReads)
+            assertFalse(store.state.value.photoSlideshow)
+            assertEquals(0, store.state.value.photoNavigation?.index)
+            store.backToPhotos(); runCurrent(); store.openAsset(asset); runCurrent()
+            assertFalse(store.state.value.viewingOriginal); assertNull(store.state.value.video)
+            store.logout(); runCurrent()
+        }
+    }
+
+    @Test fun lateGalleryMediaTapCannotOpenAfterLogoutLibraryChangeOrBackground() = runTest {
+        for (kind in listOf("image", "video")) for (boundary in listOf("logout", "library", "background")) {
+            val api = FakeApi().apply { assets = listOf(asset.copy(kind = kind)); originalsAllowed = true }
+            val store = store(api); signIn(store); store.selectLibrary("family"); runCurrent()
+            val gate = CompletableDeferred<Unit>(); api.detailGate = gate
+            store.openMedia(asset); runCurrent()
+            when (boundary) { "logout" -> store.logout(); "library" -> store.selectLibrary("second"); else -> store.background() }
+            runCurrent(); gate.complete(Unit); runCurrent()
+            assertNull(store.state.value.video); assertFalse(store.state.value.viewingOriginal)
+            assertNull(store.state.value.originalPhoto); assertEquals(0, api.originalReads)
+        }
+    }
+
     @Test fun refusedInvitationNeverCreatesSessionOrTriggersAutomaticAdmissionRetry() = runTest {
         // Invalid, already-used and wrong-phone codes intentionally have the same
         // non-enumerating server denial. The client cannot infer which one failed.

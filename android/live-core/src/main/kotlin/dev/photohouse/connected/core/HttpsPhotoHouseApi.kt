@@ -180,6 +180,6 @@ class HttpsPhotoHouseApi internal constructor(private val origin: TrustedOrigin,
     }
     companion object {
         const val VIDEO_CHUNK_LIMIT = 256 * 1024
-        const val VIDEO_FILE_LIMIT = 4L * 1024 * 1024 * 1024
+        const val VIDEO_FILE_LIMIT = 32L * 1024 * 1024 * 1024
         const val JSON_LIMIT = 524288; const val IMAGE_LIMIT = 1048576; const val ORIGINAL_LIMIT = 12 * 1024 * 1024 }
 }

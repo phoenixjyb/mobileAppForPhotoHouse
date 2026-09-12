@@ -76,8 +76,8 @@ No photos, credentials or navigation are persisted; backup and saved-state
 restoration are disabled, with `FLAG_SECURE` protecting task snapshots.
 
 The original viewer is separate from thumbnail loading. It is offered only for
-image details with `originals_allowed=true`, and only an explicit user action
-opens `/assets/{id}/media?library=…`. Explicit next/previous and an explicitly
+image details with `originals_allowed=true`; a gallery tap or Open original photo
+action opens `/assets/{id}/media?library=…`. Explicit next/previous and an explicitly
 started current-page slideshow may request subsequent permitted photos, with
 fresh detail/permission checks. The server still authorizes every request.
 Closing, changing views, backgrounding, logout and expiry cancel/clear original
@@ -90,9 +90,10 @@ unsupported or corrupt images show an unavailable state. Decoding is serialized
 off the UI thread. Pinch/pan, double-tap, zoom buttons and fit-to-screen controls
 operate on the in-memory bitmap, with no URI or file handed to another app.
 
-The video player requires video details with original permission and an explicit
-Open video action. It accepts MP4/WebM over authenticated single Range reads, up
-to 256 KiB per read and 4 GiB per file. Every nonempty read goes through the same
+The video player requires fresh video details with original permission and an
+explicit gallery tap or Open video action. It accepts MP4/WebM over authenticated single Range reads, up
+to 256 KiB per read and 32 GiB per file. Sizes and seek offsets remain 64-bit;
+the file limit does not reserve or download that much memory. Every nonempty read goes through the same
 fixed HTTPS origin and bearer adapter, including seeks. Full 200 fallbacks,
 redirects, encoded/malformed/mismatched ranges and changing lengths are rejected.
 The reader stores no chunk cache and gives the native player neither URLs nor
@@ -131,7 +132,11 @@ and deployed-server/device acceptance.
 The connected UI uses a warm neutral theme and a photo-led grid. Open **Settings**
 from the header for app language and sign-out; **Libraries** returns to membership
 selection. Gallery tiles crop previews, while detail previews fit the complete
-image. Original viewing and video remain explicit, permission-gated actions.
+image. A gallery tap opens the permitted photo viewer or prepares the video player;
+Play still starts audio explicitly. Each tile also has a Details action for captions.
+If original access is denied, the tap opens details without fetching original bytes.
+Phone video controls show minutes/hours and seeking/buffering feedback, including
+fullscreen. A stalled seek exits through the existing failure lifecycle after 30 seconds.
 At large text sizes the gallery uses one column and action groups wrap.
 
 The UI remains a development build with memory-only sign-in. Dates are source text,
