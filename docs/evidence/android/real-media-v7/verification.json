@@ -1,0 +1,89 @@
+{
+  "source_commit": "ae975cb1e26db67bc5a3d1a0d1b5ce73673c7821",
+  "base_commit": "838d392861a474ad8b9e2faf0994f35f26b085cd",
+  "jvm": {
+    "home-core": {
+      "tests": 82,
+      "failures": 0,
+      "errors": 0,
+      "skipped": 0
+    },
+    "tv": {
+      "tests": 2,
+      "failures": 0,
+      "errors": 0,
+      "skipped": 0
+    }
+  },
+  "pinned_catalog_asgi_checks": 12,
+  "catalog_source_files_verified": 16,
+  "shared_contract_checks": "pass",
+  "tv_boundaries": "pass",
+  "assembleDebug": "pass",
+  "lint_errors": 0,
+  "lint_warnings": [
+    "OldTargetApi",
+    "VectorRaster",
+    "DiscouragedApi"
+  ],
+  "emulator_tests_rerun": false,
+  "live_adapter_test": {
+    "tests": "1",
+    "failures": "0",
+    "errors": "0",
+    "skipped": "0",
+    "time": "0.75",
+    "production_adapter": "HttpsCatalogApi",
+    "production_video_reader": "HomeVideoReader",
+    "catalog_version": 2,
+    "revision": 1,
+    "catalog_total": 27842,
+    "ready_photos": 15,
+    "ready_videos": 1,
+    "photo_and_video_on_page": 1,
+    "tls": "normal JVM certificate and hostname verification",
+    "connection": "exact app-scoped LAN mapping",
+    "checks": [
+      "page1 strict parsing",
+      "four preview hashes/framing/dimensions",
+      "full prepared video SHA256 via Range reads",
+      "video EOF",
+      "backward seek",
+      "repeated revision-pinned catalog"
+    ],
+    "media_written_to_disk": false,
+    "physical_projector_playback": false
+  },
+  "physical_device": "not installed",
+  "artifact_sha256": "35da54aedba3bdd4e044b93f5da5164aa7ee86fac856b3446853407bccbec267",
+  "artifact_bytes": 9067966,
+  "version_code": 7,
+  "catalog_version": 2,
+  "discovery_enabled": false,
+  "configured_origin": true,
+  "lan_mapping": true,
+  "main_apk_assets": false,
+  "debug_signer_sha256": "56d7591b2b6c2538d506d1fe51327444f2307736cb12f5beefa08f1c410d6d28",
+  "backend_native_tests": {
+    "count": 84,
+    "failures": 0,
+    "errors": 0,
+    "skipped": 0,
+    "test_harness_commit": "7795133091c412ea7b1cfd9de8ac2271285bf7f0",
+    "rerun_by_android_owner": false,
+    "raw_receipt_reviewed": true
+  },
+  "final_catalog_check": {
+    "checked_at": "2026-09-12T08:39:52.928583+08:00",
+    "trusted_https": "pass",
+    "revision": 1,
+    "catalog_total": 27842,
+    "page": 1,
+    "ready_photos_on_page": 15,
+    "ready_videos_on_page": 1,
+    "video_tile_index": 50,
+    "catalog_response_sha256": "63173d7a099b77a2d0a1b238c7a98d4d4290c799b052c6af8a30e75ea75457d2",
+    "metadata_body_saved": false,
+    "after_backend_scoped_restart": true
+  }
+}
