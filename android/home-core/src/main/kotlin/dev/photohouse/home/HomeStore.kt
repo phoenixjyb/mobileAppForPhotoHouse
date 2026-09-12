@@ -16,6 +16,13 @@ data class HomeState(
 ) {
     val asset: HomeAsset? get() = feed?.items?.firstOrNull { it.id == selected }
     val index: Int get() = feed?.items?.indexOfFirst { it.id == selected } ?: -1
+    fun adjacentAsset(delta: Int): HomeAsset? {
+        val gallery = feed ?: return null
+        if (index < 0 || delta !in listOf(-1, 1)) return null
+        return generateSequence(index + delta) { it + delta }
+            .takeWhile { it in gallery.items.indices }.map { gallery.items[it] }
+            .firstOrNull { gallery.version != 2 || it.display != null || it.kind == AssetKind.VIDEO && it.video != null }
+    }
 }
 class HomeStore(private val api: HomeApi, private val scope: CoroutineScope,
                 private val now: () -> Long = { System.nanoTime() / 1_000_000 },
@@ -117,7 +124,7 @@ class HomeStore(private val api: HomeApi, private val scope: CoroutineScope,
         }
     }
     internal fun failDiscovery(e: HomeFailure) { failed(e) }
-    fun openAsset(asset: HomeAsset) {
+    fun openAsset(asset: HomeAsset, openPlayer: Boolean = false) {
         val s = state.value; val feed = s.feed ?: return
         if (!visible || paused || s.covered || asset !in feed.items) return
         videoGeneration++; state.value.video?.close()
@@ -126,8 +133,10 @@ class HomeStore(private val api: HomeApi, private val scope: CoroutineScope,
         detailJob = scope.launch {
             try {
                 val bytes = if (asset.display == null) null else api.preview(asset, Variant.DISPLAY, feed.revision)
-                if (current(g) && d == detailGeneration)
+                if (current(g) && d == detailGeneration) {
                     mutable.value = state.value.copy(display = bytes, busy = false, displayMissing = bytes == null)
+                    if (openPlayer && asset.kind == AssetKind.VIDEO && asset.video != null) openVideo()
+                }
             } catch (e: CancellationException) { throw e }
               catch (e: HomeFailure) { if (current(g) && d == detailGeneration) failed(e) }
         }
@@ -155,9 +164,9 @@ class HomeStore(private val api: HomeApi, private val scope: CoroutineScope,
         closeVideo(); mutable.value = state.value.copy(videoFailed = true)
     }
     fun adjacentPhoto(delta: Int) {
-        val s = state.value; val list = s.feed?.items ?: return
-        if (s.busy || s.index < 0 || delta !in listOf(-1, 1)) return
-        list.getOrNull(s.index + delta)?.let(::openAsset)
+        val s = state.value
+        if (s.busy) return
+        s.adjacentAsset(delta)?.let { openAsset(it) }
     }
     fun backToPhotos() {
         videoGeneration++; state.value.video?.close()

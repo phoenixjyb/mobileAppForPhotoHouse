@@ -16,6 +16,7 @@ import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.focus.FocusRequester
+import androidx.compose.ui.focus.focusProperties
 import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.focus.onFocusChanged
 import androidx.compose.ui.graphics.Color
@@ -38,7 +39,8 @@ internal val Edge = Color(0xFF496258)
 
 @Composable internal fun TvButton(label: String, modifier: Modifier = Modifier, enabled: Boolean = true, onClick: () -> Unit) {
     var focused by remember { mutableStateOf(false) }
-    Button(onClick, modifier.heightIn(min = 52.dp).onFocusChanged { focused = it.isFocused }, enabled = enabled,
+    // TV focus must survive a touch/air-mouse interaction and return to the remote.
+    Button(onClick, modifier.heightIn(min = 52.dp).focusProperties { canFocus = enabled }.onFocusChanged { focused = it.isFocused }, enabled = enabled,
         shape = RoundedCornerShape(12.dp),
         border = BorderStroke(if (focused) 3.dp else 1.dp, if (focused) Gold else Edge),
         colors = ButtonDefaults.buttonColors(containerColor = if (focused) Gold else Moss,
@@ -70,6 +72,8 @@ internal val Edge = Color(0xFF496258)
     val first = remember { FocusRequester() }
     val route = when { state.covered -> "covered"; store == null -> "setup"; exploring -> "explore"; state.feed == null -> "connection"; state.video != null -> "video"; viewer -> "viewer"; else -> "grid" }
     val grid = rememberLazyGridState()
+    val focusAsset = state.feed?.items?.firstOrNull { it.id == lastAsset && it.canOpen() }
+        ?: state.feed?.items?.firstOrNull { it.canOpen() }
     val view = LocalView.current
     val focusedWindow = LocalWindowInfo.current.isWindowFocused
     DisposableEffect(playing, state.covered, view) {
@@ -80,8 +84,8 @@ internal val Edge = Color(0xFF496258)
         if (!focusedWindow) return@LaunchedEffect
         // Re-request after a remote navigation transition, but not on every thumbnail update.
         if (route == "grid") {
-            val index = state.feed?.items?.indexOfFirst { it.id == lastAsset } ?: -1
-            if (index >= 0) grid.scrollToItem(index)
+            val index = state.feed?.items?.indexOfFirst { it.id == focusAsset?.id } ?: -1
+            grid.scrollToItem(index.coerceAtLeast(0))
         }
         withFrameNanos { }
         if (route != "explore") runCatching { if (route == "grid" && restoreExplore) { exploreFocus.requestFocus(); restoreExplore = false } else first.requestFocus() }
@@ -98,7 +102,7 @@ internal val Edge = Color(0xFF496258)
             if (state.displayMissing) playing = false
             else {
                 delay(8000)
-                if (state.index < (state.feed?.items?.lastIndex ?: -1)) store?.adjacentPhoto(1) else playing = false
+                if (state.adjacentAsset(1) != null) store?.adjacentPhoto(1) else playing = false
             }
         }
     }
@@ -156,7 +160,7 @@ internal val Edge = Color(0xFF496258)
                         }
                     } }.focusable()) {
                     val bytes = state.display
-                    TvImage(bytes, t("Photo", "照片") + " ${state.selected ?: ""}", Modifier.fillMaxSize(), if (state.asset?.kind == AssetKind.VIDEO) t("Video", "视频") else unavailableText(state.asset?.displayUnavailable, zh), transform = transform)
+                    TvImage(bytes, t("Photo", "照片") + " ${state.selected ?: ""}", Modifier.fillMaxSize(), if (state.asset?.kind == AssetKind.VIDEO) t("Video", "视频") else unavailableText(state.asset?.displayUnavailable, zh), transform = transform, loading = state.busy)
                     if (showHint) Text("${transform.zoom.toInt()}× · " + if (transform.zoom > 1f)
                         t("Arrows Pan · OK Zoom · Back Reset", "方向键 移动 · 确定 缩放 · 返回 还原") else
                         t("← → Photos · OK Zoom · Back Controls", "← → 切换照片 · 确定 缩放 · 返回 控制栏"),
@@ -215,7 +219,7 @@ internal val Edge = Color(0xFF496258)
                     viewer -> {
                         val bytes = state.display
                         Box(Modifier.fillMaxWidth().weight(1f).background(Color.Black).testTag("viewer")) {
-                            TvImage(bytes, t("Photo", "照片") + " ${state.selected ?: ""}", Modifier.fillMaxSize(), if (state.asset?.kind == AssetKind.VIDEO) t("Video", "视频") else unavailableText(state.asset?.displayUnavailable, zh), transform = transform)
+                            TvImage(bytes, t("Photo", "照片") + " ${state.selected ?: ""}", Modifier.fillMaxSize(), if (state.asset?.kind == AssetKind.VIDEO) t("Video", "视频") else unavailableText(state.asset?.displayUnavailable, zh), transform = transform, loading = state.busy)
 
                         }
                         if (state.asset?.kind == AssetKind.VIDEO) {
@@ -229,18 +233,18 @@ internal val Edge = Color(0xFF496258)
                         // Toolbar arrows move focus; immersive mode maps arrows to photos.
                         Row(Modifier.fillMaxWidth().padding(top = 10.dp).horizontalScroll(rememberScrollState()), horizontalArrangement = Arrangement.spacedBy(8.dp), verticalAlignment = Alignment.CenterVertically) {
                             TvButton(if (state.feed?.version == 2) t("Library", "媒体库") else t("Photos", "照片"), Modifier.focusRequester(first)) { back() }
-                            TvButton(t("Previous", "上一张"), enabled = !state.busy && state.index > 0) { playing = false; store.adjacentPhoto(-1) }
+                            TvButton(t("Previous", "上一张"), enabled = !state.busy && state.adjacentAsset(-1) != null) { playing = false; store.adjacentPhoto(-1) }
                             if (state.asset?.kind == AssetKind.PHOTO) TvButton(if (playing) t("Pause", "暂停") else t("Play page", "播放本页"), Modifier.testTag("slideshow").onPreviewKeyEvent {
                                 if (it.nativeKeyEvent.action != AndroidKey.ACTION_DOWN) false
                                 else when (it.nativeKeyEvent.keyCode) {
                                     AndroidKey.KEYCODE_MEDIA_PLAY_PAUSE -> { transform = PhotoTransform(); playing = !playing; true }
                                     else -> false
                                 }
-                            }, enabled = state.asset?.kind == AssetKind.PHOTO && !state.busy && state.problem == null && (playing || state.index < state.feed!!.items.lastIndex)) { transform = PhotoTransform(); playing = !playing }
-                            TvButton(t("Next", "下一张"), enabled = !state.busy && state.index < state.feed!!.items.lastIndex) { playing = false; store.adjacentPhoto(1) }
+                            }, enabled = state.asset?.kind == AssetKind.PHOTO && !state.busy && state.problem == null && (playing || state.adjacentAsset(1) != null)) { transform = PhotoTransform(); playing = !playing }
+                            TvButton(t("Next", "下一张"), enabled = !state.busy && state.adjacentAsset(1) != null) { playing = false; store.adjacentPhoto(1) }
                             if (state.asset?.kind == AssetKind.PHOTO) {
-                            TvButton(t("Full screen", "全屏"), Modifier.testTag("fullscreen")) { immersive = true }
-                            TvButton(if (transform.fill) t("Fit photo", "完整显示") else t("Fill screen", "填满画面"), Modifier.testTag("photo-fit")) {
+                            TvButton(t("Full screen", "全屏"), Modifier.testTag("fullscreen"), enabled = !state.busy && state.display != null) { immersive = true }
+                            TvButton(if (transform.fill) t("Fit photo", "完整显示") else t("Fill screen", "填满画面"), Modifier.testTag("photo-fit"), enabled = !state.busy && state.display != null) {
                                 playing = false; transform = PhotoTransform(fill = !transform.fill)
                             }
                             TvButton(t("Zoom", "放大"), Modifier.testTag("photo-zoom"), enabled = state.display != null) {
@@ -257,7 +261,7 @@ internal val Edge = Color(0xFF496258)
                         Row(Modifier.horizontalScroll(rememberScrollState()), horizontalArrangement = Arrangement.spacedBy(10.dp), verticalAlignment = Alignment.CenterVertically) {
                             Text(if (discoveryState.query != null) t("Search results", "搜索结果") else gallery?.title.orEmpty(), Modifier.widthIn(max = 220.dp), maxLines = 1, style = MaterialTheme.typography.titleMedium)
                             TvButton(t("Explore", "探索"), Modifier.testTag("explore").focusRequester(exploreFocus)) { exploring = true; discovery?.open() }
-                            TvButton(t("Refresh", "刷新"), if (gallery?.items.isNullOrEmpty()) Modifier.focusRequester(first) else Modifier, enabled = !state.busy) { store.loadPage(gallery?.page ?: 1) }
+                            TvButton(t("Refresh", "刷新"), if (focusAsset == null) Modifier.focusRequester(first) else Modifier, enabled = !state.busy) { store.loadPage(gallery?.page ?: 1) }
                             TvButton(t("Previous page", "上一页"), enabled = !state.busy && gallery != null && gallery.page > 1) { store.loadPage(gallery!!.page - 1) }
                             TvButton(t("Next page", "下一页"), enabled = !state.busy && gallery != null && gallery.hasMore && gallery.page < 2000) { store.loadPage(gallery!!.page + 1) }
                         }
@@ -268,21 +272,27 @@ internal val Edge = Color(0xFF496258)
                         }
                         if (gallery != null && gallery.total > 50) TvButton(t("Go to page", "跳转页面"), Modifier.testTag("page-jump"), enabled = !state.busy) { pages = true }
                         if (gallery != null) Text(t("Page ${gallery.page} · ${gallery.total} assets", "第 ${gallery.page} 页 · 共 ${gallery.total} 项"), style = MaterialTheme.typography.labelSmall)
+                        if (gallery?.version == 2 && gallery.items.any { !it.mediaReady() }) {
+                            val ready = gallery.items.count { it.mediaReady() }
+                            Text(t("$ready of ${gallery.items.size} ready on this page · Other media still needs server preparation.",
+                                "本页 ${gallery.items.size} 项中有 $ready 项可观看 · 其余媒体仍需服务器准备。"),
+                                Modifier.testTag("page-availability"), color = Muted, style = MaterialTheme.typography.labelSmall)
+                        }
                         if (gallery != null && gallery.items.isEmpty()) Text(if (discoveryState.query != null) t("No matching memories. Try fewer filters.", "没有匹配的回忆，试试减少筛选条件。") else t("No photos here yet.", "这里还没有照片。"))
                         LazyVerticalGrid(GridCells.Adaptive(if (LocalConfiguration.current.fontScale >= 1.5f) 240.dp else 180.dp), Modifier.weight(1f).testTag("grid"), state = grid,
                             contentPadding = PaddingValues(vertical = 12.dp), horizontalArrangement = Arrangement.spacedBy(12.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
                             items(gallery?.items.orEmpty(), key = { it.id }) { asset ->
-                                val target = gallery?.items?.firstOrNull { it.id == lastAsset }?.id ?: gallery?.items?.firstOrNull()?.id
+                                val target = focusAsset?.id
                                 var focused by remember { mutableStateOf(false) }
-                                OutlinedButton({ lastAsset = asset.id; store.openAsset(asset) },
+                                OutlinedButton({ lastAsset = asset.id; store.openAsset(asset, openPlayer = asset.kind == AssetKind.VIDEO && asset.video != null) },
                                     Modifier.fillMaxWidth().height(158.dp).then(if (asset.id == target) Modifier.focusRequester(first) else Modifier)
-                                        .onFocusChanged { focused = it.isFocused }.testTag("asset-${asset.id}"),
-                                    shape = RoundedCornerShape(14.dp), contentPadding = PaddingValues(6.dp),
+                                        .focusProperties { canFocus = asset.canOpen() }.onFocusChanged { focused = it.isFocused }.testTag("asset-${asset.id}"),
+                                    enabled = asset.canOpen(), shape = RoundedCornerShape(14.dp), contentPadding = PaddingValues(6.dp),
                                     colors = ButtonDefaults.outlinedButtonColors(containerColor = Moss, contentColor = Cream),
                                     border = BorderStroke(if (focused) 3.dp else 1.dp, if (focused) Gold else Moss)) {
                                     Column(Modifier.fillMaxSize()) {
-                                        TvImage(state.grids[asset.id], t("Photo", "照片") + " ${asset.id}", Modifier.fillMaxWidth().weight(1f), if (asset.kind == AssetKind.VIDEO && asset.video != null) t("Ready to play", "可以播放") else unavailableText(asset.gridUnavailable, zh), maxPixels = 262144)
-                                        if (asset.kind != AssetKind.PHOTO) Text(if (asset.kind == AssetKind.VIDEO) t("Video", "视频") else t("Unsupported format", "不支持的格式"), Modifier.testTag("asset-kind-${asset.id}"), style = MaterialTheme.typography.labelSmall)
+                                        TvImage(state.grids[asset.id], t("Photo", "照片") + " ${asset.id}", Modifier.fillMaxWidth().weight(1f), if (asset.kind == AssetKind.VIDEO && asset.video != null) t("Ready to play", "可以播放") else unavailableText(asset.gridUnavailable, zh), maxPixels = 262144, loading = asset.grid != null && state.grids[asset.id] == null && asset.id !in state.missingGrids)
+                                        if (asset.kind != AssetKind.PHOTO) Text(if (asset.kind == AssetKind.VIDEO) (if (asset.video != null) t("Video · Play", "视频 · 播放") else t("Video · Not ready", "视频 · 尚未就绪")) else t("Unsupported format", "不支持的格式"), Modifier.testTag("asset-kind-${asset.id}"), style = MaterialTheme.typography.labelSmall)
                                         Text(asset.caption.ifEmpty { t("Photo", "照片") + " ${asset.id}" }, maxLines = 1, style = MaterialTheme.typography.labelMedium)
                                     }
                                 }
@@ -317,3 +327,7 @@ private fun unavailableText(reason: MediaUnavailable?, zh: Boolean): String {
         null -> t("Preview unavailable", "预览不可用")
     }
 }
+
+/** Catalog entries remain visible, but unavailable media never opens an empty viewer. */
+private fun HomeAsset.canOpen() = display != null || kind == AssetKind.VIDEO && video != null
+private fun HomeAsset.mediaReady() = if (kind == AssetKind.VIDEO) video != null else kind == AssetKind.PHOTO && display != null

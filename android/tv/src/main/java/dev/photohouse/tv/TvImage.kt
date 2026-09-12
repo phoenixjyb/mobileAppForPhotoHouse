@@ -52,7 +52,7 @@ internal fun decodeTvPhoto(bytes: ByteArray, maxPixels: Int = 8_847_360): Decode
 private data class DecodeResult(val complete: Boolean = false, val photo: DecodedPhoto? = null)
 private val decodePermit = Semaphore(1)
 /** One decode at a time, off the UI thread. A new byte identity cannot show an old photo. */
-@Composable internal fun TvImage(bytes: ByteArray?, description: String, modifier: Modifier = Modifier, missing: String, maxPixels: Int = 8_847_360, transform: PhotoTransform = PhotoTransform()) {
+@Composable internal fun TvImage(bytes: ByteArray?, description: String, modifier: Modifier = Modifier, missing: String, maxPixels: Int = 8_847_360, transform: PhotoTransform = PhotoTransform(), loading: Boolean = false) {
     key(bytes) {
         val result by produceState(DecodeResult(complete = bytes == null)) {
             if (bytes != null) value = DecodeResult(true, withContext(Dispatchers.Default) {
@@ -62,7 +62,7 @@ private val decodePermit = Semaphore(1)
         var viewport by remember { mutableStateOf(IntSize.Zero) }
         Box(modifier.onSizeChanged { viewport = it }.clipToBounds(), contentAlignment = Alignment.Center) {
             val current = result.photo
-            if (!result.complete) CircularProgressIndicator()
+            if (!result.complete || bytes == null && loading) CircularProgressIndicator()
             else if (current == null) Text(missing)
             else {
                 val width = current.bitmap.width.toFloat(); val height = current.bitmap.height.toFloat()

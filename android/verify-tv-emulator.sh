@@ -23,15 +23,15 @@ trap '"$adb" -s "$serial" shell settings put system font_scale "$previous" >/dev
 "$adb" -s "$serial" install -r -t android/tv/build/outputs/apk/debug/tv-debug.apk
 "$adb" -s "$serial" install -r -t android/tv/build/outputs/apk/androidTest/debug/tv-debug-androidTest.apk
 mkdir -p "$evidence/screenshots/$scale"
-instrument=(-w -r)
+instrument=(-w -r -e notAnnotation dev.photohouse.tv.LiveCatalogOnly)
 suffix=""
-expected=24
-names=(setup connection-needed grid-en grid-zh detail-en fullscreen covered display-caption denied empty photo-zoom video-paused catalog-grid catalog-unavailable catalog-pages discovery-home discovery-zh discovery-advanced discovery-dates discovery-unavailable discovery-results discovery-empty discovery-error)
+expected=25
+names=(setup connection-needed grid-en grid-zh detail-en fullscreen covered display-caption denied empty photo-zoom video-paused catalog-grid catalog-unavailable catalog-pages catalog-pages-zh discovery-home discovery-zh discovery-advanced discovery-dates discovery-unavailable discovery-results discovery-empty discovery-error)
 if [[ "$suite" == catalog ]]; then
     instrument+=(-e class dev.photohouse.tv.TvCatalogTest)
     suffix="-catalog"
-    expected=3
-    names=(catalog-grid catalog-unavailable catalog-pages)
+    expected=4
+    names=(catalog-grid catalog-unavailable catalog-pages catalog-pages-zh)
 fi
 if [[ "$suite" == discovery ]]; then
     instrument+=(-e class dev.photohouse.tv.TvDiscoveryTest,dev.photohouse.tv.TvDiscoveryResultsTest)

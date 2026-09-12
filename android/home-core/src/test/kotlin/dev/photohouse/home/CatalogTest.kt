@@ -187,22 +187,56 @@ class CatalogHttpTest {
 
 @OptIn(ExperimentalCoroutinesApi::class)
 class CatalogStoreTest {
-    private class Api : HomeApi {
+    private class Api(private val poster: Boolean = false) : HomeApi {
         override val catalogVersion = 2
         val calls = mutableListOf<Pair<Int, Int?>>()
         var error: HomeFailure? = null
         var callback: ((Exception) -> Unit)? = null
         val sources = mutableListOf<HomeVideoReader>()
+        var displayGate: CompletableDeferred<Unit>? = null
         override suspend fun feed(page: Int): HomeFeed = error("Revision-aware method required")
         override suspend fun feed(page: Int, revision: Int?): HomeFeed {
             calls += page to revision; error?.let { throw it }
-            return catalogFixture().copy(page = page, total = 51, hasMore = page == 1)
+            val fixture = catalogFixture()
+            return fixture.copy(page = page, total = 51, hasMore = page == 1,
+                items = if (poster) fixture.items.map { if (it.kind == AssetKind.VIDEO) it.copy(display = fixture.items[1].display) else it } else fixture.items)
         }
-        override suspend fun preview(asset: HomeAsset, variant: Variant, revision: Int) = catalogResource("home-8x8.jpg")
+        override suspend fun preview(asset: HomeAsset, variant: Variant, revision: Int): ByteArray {
+            if (variant == Variant.DISPLAY) displayGate?.await()
+            return catalogResource("home-8x8.jpg")
+        }
         override fun video(asset: HomeAsset, revision: Int, failed: (Exception) -> Unit): HomeVideoSource {
             callback = failed
             return HomeVideoReader(4, 4, { _, n -> ByteArray(n) }, failed).also { sources += it }
         }
+    }
+    @Test fun adjacentMediaSkipsUnavailableCatalogEntriesInBothDirections() {
+        val feed = catalogFixture()
+        val video = feed.items[0]; val photo = feed.items[1]
+        val unavailable = photo.copy(id = 999, display = null)
+        val mixed = feed.copy(items = listOf(video, unavailable, photo))
+        assertEquals(photo, HomeState(feed = mixed, selected = video.id).adjacentAsset(1))
+        assertEquals(video, HomeState(feed = mixed, selected = photo.id).adjacentAsset(-1))
+        assertNull(HomeState(feed = mixed, selected = photo.id).adjacentAsset(1))
+        assertNull(HomeState(feed = mixed, selected = video.id).adjacentAsset(-1))
+    }
+    @Test fun directVideoOpenWaitsForSelectionAndCannotReopenAfterBackOrBackground() = runTest {
+        val a = Api(poster = true); val s = HomeStore(a, backgroundScope)
+        s.foreground(); runCurrent()
+        val asset = s.state.value.feed!!.items[0]
+        a.displayGate = CompletableDeferred()
+        s.openAsset(asset, openPlayer = true); runCurrent()
+        assertTrue(a.sources.isEmpty())
+        s.backToPhotos(); a.displayGate!!.complete(Unit); runCurrent()
+        assertTrue(a.sources.isEmpty()); assertNull(s.state.value.selected)
+        a.displayGate = CompletableDeferred()
+        s.openAsset(asset, openPlayer = true); runCurrent()
+        s.background(); a.displayGate!!.complete(Unit); runCurrent()
+        assertTrue(a.sources.isEmpty()); assertTrue(s.state.value.covered)
+        s.foreground(); runCurrent()
+        s.openAsset(s.state.value.feed!!.items[0], openPlayer = true); runCurrent()
+        assertNotNull(s.state.value.video)
+        s.backToPhotos(); assertTrue(a.sources.single().isClosed)
     }
     @Test fun pagingPinsRevisionAndForegroundStartsAgainAtPageOne() = runTest {
         val a = Api(); val s = HomeStore(a, backgroundScope, { testScheduler.currentTime }, { 0.0 })

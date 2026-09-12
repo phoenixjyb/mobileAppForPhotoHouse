@@ -86,7 +86,7 @@ class TvDiscoveryResultsTest {
         rule.onNodeWithTag("immersive").assertExists()
         key(KeyEvent.KEYCODE_BACK); key(KeyEvent.KEYCODE_BACK); key(KeyEvent.KEYCODE_BACK)
         rule.onNodeWithTag("asset-101").assertIsFocused()
-        rule.onNodeWithTag("asset-102").performClick(); rule.onNodeWithTag("open-video").performClick()
+        rule.onNodeWithTag("asset-102").performClick()
         rule.waitUntil(15000) { rule.onAllNodes(hasTestTag("video-play") and isEnabled()).fetchSemanticsNodes().size == 1 }
         key(KeyEvent.KEYCODE_BACK); assertTrue(result.sources.single().isClosed)
         key(KeyEvent.KEYCODE_BACK)
