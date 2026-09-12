@@ -1,0 +1,69 @@
+{
+  "source_commit": "efadba4702c322f14d097640fad93fc6f07f46d0",
+  "base_commit": "97cd45d716573b9beecf0992a1b9a16a96edfb70",
+  "branch": "codex/android-tv-real-media",
+  "apk": {
+    "filename": "PhotoHouse-TV-real-media-v8.apk",
+    "sha256": "9f1f3ba676e5fc88e0e3f2651a5a17e4ed41e96856449ecbf35556b31e0ad0a0",
+    "bytes": 9073439,
+    "package": "dev.photohouse.tv",
+    "version_code": 8,
+    "version_name": "0.8-tv-catalog-dev",
+    "signer_sha256": "56d7591b2b6c2538d506d1fe51327444f2307736cb12f5beefa08f1c410d6d28",
+    "catalog_version": 2,
+    "configured_private_origin_and_lan_mapping": true,
+    "discovery": false,
+    "packaged_app_assets": 0
+  },
+  "jvm": {
+    "home_core": {
+      "tests": 84,
+      "failures": 0,
+      "errors": 0,
+      "skipped": 0
+    },
+    "tv": {
+      "tests": 2,
+      "failures": 0,
+      "errors": 0,
+      "skipped": 0
+    }
+  },
+  "emulator": {
+    "api": 36,
+    "full_suite_each_font_scale": {
+      "1.0": 25,
+      "2.0": 25
+    },
+    "final_bilingual_page_dialog_each_font_scale": {
+      "1.0": 1,
+      "2.0": 1
+    },
+    "live_tests": 4,
+    "prepared_preview_decodes": 32,
+    "live_photo_zoom": true,
+    "live_video_play_position_advanced": true,
+    "live_remote_page_jump": true,
+    "physical_projector_tested": false
+  },
+  "checks": {
+    "four_contract_verifiers": true,
+    "tv_source_boundaries": true,
+    "debug_build": true,
+    "lint_errors": 0,
+    "lint_warnings": 3
+  },
+  "backend": {
+    "last_checked_total": 27842,
+    "ready_items_on_live_page_one": 16,
+    "format_fix_candidate": "50391b6db8a7c41dc276f6ec36c28dfc0b0a934d",
+    "format_fix_deployed": false
+  },
+  "operations": {
+    "physical_installation": false,
+    "service_restart": false,
+    "caption_pause": false,
+    "push": false,
+    "merge": false
+  }
+}

@@ -1,0 +1,85 @@
+{
+  "task": "PH-ANDROID-PIPELINE-READINESS-02",
+  "mobile_base": "12a3529837aa6dcea2d97da5887af41a82532a69",
+  "backend_implementation": "4d6c4c5d982212b403d04845e1fd8df0c9e61556",
+  "backend_documentation_commit": "75b702f17a3e460a632d580e8ee8ea12dba0d47f",
+  "backend_document_sha256": {
+    "ANDROID_READINESS_RETURN.md": "fff0a56e648b9e9df2ef999941b6c130bc860b343630b7c13f884834737e1ba4",
+    "ANDROID_STAGING_DECISION.json": "47b7f17197a10f59cdc60be00967c7eb5cd49aeb7f2cc228d20eb7ab802d022c",
+    "DATABASE_PREPARATION.md": "11a729c0b92d0dcf4685f7f3524ba6fdea0f551a3c01a83c15375f5aa2b3e2aa",
+    "CPU_ENVIRONMENT.md": "4bf540ed3d428f4ccb495b46e9d3ad87c36db9e3c9d003fdb294d0b0c2ef3b54"
+  },
+  "backend_pin": "87a60b475b37b1d6873cd977bcb6e7254472da7e",
+  "matching_backend_sources": {
+    "backend/app/main.py": "451e41dd5863ec5b4035bf25afff92f918cd6f1c62cc6d84c0fe9f7375bfb26a",
+    "backend/app/access/transport.py": "3df4fcfe6797ddee2a26ea34adc202c9aa92b88cf51439ad5c53bc7be37e2e87",
+    "backend/app/access/service.py": "c1fc33b39207512fe6f32f52f0564dce8da855f1dd9aee1fd012c4984ab99881",
+    "backend/app/access/credentials.py": "29af47d7cdc18a5347d635ee9c2e53dc9475aedbf4141c451478cf9fed7d4b2f",
+    "backend/app/access/library.py": "5c280e0047771a43274615b77617f896ef2ef075b4fa3f926ae05bf8c49372fe",
+    "backend/app/access/media.py": "ed3aa21e138b1959659027cf61b80f44eb90970c3b18606fdca2ee0c22438a95",
+    "backend/app/access/boundary.py": "0e11c1ff560429fa093ddd91c5ee2ee3297e530eee6ddeb5d181c81c66f8d599",
+    "backend/app/access/runtime.py": "b2b7c0695a3e243a67a8156028b0d038a5d6eb4263ec5affa3fe78266a4760e9",
+    "tests/security/test_library_reads.py": "44be0da6baa759d06138c5f430464a6ccb0e21dac3c39201660e9ff5a7e7aadd",
+    "tests/security/test_orm_migrations.py": "77c3b999d1c67e46691496e90f7dcf19468fa4aa7083195c2d28787b8da15076"
+  },
+  "later_head_rejected_by_unchanged_shared_verifier": true,
+  "contract_offline": {
+    "operations": 12,
+    "fixture_cases_validated": 38,
+    "files": 8,
+    "actual_backend_executed": false
+  },
+  "cpu_locks": {
+    "requirements-access.lock": "b4e4e92f67dd3740986494ff3c8cc4b10557fd41329efee030dda03e05897a42",
+    "requirements-access-test.lock": "ded98cb724b9ad408683824bab31c249fbf1a905658dbfc90776bce07ce1c1c5"
+  },
+  "cpu_profile_qualification": {
+    "status": "blocked",
+    "network_used": false,
+    "backend_environment_mutated": false,
+    "reasons": [
+      "Offline installation could not resolve cached compatible MarkupSafe 3.0.3 and pydantic-core 2.41.5 wheels",
+      "Shared 38-case backend replay harness imports Pillow, absent from the intended 21-package CPU test lock"
+    ],
+    "actual_in_process_asgi_run": false,
+    "compiled_adapter_against_actual_backend_run": false
+  },
+  "jvm": {
+    "tests": 62,
+    "fixture": 22,
+    "store": 32,
+    "video_reader": 3,
+    "adapter_interceptor": 5,
+    "failures": 0,
+    "new_tests": 9,
+    "compiled_from_source": true,
+    "listener_or_connection": false
+  },
+  "production_source_changed": false,
+  "prior_apk": {
+    "source_commit": "12a3529837aa6dcea2d97da5887af41a82532a69",
+    "sha256": "ca38584656b4d864f1d2cccce398e0e0b91c5721a2bd39149676e0cc84943e97",
+    "built_this_slice": false,
+    "origin": ""
+  },
+  "prior_ui": {
+    "source_commit": "12a3529837aa6dcea2d97da5887af41a82532a69",
+    "tests_per_font_scale": 9,
+    "font_scales": [
+      1.0,
+      2.0
+    ],
+    "run_this_slice": false
+  },
+  "actions_not_performed": [
+    "Gradle daemon",
+    "socket listener",
+    "emulator or phone",
+    "real origin or credentials",
+    "backend mutation",
+    "Windows or Mac mini access",
+    "deployment",
+    "push",
+    "merge"
+  ]
+}

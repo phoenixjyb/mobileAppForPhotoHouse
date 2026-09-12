@@ -1,0 +1,18 @@
+{
+  "source_commit": "10711dc63f9404911cf3c8b1df509c78fb38dc95",
+  "version_code": 4,
+  "version_name": "0.4-tv-viewer-dev",
+  "sha256": "299532b557fafea9bb97e97374a7feef21fc6ca593207aaf9b43a41c0357b1ae",
+  "bytes": 8868243,
+  "unconfigured_sha256": "187d898f39f2288729b624ec6b3fb399f043322cf40d4d32d88ffa5327c255bb",
+  "installed_on_projector": false,
+  "catalog_version": 1,
+  "video_catalog_wired": false,
+  "emulator_tests_per_font_scale": 13,
+  "font_scales": [
+    1.0,
+    2.0
+  ],
+  "unit_tests": 35,
+  "projector_install_or_acceptance": false
+}

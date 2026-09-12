@@ -1,0 +1,30 @@
+<ACCESS_TEST_ENV>/lib/python3.12/site-packages/fastapi/testclient.py:1: StarletteDeprecationWarning: Using `httpx` with `starlette.testclient` is deprecated; install `httpx2` instead.
+  from starlette.testclient import TestClient as TestClient  # noqa
+test_approval_explicit_scope_digest_and_no_auto_approval (test_home_discovery_export.ExportTests.test_approval_explicit_scope_digest_and_no_auto_approval) ... ok
+test_candidate_and_selection_are_exact_not_all_active_consent (test_home_discovery_export.ExportTests.test_candidate_and_selection_are_exact_not_all_active_consent) ... ok
+test_caption_edited_priority_ambiguity_supersession_and_oversize (test_home_discovery_export.ExportTests.test_caption_edited_priority_ambiguity_supersession_and_oversize) ... ok
+test_changed_or_foreign_face_and_unresolved_roster_fail (test_home_discovery_export.ExportTests.test_changed_or_foreign_face_and_unresolved_roster_fail) ... ok
+test_date_and_region_missing_invalid_and_no_ingest_fallback (test_home_discovery_export.ExportTests.test_date_and_region_missing_invalid_and_no_ingest_fallback) ... ok
+test_disabled_then_synthetic_enabled_asgi_replay (test_home_discovery_export.ExportTests.test_disabled_then_synthetic_enabled_asgi_replay) ... ok
+test_failure_during_write_leaves_only_new_disabled_attempt (test_home_discovery_export.ExportTests.test_failure_during_write_leaves_only_new_disabled_attempt) ... ok
+test_hidden_deleted_and_missing_ids_fail_instead_of_silent_drop (test_home_discovery_export.ExportTests.test_hidden_deleted_and_missing_ids_fail_instead_of_silent_drop) ... ok
+test_input_mutation_invalidates_review_and_output_collision_preserves_work (test_home_discovery_export.ExportTests.test_input_mutation_invalidates_review_and_output_collision_preserves_work) ... ok
+test_manual_marker_alone_and_caption_name_never_approve_people (test_home_discovery_export.ExportTests.test_manual_marker_alone_and_caption_name_never_approve_people) ... ok
+test_media_copy_opt_in_and_variant_coverage (test_home_discovery_export.ExportTests.test_media_copy_opt_in_and_variant_coverage) ... ok
+test_prepared_or_roster_mutation_after_review_rejected (test_home_discovery_export.ExportTests.test_prepared_or_roster_mutation_after_review_rejected) ... ok
+test_prepared_photo_video_chunks_and_symlinks_rejected (test_home_discovery_export.ExportTests.test_prepared_photo_video_chunks_and_symlinks_rejected) ... ok
+test_review_and_output_deterministic_disabled_private_and_hash_bound (test_home_discovery_export.ExportTests.test_review_and_output_deterministic_disabled_private_and_hash_bound) ... ok
+test_review_cannot_write_inside_candidate_or_replace_existing_file (test_home_discovery_export.ExportTests.test_review_cannot_write_inside_candidate_or_replace_existing_file) ... ok
+test_review_tampering_and_request_mutation_rejected (test_home_discovery_export.ExportTests.test_review_tampering_and_request_mutation_rejected) ... ok
+test_row_time_json_and_media_budgets (test_home_discovery_export.ExportTests.test_row_time_json_and_media_budgets) ... ok
+test_schema_missing_columns_views_and_write_trigger_not_used (test_home_discovery_export.ExportTests.test_schema_missing_columns_views_and_write_trigger_not_used) ... ok
+test_seven_unresolved_shortcuts_and_roster_do_not_bless_assignments (test_home_discovery_export.ExportTests.test_seven_unresolved_shortcuts_and_roster_do_not_bless_assignments) ... ok
+test_sql_readonly_in_memory_no_schema_or_sidecar_writes (test_home_discovery_export.ExportTests.test_sql_readonly_in_memory_no_schema_or_sidecar_writes) ... ok
+test_tags_block_duplicate_missing_source_and_kind_preserved (test_home_discovery_export.ExportTests.test_tags_block_duplicate_missing_source_and_kind_preserved) ... ok
+test_wal_header_and_any_sidecar_refused (test_home_discovery_export.ExportTests.test_wal_header_and_any_sidecar_refused) ... ok
+test_zero_partial_and_complete_metadata_coverage (test_home_discovery_export.ExportTests.test_zero_partial_and_complete_metadata_coverage) ... ok
+
+----------------------------------------------------------------------
+Ran 23 tests in 0.309s
+
+OK

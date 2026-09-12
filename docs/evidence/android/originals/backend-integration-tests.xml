@@ -1,0 +1,10 @@
+<?xml version='1.0' encoding='utf-8'?>
+<testsuite name="dev.photohouse.connected.core.BackendIntegrationTest" tests="6" skipped="0" failures="0" errors="0" timestamp="2026-09-11T01:51:13" time="92.445">
+  <properties />
+  <testcase name="foreignDeletedUnmappedAndMissingReadsAreUniformDenials" classname="dev.photohouse.connected.core.BackendIntegrationTest" time="15.365" />
+  <testcase name="actualAdmissionCooldownIsExposedAndExpiresOnServerClock" classname="dev.photohouse.connected.core.BackendIntegrationTest" time="22.758" />
+  <testcase name="missingPreviewAndUnavailableStorageRemainDistinct" classname="dev.photohouse.connected.core.BackendIntegrationTest" time="12.367" />
+  <testcase name="realInvitedRegistrationAndSecondLibraryAcceptance" classname="dev.photohouse.connected.core.BackendIntegrationTest" time="14.375" />
+  <testcase name="realLoginBrowsingThumbnailAndAcknowledgedLogout" classname="dev.photohouse.connected.core.BackendIntegrationTest" time="14.231" />
+  <testcase name="realMembershipRevocationAndSessionExpiryClearConnectedState" classname="dev.photohouse.connected.core.BackendIntegrationTest" time="13.349" />
+  </testsuite>

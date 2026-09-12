@@ -1,0 +1,77 @@
+[
+  {
+    "suite": "dev.photohouse.home.HomeHttpTest",
+    "tests": 7,
+    "failures": 0,
+    "errors": 0,
+    "cases": [
+      "missingDisplayIsNullWithoutFallback",
+      "exactRequestsCarryNoCredentialsAndDecode4k",
+      "redirectsDenialRevisionAndBusyAreClassified",
+      "rejectsWrongTypeCachingAndChunkedOverflow",
+      "cancellationStopsDelayedRead",
+      "platformTrustRejectsSyntheticCertificate",
+      "changedPreviewUrlNeverSendsARequest"
+    ]
+  },
+  {
+    "suite": "dev.photohouse.home.HomeLanTest",
+    "tests": 6,
+    "failures": 0,
+    "errors": 0,
+    "cases": [
+      "mappedConnectionRejectsWrongCertificateHostname",
+      "mappedConnectionRetainsHttpsHostname",
+      "mappedClientUsesDirectRoutingAndDefaultTrustChecks",
+      "canonicalPrivateAddressesOnlyWithoutResolution",
+      "mappingIsExactAndNeverFallsBackToAnotherHost",
+      "mappedConnectionRejectsUntrustedCertificate"
+    ]
+  },
+  {
+    "suite": "dev.photohouse.home.HomeStoreTest",
+    "tests": 10,
+    "failures": 0,
+    "errors": 0,
+    "cases": [
+      "unchangedMinuteRefreshKeepsDisplayAndChangedRevisionClears",
+      "unavailableStopsMediaAndAutomaticallyRecovers",
+      "staleDisplayCannotReturnAfterBackOrReconnect",
+      "jitterNeverExceedsMinuteAndServerFloorSurvivesReconnect",
+      "denialClearsAndDoesNotAutomaticallyRetry",
+      "coldStartForegroundAndDisconnectAreAnonymousAndClear",
+      "revisionConflictClearsAndRefetchesWithoutBusyLoop",
+      "staleNonCancellableFeedCannotRestoreAfterBackground",
+      "retryScheduleUsesAllFiveDelaysAndHonorsServerFloorAcrossForeground",
+      "missingDisplayRetainsFeedWithoutAnyOriginalFallback"
+    ]
+  },
+  {
+    "suite": "dev.photohouse.home.HomeTest",
+    "tests": 6,
+    "failures": 0,
+    "errors": 0,
+    "cases": [
+      "strictJsonRejectsDuplicateUnknownWrongTypeAndDepth",
+      "previewRejectsHashDimensionsMetadataAndTrailingPayload",
+      "frozenFeedAndBothExactJpegs",
+      "canonicalOriginRejectsCredentialsCleartextPathsAndIp",
+      "retryAfterSecondsDateAndOverflow",
+      "metadataCannotEscapeRevisionOrEnableOriginals"
+    ]
+  },
+  {
+    "suite": "dev.photohouse.home.HomeVideoReaderTest",
+    "tests": 6,
+    "failures": 0,
+    "errors": 0,
+    "cases": [
+      "invalidBufferArgumentsNeverFetchAndCloseTheSource",
+      "closeCancelsAnInflightReadWithoutCopyingOrReportingAnError",
+      "boundedRandomReadsPreserveOffsetsAndReturnEofWithoutFetching",
+      "shortAndOversizedChunksCloseAndReportOnlyOnce",
+      "concurrentNativeReadsAreSerialized",
+      "transportFailureReleasesAndRedactsTheNativeError"
+    ]
+  }
+]

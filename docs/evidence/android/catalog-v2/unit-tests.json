@@ -1,0 +1,124 @@
+{
+  "tests": 53,
+  "failures": 0,
+  "errors": 0,
+  "suites": [
+    {
+      "name": "dev.photohouse.home.CatalogHttpTest",
+      "tests": 8,
+      "failures": 0,
+      "errors": 0,
+      "cases": [
+        "untrustedTlsCertificateCannotReachCatalogBytes",
+        "truncatedHttpsRangeCannotReturnPartOfTheRequestedBuffer",
+        "closingReaderCancelsAnActualHttpsRangeRequest",
+        "laterPageIncludesRevisionAndDoesNotFallBackToV1",
+        "invalidPartialResponsesCloseReaderBeforeReturningBytes",
+        "exactCatalogPreviewAndVideoRequestsHaveNoCredentialsOrFallback",
+        "videoDenialRevisionBusyAndUnavailableArePropagated",
+        "unavailableAndChangedUrlsNeverRequestUnapprovedMedia"
+      ]
+    },
+    {
+      "name": "dev.photohouse.home.CatalogStoreTest",
+      "tests": 4,
+      "failures": 0,
+      "errors": 0,
+      "cases": [
+        "decoderFailureStaysLocalAndDisconnectClosesSource",
+        "pagingPinsRevisionAndForegroundStartsAgainAtPageOne",
+        "revisionOrDenialStopsVideoAndClearsAllOldMedia",
+        "staleVideoCallbackCannotCloseAReopenedVideo"
+      ]
+    },
+    {
+      "name": "dev.photohouse.home.CatalogWireTest",
+      "tests": 6,
+      "failures": 0,
+      "errors": 0,
+      "cases": [
+        "revisionPageOrderingAndCountMustMatch",
+        "rejectsMalformedUnknownDuplicateAndInvalidUtf8Json",
+        "fullHundredThousandAssetCatalogCanReachMiddleAndLastPages",
+        "explicitlyUnavailableVideoDoesNotInventAUrl",
+        "exactBackendFixturePreservesKindsAvailabilityAndVideoMetadata",
+        "rejectsPathEscapesProfilesBoundsAndUnavailableUrls"
+      ]
+    },
+    {
+      "name": "dev.photohouse.home.HomeHttpTest",
+      "tests": 7,
+      "failures": 0,
+      "errors": 0,
+      "cases": [
+        "missingDisplayIsNullWithoutFallback",
+        "exactRequestsCarryNoCredentialsAndDecode4k",
+        "redirectsDenialRevisionAndBusyAreClassified",
+        "rejectsWrongTypeCachingAndChunkedOverflow",
+        "cancellationStopsDelayedRead",
+        "platformTrustRejectsSyntheticCertificate",
+        "changedPreviewUrlNeverSendsARequest"
+      ]
+    },
+    {
+      "name": "dev.photohouse.home.HomeLanTest",
+      "tests": 6,
+      "failures": 0,
+      "errors": 0,
+      "cases": [
+        "mappedConnectionRejectsWrongCertificateHostname",
+        "mappedConnectionRetainsHttpsHostname",
+        "mappedClientUsesDirectRoutingAndDefaultTrustChecks",
+        "canonicalPrivateAddressesOnlyWithoutResolution",
+        "mappingIsExactAndNeverFallsBackToAnotherHost",
+        "mappedConnectionRejectsUntrustedCertificate"
+      ]
+    },
+    {
+      "name": "dev.photohouse.home.HomeStoreTest",
+      "tests": 10,
+      "failures": 0,
+      "errors": 0,
+      "cases": [
+        "unchangedMinuteRefreshKeepsDisplayAndChangedRevisionClears",
+        "unavailableStopsMediaAndAutomaticallyRecovers",
+        "staleDisplayCannotReturnAfterBackOrReconnect",
+        "jitterNeverExceedsMinuteAndServerFloorSurvivesReconnect",
+        "denialClearsAndDoesNotAutomaticallyRetry",
+        "coldStartForegroundAndDisconnectAreAnonymousAndClear",
+        "revisionConflictClearsAndRefetchesWithoutBusyLoop",
+        "staleNonCancellableFeedCannotRestoreAfterBackground",
+        "retryScheduleUsesAllFiveDelaysAndHonorsServerFloorAcrossForeground",
+        "missingDisplayRetainsFeedWithoutAnyOriginalFallback"
+      ]
+    },
+    {
+      "name": "dev.photohouse.home.HomeTest",
+      "tests": 6,
+      "failures": 0,
+      "errors": 0,
+      "cases": [
+        "strictJsonRejectsDuplicateUnknownWrongTypeAndDepth",
+        "previewRejectsHashDimensionsMetadataAndTrailingPayload",
+        "frozenFeedAndBothExactJpegs",
+        "canonicalOriginRejectsCredentialsCleartextPathsAndIp",
+        "retryAfterSecondsDateAndOverflow",
+        "metadataCannotEscapeRevisionOrEnableOriginals"
+      ]
+    },
+    {
+      "name": "dev.photohouse.home.HomeVideoReaderTest",
+      "tests": 6,
+      "failures": 0,
+      "errors": 0,
+      "cases": [
+        "invalidBufferArgumentsNeverFetchAndCloseTheSource",
+        "closeCancelsAnInflightReadWithoutCopyingOrReportingAnError",
+        "boundedRandomReadsPreserveOffsetsAndReturnEofWithoutFetching",
+        "shortAndOversizedChunksCloseAndReportOnlyOnce",
+        "concurrentNativeReadsAreSerialized",
+        "transportFailureReleasesAndRedactsTheNativeError"
+      ]
+    }
+  ]
+}

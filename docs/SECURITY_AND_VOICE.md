@@ -1,5 +1,11 @@
 # Security and voice design
 
+**Historical foundation document.** Platform/backend status statements below describe
+that handoff's baseline. For current Android implementation and remaining live gates,
+use [Android MVP status](../android/MVP_STATUS.md) and
+[pilot acceptance](../android/PILOT_ACCEPTANCE.md). Do not restart the Android
+foundation capsule or treat an earlier blocker as current without those records.
+
 Updated 2026-09-09. The separate backend foundation at
 `1e394f789ff1f7cef6d9930bb541186684f5a9a0` implements locally tested account/membership,
 protected browsing and offline recovery. Its 97 retired handlers remain unmounted;

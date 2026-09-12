@@ -1,0 +1,4 @@
+StarletteDeprecationWarning: Using httpx with starlette.testclient is deprecated (test-only existing warning).
+  from starlette.testclient import TestClient as TestClient  # noqa
+PASS pinned backend replay: 38 synthetic ASGI cases; no listeners/models/live data
+PASS frozen contract: 12 operations, 38 ASGI cases, 8 checksummed files

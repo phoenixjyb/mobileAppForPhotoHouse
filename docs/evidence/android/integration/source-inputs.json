@@ -1,0 +1,18 @@
+[
+  {
+    "path": "android/live-core/build.gradle.kts",
+    "sha256": "6642869996240cdbea7ce11549708a9e714f48319ea93cf2e77c76f1df067b78"
+  },
+  {
+    "path": "android/live-core/src/test/kotlin/dev/photohouse/connected/core/BackendIntegrationTest.kt",
+    "sha256": "866194f25e537f828e473c1790f56ef382993b95e977b34c32ac198cdd8c39b7"
+  },
+  {
+    "path": "android/integration/backend_server.py",
+    "sha256": "b43d9870ab541379b9db850c5a563940855084250df68c57bc4c884e3fa8f8c0"
+  },
+  {
+    "path": "android/integration/verify-backend.py",
+    "sha256": "64d7eead7c4c7b44ddb41c0fe034cc42bddc7c1b923e3e94f84442b29a81f065"
+  }
+]

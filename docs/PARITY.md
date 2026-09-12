@@ -1,5 +1,9 @@
 # Platform and backend parity
 
+**Historical foundation ledger.** Current Android phone/TV implementation and
+remaining capability differences are recorded in [Android parity](../android/PHONE_TV_PARITY.md).
+The table below is the 9 September foundation baseline, not current Android status.
+
 Updated 2026-09-09. Contract `1.0.0-fixture.1` is frozen for app work. Android and
 iOS remain **not implemented**. Backend source checkpoint:
 `1e394f789ff1f7cef6d9930bb541186684f5a9a0`; 198 local security tests, no deployment.

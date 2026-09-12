@@ -1,0 +1,4 @@
+package: dev.photohouse.tv
+uses-permission: name='android.permission.INTERNET'
+permission: dev.photohouse.tv.DYNAMIC_RECEIVER_NOT_EXPORTED_PERMISSION
+uses-permission: name='dev.photohouse.tv.DYNAMIC_RECEIVER_NOT_EXPORTED_PERMISSION'

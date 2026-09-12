@@ -1,0 +1,83 @@
+[
+  {
+    "module": "core",
+    "suite": "dev.photohouse.fixture.core.FixtureTest",
+    "tests": 22,
+    "failures": 0,
+    "errors": 0,
+    "skipped": 0,
+    "seconds": 0.191
+  },
+  {
+    "module": "live-core",
+    "suite": "dev.photohouse.connected.core.ConnectedStoreTest",
+    "tests": 32,
+    "failures": 0,
+    "errors": 0,
+    "skipped": 0,
+    "seconds": 0.133
+  },
+  {
+    "module": "live-core",
+    "suite": "dev.photohouse.connected.core.HttpsApiTest",
+    "tests": 19,
+    "failures": 0,
+    "errors": 0,
+    "skipped": 0,
+    "seconds": 1.834
+  },
+  {
+    "module": "live-core",
+    "suite": "dev.photohouse.connected.core.ReadinessAdapterTest",
+    "tests": 5,
+    "failures": 0,
+    "errors": 0,
+    "skipped": 0,
+    "seconds": 0.005
+  },
+  {
+    "module": "live-core",
+    "suite": "dev.photohouse.connected.core.TvPreviewTest",
+    "tests": 6,
+    "failures": 0,
+    "errors": 0,
+    "skipped": 0,
+    "seconds": 0.006
+  },
+  {
+    "module": "live-core",
+    "suite": "dev.photohouse.connected.core.VideoReaderTest",
+    "tests": 3,
+    "failures": 0,
+    "errors": 0,
+    "skipped": 0,
+    "seconds": 0.006
+  },
+  {
+    "module": "home-core",
+    "suite": "dev.photohouse.home.HomeHttpTest",
+    "tests": 7,
+    "failures": 0,
+    "errors": 0,
+    "skipped": 0,
+    "seconds": 1.745
+  },
+  {
+    "module": "home-core",
+    "suite": "dev.photohouse.home.HomeStoreTest",
+    "tests": 10,
+    "failures": 0,
+    "errors": 0,
+    "skipped": 0,
+    "seconds": 0.042
+  },
+  {
+    "module": "home-core",
+    "suite": "dev.photohouse.home.HomeTest",
+    "tests": 6,
+    "failures": 0,
+    "errors": 0,
+    "skipped": 0,
+    "seconds": 0.02
+  }
+]

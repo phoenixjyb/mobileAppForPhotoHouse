@@ -1,0 +1,41 @@
+{
+  "source_commit": "6077904f4d2b5c160e600f88a44dc11c396bbcaa",
+  "package": "dev.photohouse.tv",
+  "version_code": 5,
+  "version_name": "0.5-tv-catalog-dev",
+  "artifacts": [
+    {
+      "filename": "tv-v1-unconfigured-v5-6077904.apk",
+      "sha256": "7cf8ab01cf0827a290fa40a590cae01b705c8c1bb32fa5c89bc261a3336b77a6",
+      "bytes": 8900926,
+      "catalog_version": 1,
+      "configured_origin": false,
+      "lan_mapping": false,
+      "signer_sha256": "56d7591b2b6c2538d506d1fe51327444f2307736cb12f5beefa08f1c410d6d28",
+      "synthetic_assets_in_application": false
+    },
+    {
+      "filename": "PhotoHouse-TV-catalog-v5-unconfigured.apk",
+      "sha256": "12daa39b2f4c85d92b8bab86cf8cf68c5ea8064a28e34ea26ab9b8836aed3af9",
+      "bytes": 8900932,
+      "catalog_version": 2,
+      "configured_origin": false,
+      "lan_mapping": false,
+      "signer_sha256": "56d7591b2b6c2538d506d1fe51327444f2307736cb12f5beefa08f1c410d6d28",
+      "synthetic_assets_in_application": false
+    },
+    {
+      "filename": "PhotoHouse-TV-home-v5.apk",
+      "sha256": "9520d3a119334b083747c200747f00d5cd0956a2c221082371ea45e747941d32",
+      "bytes": 8900979,
+      "catalog_version": 1,
+      "configured_origin": true,
+      "lan_mapping": true,
+      "signer_sha256": "56d7591b2b6c2538d506d1fe51327444f2307736cb12f5beefa08f1c410d6d28",
+      "synthetic_assets_in_application": false
+    }
+  ],
+  "unconfigured_v1_sha256": "7cf8ab01cf0827a290fa40a590cae01b705c8c1bb32fa5c89bc261a3336b77a6",
+  "installed_on_projector": false,
+  "live_v2_origin": false
+}

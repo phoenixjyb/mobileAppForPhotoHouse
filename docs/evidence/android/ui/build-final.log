@@ -1,0 +1,107 @@
+To honour the JVM settings for this build a single-use Daemon process will be forked. For more on this, please refer to https://docs.gradle.org/8.10.2/userguide/gradle_daemon.html#sec:disabling_the_daemon in the Gradle documentation.
+Daemon will be stopped at the end of the build
+> Task :connected:preBuild UP-TO-DATE
+> Task :connected:preDebugBuild UP-TO-DATE
+> Task :connected:mergeDebugNativeDebugMetadata NO-SOURCE
+> Task :live-core:checkKotlinGradlePluginConfigurationErrors
+> Task :protocol:checkKotlinGradlePluginConfigurationErrors
+> Task :protocol:compileKotlin UP-TO-DATE
+> Task :protocol:compileJava NO-SOURCE
+> Task :live-core:compileKotlin UP-TO-DATE
+> Task :live-core:compileJava NO-SOURCE
+> Task :live-core:processResources NO-SOURCE
+> Task :live-core:classes UP-TO-DATE
+> Task :live-core:jar UP-TO-DATE
+> Task :protocol:processResources NO-SOURCE
+> Task :protocol:classes UP-TO-DATE
+> Task :protocol:jar UP-TO-DATE
+> Task :connected:checkKotlinGradlePluginConfigurationErrors
+> Task :connected:generateDebugBuildConfig UP-TO-DATE
+> Task :connected:checkDebugAarMetadata UP-TO-DATE
+> Task :connected:generateDebugResValues UP-TO-DATE
+> Task :connected:mapDebugSourceSetPaths UP-TO-DATE
+> Task :connected:generateDebugResources UP-TO-DATE
+> Task :connected:mergeDebugResources UP-TO-DATE
+> Task :connected:packageDebugResources UP-TO-DATE
+> Task :connected:parseDebugLocalResources UP-TO-DATE
+> Task :connected:createDebugCompatibleScreenManifests UP-TO-DATE
+> Task :connected:extractDeepLinksDebug UP-TO-DATE
+> Task :connected:processDebugMainManifest UP-TO-DATE
+> Task :connected:processDebugManifest UP-TO-DATE
+> Task :connected:processDebugManifestForPackage UP-TO-DATE
+> Task :connected:processDebugResources UP-TO-DATE
+> Task :connected:javaPreCompileDebug UP-TO-DATE
+> Task :connected:mergeDebugShaders UP-TO-DATE
+> Task :connected:compileDebugShaders NO-SOURCE
+> Task :connected:generateDebugAssets UP-TO-DATE
+> Task :connected:mergeDebugAssets UP-TO-DATE
+> Task :connected:compressDebugAssets UP-TO-DATE
+> Task :connected:desugarDebugFileDependencies UP-TO-DATE
+> Task :connected:checkDebugDuplicateClasses UP-TO-DATE
+> Task :connected:mergeDebugStartupProfile UP-TO-DATE
+> Task :connected:mergeExtDexDebug UP-TO-DATE
+> Task :connected:mergeLibDexDebug UP-TO-DATE
+> Task :connected:mergeDebugJniLibFolders UP-TO-DATE
+> Task :connected:mergeDebugNativeLibs NO-SOURCE
+> Task :connected:stripDebugDebugSymbols NO-SOURCE
+> Task :connected:validateSigningDebug UP-TO-DATE
+> Task :connected:writeDebugAppMetadata UP-TO-DATE
+> Task :connected:writeDebugSigningConfigVersions UP-TO-DATE
+> Task :connected:preDebugAndroidTestBuild SKIPPED
+> Task :connected:processDebugAndroidTestManifest UP-TO-DATE
+> Task :connected:generateDebugAndroidTestBuildConfig UP-TO-DATE
+> Task :connected:checkDebugAndroidTestAarMetadata UP-TO-DATE
+> Task :connected:generateDebugAndroidTestResValues UP-TO-DATE
+> Task :connected:mapDebugAndroidTestSourceSetPaths UP-TO-DATE
+> Task :connected:generateDebugAndroidTestResources UP-TO-DATE
+> Task :connected:mergeDebugAndroidTestResources UP-TO-DATE
+> Task :connected:processDebugAndroidTestResources UP-TO-DATE
+> Task :connected:javaPreCompileDebugAndroidTest UP-TO-DATE
+> Task :connected:mergeDebugAndroidTestShaders UP-TO-DATE
+> Task :connected:compileDebugAndroidTestShaders NO-SOURCE
+> Task :connected:generateDebugAndroidTestAssets UP-TO-DATE
+> Task :connected:mergeDebugAndroidTestAssets UP-TO-DATE
+> Task :connected:compressDebugAndroidTestAssets UP-TO-DATE
+> Task :connected:desugarDebugAndroidTestFileDependencies UP-TO-DATE
+> Task :connected:checkDebugAndroidTestDuplicateClasses UP-TO-DATE
+> Task :connected:mergeExtDexDebugAndroidTest UP-TO-DATE
+> Task :connected:mergeLibDexDebugAndroidTest UP-TO-DATE
+> Task :connected:mergeDebugAndroidTestJniLibFolders UP-TO-DATE
+> Task :connected:mergeDebugAndroidTestNativeLibs NO-SOURCE
+> Task :connected:stripDebugAndroidTestDebugSymbols NO-SOURCE
+> Task :connected:validateSigningDebugAndroidTest UP-TO-DATE
+> Task :connected:writeDebugAndroidTestSigningConfigVersions UP-TO-DATE
+> Task :connected:extractProguardFiles UP-TO-DATE
+> Task :connected:preDebugUnitTestBuild UP-TO-DATE
+> Task :connected:compileDebugKotlin
+> Task :connected:compileDebugJavaWithJavac UP-TO-DATE
+> Task :connected:dexBuilderDebug
+> Task :connected:mergeDebugGlobalSynthetics UP-TO-DATE
+> Task :connected:processDebugJavaRes UP-TO-DATE
+> Task :connected:mergeDebugJavaResource UP-TO-DATE
+> Task :connected:bundleDebugClassesToCompileJar
+> Task :connected:mergeProjectDexDebug
+> Task :connected:packageDebug
+> Task :connected:createDebugApkListingFileRedirect UP-TO-DATE
+> Task :connected:assembleDebug
+> Task :connected:generateDebugAndroidTestLintModel
+> Task :connected:generateDebugLintReportModel
+> Task :connected:generateDebugUnitTestLintModel
+> Task :connected:compileDebugAndroidTestKotlin
+> Task :connected:compileDebugAndroidTestJavaWithJavac UP-TO-DATE
+> Task :connected:dexBuilderDebugAndroidTest
+> Task :connected:mergeDebugAndroidTestGlobalSynthetics UP-TO-DATE
+> Task :connected:processDebugAndroidTestJavaRes UP-TO-DATE
+> Task :connected:mergeDebugAndroidTestJavaResource UP-TO-DATE
+> Task :connected:mergeProjectDexDebugAndroidTest
+> Task :connected:packageDebugAndroidTest
+> Task :connected:createDebugAndroidTestApkListingFileRedirect UP-TO-DATE
+> Task :connected:assembleDebugAndroidTest
+> Task :connected:lintAnalyzeDebugAndroidTest
+> Task :connected:lintAnalyzeDebugUnitTest
+> Task :connected:lintAnalyzeDebug
+> Task :connected:lintReportDebug UP-TO-DATE
+> Task :connected:lintDebug
+
+BUILD SUCCESSFUL in 21s
+81 actionable tasks: 19 executed, 62 up-to-date

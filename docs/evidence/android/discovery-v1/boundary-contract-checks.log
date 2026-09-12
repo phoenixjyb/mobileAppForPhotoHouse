@@ -1,0 +1,4 @@
+PASS independent home-feed pin, exact contract and synthetic fixtures; protected phone pin unchanged
+PASS v2 pin, 16-input manifest, contract/example and test-only video; explicit version selection
+PASS independent discovery pin, contract/schema/examples and 19-input manifest; v2 pin unchanged
+PASS TV launcher/no-touch, system TLS, privacy lifecycle, no fixture or persistent storage, separate origin and debug-only build

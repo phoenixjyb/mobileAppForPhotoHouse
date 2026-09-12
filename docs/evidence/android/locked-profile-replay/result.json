@@ -1,0 +1,75 @@
+{
+  "task": "PH-ANDROID-LOCKED-PROFILE-REPLAY-01",
+  "mobile_base": "ad6b9d9e079383c7e062fe4ba8138117022dc0e3",
+  "backend_pin": "87a60b475b37b1d6873cd977bcb6e7254472da7e",
+  "actual_in_process_asgi_cases": 38,
+  "exact_frozen_comparison": "pass",
+  "contract_operations": 12,
+  "contract_checksums": 8,
+  "fixture": {
+    "path": "scripts/fixtures/replay-8x8.jpg",
+    "bytes": 632,
+    "sha256": "c311363ddcc33e304b4f657d7fb3353c839bcdbdb9bdbd09bea62b1152fac42d",
+    "input": "8x8 RGB (160,180,140)",
+    "one_time_generator": "existing Pillow 12.1.1; JPEG codec 6.2",
+    "historical_original_and_thumbnail_file_save_equality": true
+  },
+  "focused_regressions": {
+    "passed": 12,
+    "new": 4
+  },
+  "harness_sha256": "2fadd4f7a7be223e28f9d1e6291c157d34f2aabe8f1e8effefe6af5e3100de4b",
+  "regressions_sha256": "90b94742c7cd1002f9d7c91b1ddaf1cf9b9a975e24fbac0c978197835b283bde",
+  "environment": {
+    "certificate_checked": false,
+    "deployment_approved": false,
+    "environment_check": "pass",
+    "installed_wheel_bytes_verified": false,
+    "issues": [],
+    "listener_started": false,
+    "lock_sha256": "ded98cb724b9ad408683824bab31c249fbf1a905658dbfc90776bce07ce1c1c5",
+    "openssl": "OpenSSL 3.5.4 30 Sep 2025",
+    "packages": 21,
+    "profile": "test",
+    "python": "3.12.12",
+    "real_database_accessed": false,
+    "scrypt_application_cost": true,
+    "scrypt_known_answer": true,
+    "sqlite": "3.50.4",
+    "sqlite_foreign_keys": true,
+    "target": "macos-arm64-test",
+    "tls_1_2_context": true,
+    "windows_execution_verified": false
+  },
+  "locks": {
+    "requirements-access.lock": "b4e4e92f67dd3740986494ff3c8cc4b10557fd41329efee030dda03e05897a42",
+    "requirements-access-test.lock": "ded98cb724b9ad408683824bab31c249fbf1a905658dbfc90776bce07ce1c1c5"
+  },
+  "contracts_v1_sha256": {
+    "CONTRACT.md": "bb5924cd8b240da40102cebd2586e41fb35156de99afbc327c682bef685cfbf9",
+    "client-scenarios.json": "893b20887e1427497dadf47abda5cb9401d0feb627adc80eb40fb8f48df02bee",
+    "fixtures.json": "146ccc3885fab73ae2dbfa57166027ed1235c658ce35b166889e44e5681da6a1",
+    "manifest.json": "69a058e5e9d8ffa889b6c52e5339a7ddf755dc6c7dd2aa7591e0133b4f8483e6",
+    "media/amber.png": "4de87cd21c6c2078583b97998902e66918b5dddea43a2be35524ff3a6d745be1",
+    "media/amber.svg": "0c8762afc9150632f99d62ee0b65ee3c8687eff7e9fb7c8d44d6364c5d7e803b",
+    "media/blue.png": "77b997ec08452046d7f9930ab953feddddd03179ed4240d4ee2b3aa7ee7d567c",
+    "media/blue.svg": "6b46cd8cd422ae5bd8f8625b0b29e3963c429ec10f795ca65c5426803c3bd40a",
+    "openapi.json": "0b99bd505f7e1f9584180be7ab6d8b341d271cba0df7507fe04ccaade459fcfc"
+  },
+  "latest_backend_report": {
+    "commit": "5103abdd0861c2dbb7553d6edeccddbb170deed7",
+    "matching_http_source_hashes": 10,
+    "security_tests_reported": 277,
+    "rerun_by_mobile": false,
+    "package_sha256_reported": "bcb7767f9493084c0a1b9c6bf0f9401f2d9c20b4998291a99be25ba0d287ebe1"
+  },
+  "limitations": [
+    "no Kotlin-to-backend TLS replay",
+    "no APK/build or device run",
+    "no Windows/service/ingress validation",
+    "no real origin, credentials or data",
+    "no package installation or backend writes",
+    "no push or merge"
+  ],
+  "historical_blocker_evidence": "../pipeline-readiness-02/RETURN.md (preserved unchanged)"
+}

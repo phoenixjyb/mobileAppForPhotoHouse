@@ -1,0 +1,36 @@
+{
+  "task": "PH-ANDROID-MVP-COMPLETION-01",
+  "base": "5773ec27db19012dd5d6de3d2717b2d781e6d664",
+  "local_mvp_source_complete": true,
+  "live_pipeline_accepted": false,
+  "new_implementation_or_tests": false,
+  "validation": "documentation, evidence/source identity and preservation checks only",
+  "unchanged_compiled_source_hashes": 12,
+  "frozen_file_hashes": 9,
+  "checked_local_links": 57,
+  "checked_test_method_references": 22,
+  "unchanged_production_inputs_since_ui": true,
+  "historical_returns_preserved": true,
+  "retained_pass_evidence": {
+    "jvm": 62,
+    "actual_pinned_backend_in_process": 38,
+    "verifier_regressions": 12,
+    "prior_emulator_per_font_scale": 9
+  },
+  "rerun_this_slice": {
+    "jvm": false,
+    "backend": false,
+    "verifier": false,
+    "build": false,
+    "device": false
+  },
+  "backend_checkpoint_reported": "ceff3ab7ea89020b8909eff988177fa65a196179",
+  "coordinator_inputs_in_order": [
+    "reviewed backend release/cutover/Windows/launcher/ingress",
+    "served HTTPS identity and approved route",
+    "synthetic audience/library/previews with originals off",
+    "configured artifact build authorization and identity",
+    "phone/operator authorization and scenario acceptance",
+    "outside-home route and family acceptance if required"
+  ]
+}

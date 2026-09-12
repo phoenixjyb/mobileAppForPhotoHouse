@@ -1,0 +1,47 @@
+[
+  {
+    "task": "test",
+    "name": "dev.photohouse.home.HomeHttpTest",
+    "tests": 7,
+    "failures": 0,
+    "errors": 0,
+    "skipped": 0,
+    "seconds": 1.376
+  },
+  {
+    "task": "test",
+    "name": "dev.photohouse.home.HomeLanTest",
+    "tests": 6,
+    "failures": 0,
+    "errors": 0,
+    "skipped": 0,
+    "seconds": 0.358
+  },
+  {
+    "task": "test",
+    "name": "dev.photohouse.home.HomeStoreTest",
+    "tests": 10,
+    "failures": 0,
+    "errors": 0,
+    "skipped": 0,
+    "seconds": 0.04
+  },
+  {
+    "task": "test",
+    "name": "dev.photohouse.home.HomeTest",
+    "tests": 6,
+    "failures": 0,
+    "errors": 0,
+    "skipped": 0,
+    "seconds": 0.021
+  },
+  {
+    "task": "lanPilotTest",
+    "name": "dev.photohouse.home.HomeLanPilotTest",
+    "tests": 1,
+    "failures": 0,
+    "errors": 0,
+    "skipped": 0,
+    "seconds": 0.477
+  }
+]

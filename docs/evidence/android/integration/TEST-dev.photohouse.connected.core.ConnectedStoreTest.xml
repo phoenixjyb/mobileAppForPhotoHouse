@@ -1,0 +1,18 @@
+<?xml version='1.0' encoding='utf-8'?>
+<testsuite name="dev.photohouse.connected.core.ConnectedStoreTest" tests="14" skipped="0" failures="0" errors="0" timestamp="2026-09-09T11:26:42" time="0.337">
+  <properties />
+  <testcase name="lateAuthenticationCannotUncoverAfterBackground" classname="dev.photohouse.connected.core.ConnectedStoreTest" time="0.257" />
+  <testcase name="expiryClearsWithoutWaitingForAnotherUserAction" classname="dev.photohouse.connected.core.ConnectedStoreTest" time="0.012" />
+  <testcase name="malformedIdentityOnForegroundRemainsCovered" classname="dev.photohouse.connected.core.ConnectedStoreTest" time="0.005" />
+  <testcase name="session401SignsOutAnd503KeepsCoverForExplicitRetry" classname="dev.photohouse.connected.core.ConnectedStoreTest" time="0.005" />
+  <testcase name="signInRechecksOwnSessionAndClosedMembershipNeverReads" classname="dev.photohouse.connected.core.ConnectedStoreTest" time="0.003" />
+  <testcase name="missingThumbnailAndLiteralCaptionsAreNotOriginalOrHtmlFallbacks" classname="dev.photohouse.connected.core.ConnectedStoreTest" time="0.007" />
+  <testcase name="invitationAcceptanceRefetchesMembershipAndDoesNotReplayMutation" classname="dev.photohouse.connected.core.ConnectedStoreTest" time="0.006" />
+  <testcase name="logoutFailureIsLocalAndLateAcknowledgementCannotReplaceNewAccount" classname="dev.photohouse.connected.core.ConnectedStoreTest" time="0.009" />
+  <testcase name="galleryPagesDeduplicateAndBoundMemory" classname="dev.photohouse.connected.core.ConnectedStoreTest" time="0.011" />
+  <testcase name="object401RechecksOnceWithoutRetryingForeignRead" classname="dev.photohouse.connected.core.ConnectedStoreTest" time="0.004" />
+  <testcase name="backgroundClearsPrivateStateAndRevalidatesBeforeUncovering" classname="dev.photohouse.connected.core.ConnectedStoreTest" time="0.004" />
+  <testcase name="invitedRegistrationAndColdStartAreIndependentOfFixtureState" classname="dev.photohouse.connected.core.ConnectedStoreTest" time="0.003" />
+  <testcase name="rateLimitSurvivesNavigationAndRequiresExplicitRetry" classname="dev.photohouse.connected.core.ConnectedStoreTest" time="0.003" />
+  <testcase name="lateGalleryCannotCrossLibraryOrLogoutGeneration" classname="dev.photohouse.connected.core.ConnectedStoreTest" time="0.005" />
+  </testsuite>

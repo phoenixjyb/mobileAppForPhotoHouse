@@ -1,0 +1,44 @@
+{
+  "source_commit": "0e9ba816dc1cb0324744d7ad03351c1f1e39d311",
+  "package": "dev.photohouse.tv",
+  "version_code": 6,
+  "version_name": "0.6-tv-discovery-dev",
+  "artifacts": [
+    {
+      "filename": "tv-v1-unconfigured-v6-0e9ba81.apk",
+      "sha256": "6d4a21aa80cf4fed16615a80e87e19e726d4910c35192308e01cfa675ccb2857",
+      "bytes": 9019514,
+      "catalog_version": 1,
+      "discovery_enabled": false,
+      "configured_origin": false,
+      "lan_mapping": false,
+      "signer_sha256": "56d7591b2b6c2538d506d1fe51327444f2307736cb12f5beefa08f1c410d6d28",
+      "synthetic_assets_in_application": false
+    },
+    {
+      "filename": "PhotoHouse-TV-discovery-v6-unconfigured.apk",
+      "sha256": "792f9a28b9bf3c4a3ffd3798292f21711ea5c8f28a3cd549ecbbda2f397aba83",
+      "bytes": 9019697,
+      "catalog_version": 2,
+      "discovery_enabled": true,
+      "configured_origin": false,
+      "lan_mapping": false,
+      "signer_sha256": "56d7591b2b6c2538d506d1fe51327444f2307736cb12f5beefa08f1c410d6d28",
+      "synthetic_assets_in_application": false
+    },
+    {
+      "filename": "PhotoHouse-TV-home-v6.apk",
+      "sha256": "ae8f6f194f4e9d0f72c51f146af68ecded4a940258f4087aabf27ae76aeef38a",
+      "bytes": 9019601,
+      "catalog_version": 1,
+      "discovery_enabled": false,
+      "configured_origin": true,
+      "lan_mapping": true,
+      "signer_sha256": "56d7591b2b6c2538d506d1fe51327444f2307736cb12f5beefa08f1c410d6d28",
+      "synthetic_assets_in_application": false
+    }
+  ],
+  "unconfigured_v1_sha256": "6d4a21aa80cf4fed16615a80e87e19e726d4910c35192308e01cfa675ccb2857",
+  "installed_on_projector": false,
+  "live_v2_origin": false
+}

@@ -1,0 +1,8 @@
+JUnit version 4.13.2
+..............................................................
+Time: 0.29
+
+OK (62 tests)
+
+WARNING: A command line option has enabled the Security Manager
+WARNING: The Security Manager is deprecated and will be removed in a future release

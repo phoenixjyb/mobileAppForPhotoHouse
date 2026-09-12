@@ -1,0 +1,56 @@
+{
+  "task": "PH-ANDROID-WINDOWS-STAGING-BUILD-01",
+  "source_commit": "90e296922e3c84b35a93abda7d6fc1d2c53808fb",
+  "backend_release": "f15e50753a09b46c8b8748ec87a26f15853bcf0c",
+  "frozen_api_pin": "87a60b475b37b1d6873cd977bcb6e7254472da7e",
+  "backend_pinned_source_matches": 10,
+  "apk_sha256": "22c20ea2f5de6aec7edef61429256a57083798e7c8d182a42790eafaa70bc2c3",
+  "apk_bytes": 8833542,
+  "signer_certificate_sha256": "56d7591b2b6c2538d506d1fe51327444f2307736cb12f5beefa08f1c410d6d28",
+  "signature_verified": "v2",
+  "package": "dev.photohouse.connected",
+  "version_code": 1,
+  "version_name": "0.2-connected-dev",
+  "min_sdk": 26,
+  "target_sdk": 34,
+  "build": "PASS: 54 executed tasks in 28 seconds; offline connected lintDebug and assembleDebug",
+  "lint_errors": 0,
+  "lint_warnings": [
+    {
+      "id": "ExifInterface",
+      "severity": "Warning"
+    },
+    {
+      "id": "OldTargetApi",
+      "severity": "Warning"
+    }
+  ],
+  "private_origin_matches_generated_config_and_packaged_dex": true,
+  "apk_assets_count": 0,
+  "packaged_system_trust_only": true,
+  "packaged_cleartext_and_backup_disabled": true,
+  "java_version": "openjdk version \"17.0.20.1\" 2026-08-18",
+  "gradle": "8.10.2",
+  "agp": "8.5.2",
+  "kotlin": "1.9.24",
+  "android_build_tools": "34.0.0",
+  "fresh_checks": [
+    "frozen contract checksum and 38 stored ASGI fixtures validated (no fresh replay)",
+    "10 pinned backend source hashes match both frozen and deployed commits",
+    "connected boundary guard",
+    "APK package, SDK, permissions, trust, origin and signature checks"
+  ],
+  "not_run": [
+    "new JVM suite",
+    "ASGI or HTTPS replay",
+    "backend requests",
+    "emulator or physical device installation/run"
+  ],
+  "remaining": [
+    "selected phone and acceptance operator",
+    "normal phone DNS/network route",
+    "private pilot input delivery with fresh invitation if expired",
+    "installed-artifact and acceptance matrix evidence",
+    "backend certificate renewal/reload automation and managed startup"
+  ]
+}

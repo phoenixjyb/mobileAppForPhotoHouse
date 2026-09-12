@@ -1,0 +1,46 @@
+Downloading https://services.gradle.org/distributions/gradle-8.10.2-bin.zip
+.............10%.............20%.............30%.............40%.............50%.............60%.............70%.............80%.............90%.............100%
+> Task :live-core:checkKotlinGradlePluginConfigurationErrors
+> Task :protocol:checkKotlinGradlePluginConfigurationErrors
+> Task :live-core:processResources NO-SOURCE
+> Task :protocol:processResources NO-SOURCE
+> Task :connected:checkKotlinGradlePluginConfigurationErrors
+> Task :connected:preBuild UP-TO-DATE
+> Task :connected:preDebugBuild UP-TO-DATE
+> Task :connected:generateDebugBuildConfig
+> Task :connected:checkDebugAarMetadata
+> Task :connected:generateDebugResValues
+> Task :connected:mapDebugSourceSetPaths
+> Task :connected:generateDebugResources
+> Task :protocol:compileKotlin
+> Task :protocol:compileJava NO-SOURCE
+> Task :connected:mergeDebugResources
+> Task :protocol:classes UP-TO-DATE
+> Task :protocol:jar
+> Task :connected:packageDebugResources
+> Task :connected:parseDebugLocalResources
+> Task :connected:createDebugCompatibleScreenManifests
+> Task :connected:extractDeepLinksDebug
+> Task :connected:processDebugMainManifest
+> Task :connected:processDebugManifest
+> Task :connected:processDebugManifestForPackage
+> Task :connected:processDebugResources
+> Task :live-core:processTestResources
+> Task :live-core:compileKotlin
+> Task :live-core:compileJava NO-SOURCE
+> Task :live-core:classes UP-TO-DATE
+> Task :live-core:jar
+
+> Task :live-core:compileTestKotlin
+w: file:///Users/yanbo/Projects/mobileAppForPhotoHouse-android-phone-parity/android/live-core/src/test/kotlin/dev/photohouse/connected/core/BackendIntegrationTest.kt:27:17 Lateinit is unnecessary: definitely initialized in constructors
+w: file:///Users/yanbo/Projects/mobileAppForPhotoHouse-android-phone-parity/android/live-core/src/test/kotlin/dev/photohouse/connected/core/BackendIntegrationTest.kt:28:17 Lateinit is unnecessary: definitely initialized in constructors
+w: file:///Users/yanbo/Projects/mobileAppForPhotoHouse-android-phone-parity/android/live-core/src/test/kotlin/dev/photohouse/connected/core/BackendIntegrationTest.kt:29:17 Lateinit is unnecessary: definitely initialized in constructors
+w: file:///Users/yanbo/Projects/mobileAppForPhotoHouse-android-phone-parity/android/live-core/src/test/kotlin/dev/photohouse/connected/core/BackendIntegrationTest.kt:30:9 Lateinit is unnecessary: definitely initialized in constructors
+
+> Task :live-core:compileTestJava NO-SOURCE
+> Task :live-core:testClasses
+> Task :connected:compileDebugKotlin
+> Task :live-core:test
+
+BUILD SUCCESSFUL in 24s
+25 actionable tasks: 25 executed

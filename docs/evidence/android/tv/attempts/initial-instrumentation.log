@@ -1,0 +1,322 @@
+INSTRUMENTATION_STATUS: class=dev.photohouse.tv.TvUiTest
+INSTRUMENTATION_STATUS: current=1
+INSTRUMENTATION_STATUS: id=AndroidJUnitRunner
+INSTRUMENTATION_STATUS: numtests=7
+INSTRUMENTATION_STATUS: stream=
+dev.photohouse.tv.TvUiTest:
+INSTRUMENTATION_STATUS: test=decoderPreserves4kAndBoundsLargerOrMalformedInputs
+INSTRUMENTATION_STATUS_CODE: 1
+INSTRUMENTATION_STATUS: class=dev.photohouse.tv.TvUiTest
+INSTRUMENTATION_STATUS: current=1
+INSTRUMENTATION_STATUS: id=AndroidJUnitRunner
+INSTRUMENTATION_STATUS: numtests=7
+INSTRUMENTATION_STATUS: stream=.
+INSTRUMENTATION_STATUS: test=decoderPreserves4kAndBoundsLargerOrMalformedInputs
+INSTRUMENTATION_STATUS_CODE: 0
+INSTRUMENTATION_STATUS: class=dev.photohouse.tv.TvUiTest
+INSTRUMENTATION_STATUS: current=2
+INSTRUMENTATION_STATUS: id=AndroidJUnitRunner
+INSTRUMENTATION_STATUS: numtests=7
+INSTRUMENTATION_STATUS: stream=
+INSTRUMENTATION_STATUS: test=fullScreenRemoteNavigationAndPrivacyClearImages
+INSTRUMENTATION_STATUS_CODE: 1
+INSTRUMENTATION_STATUS: class=dev.photohouse.tv.TvUiTest
+INSTRUMENTATION_STATUS: current=2
+INSTRUMENTATION_STATUS: id=AndroidJUnitRunner
+INSTRUMENTATION_STATUS: numtests=7
+INSTRUMENTATION_STATUS: stack=androidx.compose.ui.test.ComposeTimeoutException: Condition still not satisfied after 5000 ms
+	at androidx.compose.ui.test.AndroidComposeUiTestEnvironment$AndroidComposeUiTestImpl.waitUntil(ComposeUiTest.android.kt:431)
+	at androidx.compose.ui.test.junit4.AndroidComposeTestRule.waitUntil(AndroidComposeTestRule.android.kt:306)
+	at dev.photohouse.tv.TvUiTest.fullScreenRemoteNavigationAndPrivacyClearImages(TvUiTest.kt:110)
+
+INSTRUMENTATION_STATUS: stream=
+Error in fullScreenRemoteNavigationAndPrivacyClearImages(dev.photohouse.tv.TvUiTest):
+androidx.compose.ui.test.ComposeTimeoutException: Condition still not satisfied after 5000 ms
+	at androidx.compose.ui.test.AndroidComposeUiTestEnvironment$AndroidComposeUiTestImpl.waitUntil(ComposeUiTest.android.kt:431)
+	at androidx.compose.ui.test.junit4.AndroidComposeTestRule.waitUntil(AndroidComposeTestRule.android.kt:306)
+	at dev.photohouse.tv.TvUiTest.fullScreenRemoteNavigationAndPrivacyClearImages(TvUiTest.kt:110)
+
+INSTRUMENTATION_STATUS: test=fullScreenRemoteNavigationAndPrivacyClearImages
+INSTRUMENTATION_STATUS_CODE: -2
+INSTRUMENTATION_STATUS: class=dev.photohouse.tv.TvUiTest
+INSTRUMENTATION_STATUS: current=3
+INSTRUMENTATION_STATUS: id=AndroidJUnitRunner
+INSTRUMENTATION_STATUS: numtests=7
+INSTRUMENTATION_STATUS: stream=
+INSTRUMENTATION_STATUS: test=setupIsClosedAndWindowRemainsSecure
+INSTRUMENTATION_STATUS_CODE: 1
+INSTRUMENTATION_STATUS: class=dev.photohouse.tv.TvUiTest
+INSTRUMENTATION_STATUS: current=3
+INSTRUMENTATION_STATUS: id=AndroidJUnitRunner
+INSTRUMENTATION_STATUS: numtests=7
+INSTRUMENTATION_STATUS: stream=.
+INSTRUMENTATION_STATUS: test=setupIsClosedAndWindowRemainsSecure
+INSTRUMENTATION_STATUS_CODE: 0
+INSTRUMENTATION_STATUS: class=dev.photohouse.tv.TvUiTest
+INSTRUMENTATION_STATUS: current=4
+INSTRUMENTATION_STATUS: id=AndroidJUnitRunner
+INSTRUMENTATION_STATUS: numtests=7
+INSTRUMENTATION_STATUS: stream=
+INSTRUMENTATION_STATUS: test=invitedRegistrationClearsInputs
+INSTRUMENTATION_STATUS_CODE: 1
+INSTRUMENTATION_STATUS: class=dev.photohouse.tv.TvUiTest
+INSTRUMENTATION_STATUS: current=4
+INSTRUMENTATION_STATUS: id=AndroidJUnitRunner
+INSTRUMENTATION_STATUS: numtests=7
+INSTRUMENTATION_STATUS: stream=.
+INSTRUMENTATION_STATUS: test=invitedRegistrationClearsInputs
+INSTRUMENTATION_STATUS_CODE: 0
+INSTRUMENTATION_STATUS: class=dev.photohouse.tv.TvUiTest
+INSTRUMENTATION_STATUS: current=5
+INSTRUMENTATION_STATUS: id=AndroidJUnitRunner
+INSTRUMENTATION_STATUS: numtests=7
+INSTRUMENTATION_STATUS: stream=
+INSTRUMENTATION_STATUS: test=originalModeRequiresExplicitActionAndLogoutClearsIt
+INSTRUMENTATION_STATUS_CODE: 1
+INSTRUMENTATION_STATUS: class=dev.photohouse.tv.TvUiTest
+INSTRUMENTATION_STATUS: current=5
+INSTRUMENTATION_STATUS: id=AndroidJUnitRunner
+INSTRUMENTATION_STATUS: numtests=7
+INSTRUMENTATION_STATUS: stack=java.lang.IllegalStateException:
+   FocusRequester is not initialized. Here are some possible fixes:
+
+   1. Remember the FocusRequester: val focusRequester = remember { FocusRequester() }
+   2. Did you forget to add a Modifier.focusRequester() ?
+   3. Are you attempting to request focus during composition? Focus requests should be made in
+   response to some event. Eg Modifier.clickable { focusRequester.requestFocus() }
+
+	at androidx.compose.ui.focus.FocusRequester.focus$ui_release(FocusRequester.kt:259)
+	at androidx.compose.ui.focus.FocusRequester.requestFocus(FocusRequester.kt:65)
+	at dev.photohouse.tv.TvAppKt$TvApp$7$5$1.invokeSuspend(TvApp.kt:110)
+	at kotlin.coroutines.jvm.internal.BaseContinuationImpl.resumeWith(ContinuationImpl.kt:33)
+	at androidx.compose.ui.test.ApplyingContinuationInterceptor$SendApplyContinuation.resumeWith(ApplyingContinuationInterceptor.kt:65)
+	at androidx.compose.ui.test.FrameDeferringContinuationInterceptor$TrampolinedTask.resume(FrameDeferringContinuationInterceptor.jvm.kt:137)
+	at androidx.compose.ui.test.FrameDeferringContinuationInterceptor.runWithoutResumingCoroutines(FrameDeferringContinuationInterceptor.jvm.kt:75)
+	at androidx.compose.ui.test.TestMonotonicFrameClock.performFrame(TestMonotonicFrameClock.jvm.kt:132)
+	at androidx.compose.ui.test.TestMonotonicFrameClock.access$performFrame(TestMonotonicFrameClock.jvm.kt:53)
+	at androidx.compose.ui.test.TestMonotonicFrameClock$withFrameNanos$2$1$2.invokeSuspend(TestMonotonicFrameClock.jvm.kt:110)
+	at kotlin.coroutines.jvm.internal.BaseContinuationImpl.resumeWith(ContinuationImpl.kt:33)
+	at kotlinx.coroutines.DispatchedTaskKt.resume(DispatchedTask.kt:231)
+	at kotlinx.coroutines.DispatchedTaskKt.dispatch(DispatchedTask.kt:164)
+	at kotlinx.coroutines.CancellableContinuationImpl.dispatchResume(CancellableContinuationImpl.kt:466)
+	at kotlinx.coroutines.CancellableContinuationImpl.resumeImpl(CancellableContinuationImpl.kt:500)
+	at kotlinx.coroutines.CancellableContinuationImpl.resumeImpl$default(CancellableContinuationImpl.kt:489)
+	at kotlinx.coroutines.CancellableContinuationImpl.resumeUndispatched(CancellableContinuationImpl.kt:587)
+	at kotlinx.coroutines.test.CancellableContinuationRunnable.run(TestDispatcher.kt:60)
+	at kotlinx.coroutines.test.TestDispatcher.processEvent$kotlinx_coroutines_test(TestDispatcher.kt:24)
+	at kotlinx.coroutines.test.TestCoroutineScheduler.runCurrent(TestCoroutineScheduler.kt:132)
+	at androidx.compose.ui.test.junit4.AbstractMainTestClock$advanceDispatcher$1.invoke(AbstractMainTestClock.jvm.kt:74)
+	at androidx.compose.ui.test.junit4.AbstractMainTestClock$advanceDispatcher$1.invoke(AbstractMainTestClock.jvm.kt:67)
+	at androidx.compose.ui.test.junit4.AndroidSynchronization_androidKt.runOnUiThread(AndroidSynchronization.android.kt:33)
+	at androidx.compose.ui.test.junit4.MainTestClockImpl$1.invoke(MainTestClockImpl.android.kt:32)
+	at androidx.compose.ui.test.junit4.MainTestClockImpl$1.invoke(MainTestClockImpl.android.kt:32)
+	at androidx.compose.ui.test.junit4.AbstractMainTestClock.advanceDispatcher(AbstractMainTestClock.jvm.kt:67)
+	at androidx.compose.ui.test.junit4.AbstractMainTestClock.advanceTimeByFrame(AbstractMainTestClock.jvm.kt:38)
+	at androidx.compose.ui.test.junit4.ComposeIdlingResource.isIdleNow(ComposeIdlingResource.android.kt:74)
+	at androidx.compose.ui.test.junit4.IdlingResourceRegistry.areAllResourcesIdle(IdlingResourceRegistry.jvm.kt:124)
+	at androidx.compose.ui.test.junit4.IdlingResourceRegistry.isIdleOrEnsurePolling$ui_test_junit4_release(IdlingResourceRegistry.jvm.kt:103)
+	at androidx.compose.ui.test.junit4.EspressoLink.isIdleNow(EspressoLink.android.kt:44)
+	at androidx.test.espresso.base.IdlingResourceRegistry.allResourcesAreIdle(IdlingResourceRegistry.java:4)
+	at androidx.test.espresso.base.IdlingResourceRegistry$6.isIdleNow(IdlingResourceRegistry.java:1)
+	at androidx.test.espresso.base.UiControllerImpl.loopMainThreadUntilIdle(UiControllerImpl.java:10)
+	at androidx.test.espresso.Espresso$1.run(Espresso.java:1)
+	at java.util.concurrent.Executors$RunnableAdapter.call(Executors.java:524)
+	at java.util.concurrent.FutureTask.run(FutureTask.java:317)
+	at android.os.Handler.handleCallback(Handler.java:995)
+	at android.os.Handler.dispatchMessage(Handler.java:103)
+	at android.os.Looper.loopOnce(Looper.java:248)
+	at android.os.Looper.loop(Looper.java:338)
+	at android.app.ActivityThread.main(ActivityThread.java:9067)
+	at java.lang.reflect.Method.invoke(Native Method)
+	at com.android.internal.os.RuntimeInit$MethodAndArgsCaller.run(RuntimeInit.java:593)
+	at com.android.internal.os.ZygoteInit.main(ZygoteInit.java:932)
+
+INSTRUMENTATION_STATUS: stream=
+Error in originalModeRequiresExplicitActionAndLogoutClearsIt(dev.photohouse.tv.TvUiTest):
+java.lang.IllegalStateException:
+   FocusRequester is not initialized. Here are some possible fixes:
+
+   1. Remember the FocusRequester: val focusRequester = remember { FocusRequester() }
+   2. Did you forget to add a Modifier.focusRequester() ?
+   3. Are you attempting to request focus during composition? Focus requests should be made in
+   response to some event. Eg Modifier.clickable { focusRequester.requestFocus() }
+
+	at androidx.compose.ui.focus.FocusRequester.focus$ui_release(FocusRequester.kt:259)
+	at androidx.compose.ui.focus.FocusRequester.requestFocus(FocusRequester.kt:65)
+	at dev.photohouse.tv.TvAppKt$TvApp$7$5$1.invokeSuspend(TvApp.kt:110)
+	at kotlin.coroutines.jvm.internal.BaseContinuationImpl.resumeWith(ContinuationImpl.kt:33)
+	at androidx.compose.ui.test.ApplyingContinuationInterceptor$SendApplyContinuation.resumeWith(ApplyingContinuationInterceptor.kt:65)
+	at androidx.compose.ui.test.FrameDeferringContinuationInterceptor$TrampolinedTask.resume(FrameDeferringContinuationInterceptor.jvm.kt:137)
+	at androidx.compose.ui.test.FrameDeferringContinuationInterceptor.runWithoutResumingCoroutines(FrameDeferringContinuationInterceptor.jvm.kt:75)
+	at androidx.compose.ui.test.TestMonotonicFrameClock.performFrame(TestMonotonicFrameClock.jvm.kt:132)
+	at androidx.compose.ui.test.TestMonotonicFrameClock.access$performFrame(TestMonotonicFrameClock.jvm.kt:53)
+	at androidx.compose.ui.test.TestMonotonicFrameClock$withFrameNanos$2$1$2.invokeSuspend(TestMonotonicFrameClock.jvm.kt:110)
+	at kotlin.coroutines.jvm.internal.BaseContinuationImpl.resumeWith(ContinuationImpl.kt:33)
+	at kotlinx.coroutines.DispatchedTaskKt.resume(DispatchedTask.kt:231)
+	at kotlinx.coroutines.DispatchedTaskKt.dispatch(DispatchedTask.kt:164)
+	at kotlinx.coroutines.CancellableContinuationImpl.dispatchResume(CancellableContinuationImpl.kt:466)
+	at kotlinx.coroutines.CancellableContinuationImpl.resumeImpl(CancellableContinuationImpl.kt:500)
+	at kotlinx.coroutines.CancellableContinuationImpl.resumeImpl$default(CancellableContinuationImpl.kt:489)
+	at kotlinx.coroutines.CancellableContinuationImpl.resumeUndispatched(CancellableContinuationImpl.kt:587)
+	at kotlinx.coroutines.test.CancellableContinuationRunnable.run(TestDispatcher.kt:60)
+	at kotlinx.coroutines.test.TestDispatcher.processEvent$kotlinx_coroutines_test(TestDispatcher.kt:24)
+	at kotlinx.coroutines.test.TestCoroutineScheduler.runCurrent(TestCoroutineScheduler.kt:132)
+	at androidx.compose.ui.test.junit4.AbstractMainTestClock$advanceDispatcher$1.invoke(AbstractMainTestClock.jvm.kt:74)
+	at androidx.compose.ui.test.junit4.AbstractMainTestClock$advanceDispatcher$1.invoke(AbstractMainTestClock.jvm.kt:67)
+	at androidx.compose.ui.test.junit4.AndroidSynchronization_androidKt.runOnUiThread(AndroidSynchronization.android.kt:33)
+	at androidx.compose.ui.test.junit4.MainTestClockImpl$1.invoke(MainTestClockImpl.android.kt:32)
+	at androidx.compose.ui.test.junit4.MainTestClockImpl$1.invoke(MainTestClockImpl.android.kt:32)
+	at androidx.compose.ui.test.junit4.AbstractMainTestClock.advanceDispatcher(AbstractMainTestClock.jvm.kt:67)
+	at androidx.compose.ui.test.junit4.AbstractMainTestClock.advanceTimeByFrame(AbstractMainTestClock.jvm.kt:38)
+	at androidx.compose.ui.test.junit4.ComposeIdlingResource.isIdleNow(ComposeIdlingResource.android.kt:74)
+	at androidx.compose.ui.test.junit4.IdlingResourceRegistry.areAllResourcesIdle(IdlingResourceRegistry.jvm.kt:124)
+	at androidx.compose.ui.test.junit4.IdlingResourceRegistry.isIdleOrEnsurePolling$ui_test_junit4_release(IdlingResourceRegistry.jvm.kt:103)
+	at androidx.compose.ui.test.junit4.EspressoLink.isIdleNow(EspressoLink.android.kt:44)
+	at androidx.test.espresso.base.IdlingResourceRegistry.allResourcesAreIdle(IdlingResourceRegistry.java:4)
+	at androidx.test.espresso.base.IdlingResourceRegistry$6.isIdleNow(IdlingResourceRegistry.java:1)
+	at androidx.test.espresso.base.UiControllerImpl.loopMainThreadUntilIdle(UiControllerImpl.java:10)
+	at androidx.test.espresso.Espresso$1.run(Espresso.java:1)
+	at java.util.concurrent.Executors$RunnableAdapter.call(Executors.java:524)
+	at java.util.concurrent.FutureTask.run(FutureTask.java:317)
+	at android.os.Handler.handleCallback(Handler.java:995)
+	at android.os.Handler.dispatchMessage(Handler.java:103)
+	at android.os.Looper.loopOnce(Looper.java:248)
+	at android.os.Looper.loop(Looper.java:338)
+	at android.app.ActivityThread.main(ActivityThread.java:9067)
+	at java.lang.reflect.Method.invoke(Native Method)
+	at com.android.internal.os.RuntimeInit$MethodAndArgsCaller.run(RuntimeInit.java:593)
+	at com.android.internal.os.ZygoteInit.main(ZygoteInit.java:932)
+
+INSTRUMENTATION_STATUS: test=originalModeRequiresExplicitActionAndLogoutClearsIt
+INSTRUMENTATION_STATUS_CODE: -2
+INSTRUMENTATION_STATUS: class=dev.photohouse.tv.TvUiTest
+INSTRUMENTATION_STATUS: current=6
+INSTRUMENTATION_STATUS: id=AndroidJUnitRunner
+INSTRUMENTATION_STATUS: numtests=7
+INSTRUMENTATION_STATUS: stream=
+INSTRUMENTATION_STATUS: test=slideshowAdvancesAndStopsWhenCovered
+INSTRUMENTATION_STATUS_CODE: 1
+INSTRUMENTATION_STATUS: class=dev.photohouse.tv.TvUiTest
+INSTRUMENTATION_STATUS: current=6
+INSTRUMENTATION_STATUS: id=AndroidJUnitRunner
+INSTRUMENTATION_STATUS: numtests=7
+INSTRUMENTATION_STATUS: stream=.
+INSTRUMENTATION_STATUS: test=slideshowAdvancesAndStopsWhenCovered
+INSTRUMENTATION_STATUS_CODE: 0
+INSTRUMENTATION_STATUS: class=dev.photohouse.tv.TvUiTest
+INSTRUMENTATION_STATUS: current=7
+INSTRUMENTATION_STATUS: id=AndroidJUnitRunner
+INSTRUMENTATION_STATUS: numtests=7
+INSTRUMENTATION_STATUS: stream=
+INSTRUMENTATION_STATUS: test=remoteFocusOpensPhotoAndBackRestoresSelectedTile
+INSTRUMENTATION_STATUS_CODE: 1
+INSTRUMENTATION_STATUS: class=dev.photohouse.tv.TvUiTest
+INSTRUMENTATION_STATUS: current=7
+INSTRUMENTATION_STATUS: id=AndroidJUnitRunner
+INSTRUMENTATION_STATUS: numtests=7
+INSTRUMENTATION_STATUS: stack=java.lang.AssertionError: Failed to assert the following: (Focused = 'true')
+Reason: Expected exactly '1' node but could not find any node that satisfies: (TestTag = 'asset-1')
+
+	at androidx.compose.ui.test.SemanticsNodeInteraction.fetchOneOrDie(SemanticsNodeInteraction.kt:178)
+	at androidx.compose.ui.test.SemanticsNodeInteraction.fetchOneOrDie$default(SemanticsNodeInteraction.kt:150)
+	at androidx.compose.ui.test.SemanticsNodeInteraction.fetchSemanticsNode(SemanticsNodeInteraction.kt:84)
+	at androidx.compose.ui.test.AssertionsKt.assert(Assertions.kt:263)
+	at androidx.compose.ui.test.AssertionsKt.assert$default(Assertions.kt:255)
+	at androidx.compose.ui.test.AssertionsKt.assertIsFocused(Assertions.kt:116)
+	at dev.photohouse.tv.TvUiTest.remoteFocusOpensPhotoAndBackRestoresSelectedTile(TvUiTest.kt:91)
+
+INSTRUMENTATION_STATUS: stream=
+Error in remoteFocusOpensPhotoAndBackRestoresSelectedTile(dev.photohouse.tv.TvUiTest):
+java.lang.AssertionError: Failed to assert the following: (Focused = 'true')
+Reason: Expected exactly '1' node but could not find any node that satisfies: (TestTag = 'asset-1')
+
+	at androidx.compose.ui.test.SemanticsNodeInteraction.fetchOneOrDie(SemanticsNodeInteraction.kt:178)
+	at androidx.compose.ui.test.SemanticsNodeInteraction.fetchOneOrDie$default(SemanticsNodeInteraction.kt:150)
+	at androidx.compose.ui.test.SemanticsNodeInteraction.fetchSemanticsNode(SemanticsNodeInteraction.kt:84)
+	at androidx.compose.ui.test.AssertionsKt.assert(Assertions.kt:263)
+	at androidx.compose.ui.test.AssertionsKt.assert$default(Assertions.kt:255)
+	at androidx.compose.ui.test.AssertionsKt.assertIsFocused(Assertions.kt:116)
+	at dev.photohouse.tv.TvUiTest.remoteFocusOpensPhotoAndBackRestoresSelectedTile(TvUiTest.kt:91)
+
+INSTRUMENTATION_STATUS: test=remoteFocusOpensPhotoAndBackRestoresSelectedTile
+INSTRUMENTATION_STATUS_CODE: -2
+INSTRUMENTATION_RESULT: stream=
+
+Time: 91.156
+There were 3 failures:
+1) fullScreenRemoteNavigationAndPrivacyClearImages(dev.photohouse.tv.TvUiTest)
+androidx.compose.ui.test.ComposeTimeoutException: Condition still not satisfied after 5000 ms
+	at androidx.compose.ui.test.AndroidComposeUiTestEnvironment$AndroidComposeUiTestImpl.waitUntil(ComposeUiTest.android.kt:431)
+	at androidx.compose.ui.test.junit4.AndroidComposeTestRule.waitUntil(AndroidComposeTestRule.android.kt:306)
+	at dev.photohouse.tv.TvUiTest.fullScreenRemoteNavigationAndPrivacyClearImages(TvUiTest.kt:110)
+2) originalModeRequiresExplicitActionAndLogoutClearsIt(dev.photohouse.tv.TvUiTest)
+java.lang.IllegalStateException:
+   FocusRequester is not initialized. Here are some possible fixes:
+
+   1. Remember the FocusRequester: val focusRequester = remember { FocusRequester() }
+   2. Did you forget to add a Modifier.focusRequester() ?
+   3. Are you attempting to request focus during composition? Focus requests should be made in
+   response to some event. Eg Modifier.clickable { focusRequester.requestFocus() }
+
+	at androidx.compose.ui.focus.FocusRequester.focus$ui_release(FocusRequester.kt:259)
+	at androidx.compose.ui.focus.FocusRequester.requestFocus(FocusRequester.kt:65)
+	at dev.photohouse.tv.TvAppKt$TvApp$7$5$1.invokeSuspend(TvApp.kt:110)
+	at kotlin.coroutines.jvm.internal.BaseContinuationImpl.resumeWith(ContinuationImpl.kt:33)
+	at androidx.compose.ui.test.ApplyingContinuationInterceptor$SendApplyContinuation.resumeWith(ApplyingContinuationInterceptor.kt:65)
+	at androidx.compose.ui.test.FrameDeferringContinuationInterceptor$TrampolinedTask.resume(FrameDeferringContinuationInterceptor.jvm.kt:137)
+	at androidx.compose.ui.test.FrameDeferringContinuationInterceptor.runWithoutResumingCoroutines(FrameDeferringContinuationInterceptor.jvm.kt:75)
+	at androidx.compose.ui.test.TestMonotonicFrameClock.performFrame(TestMonotonicFrameClock.jvm.kt:132)
+	at androidx.compose.ui.test.TestMonotonicFrameClock.access$performFrame(TestMonotonicFrameClock.jvm.kt:53)
+	at androidx.compose.ui.test.TestMonotonicFrameClock$withFrameNanos$2$1$2.invokeSuspend(TestMonotonicFrameClock.jvm.kt:110)
+	at kotlin.coroutines.jvm.internal.BaseContinuationImpl.resumeWith(ContinuationImpl.kt:33)
+	at kotlinx.coroutines.DispatchedTaskKt.resume(DispatchedTask.kt:231)
+	at kotlinx.coroutines.DispatchedTaskKt.dispatch(DispatchedTask.kt:164)
+	at kotlinx.coroutines.CancellableContinuationImpl.dispatchResume(CancellableContinuationImpl.kt:466)
+	at kotlinx.coroutines.CancellableContinuationImpl.resumeImpl(CancellableContinuationImpl.kt:500)
+	at kotlinx.coroutines.CancellableContinuationImpl.resumeImpl$default(CancellableContinuationImpl.kt:489)
+	at kotlinx.coroutines.CancellableContinuationImpl.resumeUndispatched(CancellableContinuationImpl.kt:587)
+	at kotlinx.coroutines.test.CancellableContinuationRunnable.run(TestDispatcher.kt:60)
+	at kotlinx.coroutines.test.TestDispatcher.processEvent$kotlinx_coroutines_test(TestDispatcher.kt:24)
+	at kotlinx.coroutines.test.TestCoroutineScheduler.runCurrent(TestCoroutineScheduler.kt:132)
+	at androidx.compose.ui.test.junit4.AbstractMainTestClock$advanceDispatcher$1.invoke(AbstractMainTestClock.jvm.kt:74)
+	at androidx.compose.ui.test.junit4.AbstractMainTestClock$advanceDispatcher$1.invoke(AbstractMainTestClock.jvm.kt:67)
+	at androidx.compose.ui.test.junit4.AndroidSynchronization_androidKt.runOnUiThread(AndroidSynchronization.android.kt:33)
+	at androidx.compose.ui.test.junit4.MainTestClockImpl$1.invoke(MainTestClockImpl.android.kt:32)
+	at androidx.compose.ui.test.junit4.MainTestClockImpl$1.invoke(MainTestClockImpl.android.kt:32)
+	at androidx.compose.ui.test.junit4.AbstractMainTestClock.advanceDispatcher(AbstractMainTestClock.jvm.kt:67)
+	at androidx.compose.ui.test.junit4.AbstractMainTestClock.advanceTimeByFrame(AbstractMainTestClock.jvm.kt:38)
+	at androidx.compose.ui.test.junit4.ComposeIdlingResource.isIdleNow(ComposeIdlingResource.android.kt:74)
+	at androidx.compose.ui.test.junit4.IdlingResourceRegistry.areAllResourcesIdle(IdlingResourceRegistry.jvm.kt:124)
+	at androidx.compose.ui.test.junit4.IdlingResourceRegistry.isIdleOrEnsurePolling$ui_test_junit4_release(IdlingResourceRegistry.jvm.kt:103)
+	at androidx.compose.ui.test.junit4.EspressoLink.isIdleNow(EspressoLink.android.kt:44)
+	at androidx.test.espresso.base.IdlingResourceRegistry.allResourcesAreIdle(IdlingResourceRegistry.java:4)
+	at androidx.test.espresso.base.IdlingResourceRegistry$6.isIdleNow(IdlingResourceRegistry.java:1)
+	at androidx.test.espresso.base.UiControllerImpl.loopMainThreadUntilIdle(UiControllerImpl.java:10)
+	at androidx.test.espresso.Espresso$1.run(Espresso.java:1)
+	at java.util.concurrent.Executors$RunnableAdapter.call(Executors.java:524)
+	at java.util.concurrent.FutureTask.run(FutureTask.java:317)
+	at android.os.Handler.handleCallback(Handler.java:995)
+	at android.os.Handler.dispatchMessage(Handler.java:103)
+	at android.os.Looper.loopOnce(Looper.java:248)
+	at android.os.Looper.loop(Looper.java:338)
+	at android.app.ActivityThread.main(ActivityThread.java:9067)
+	at java.lang.reflect.Method.invoke(Native Method)
+	at com.android.internal.os.RuntimeInit$MethodAndArgsCaller.run(RuntimeInit.java:593)
+	at com.android.internal.os.ZygoteInit.main(ZygoteInit.java:932)
+3) remoteFocusOpensPhotoAndBackRestoresSelectedTile(dev.photohouse.tv.TvUiTest)
+java.lang.AssertionError: Failed to assert the following: (Focused = 'true')
+Reason: Expected exactly '1' node but could not find any node that satisfies: (TestTag = 'asset-1')
+
+	at androidx.compose.ui.test.SemanticsNodeInteraction.fetchOneOrDie(SemanticsNodeInteraction.kt:178)
+	at androidx.compose.ui.test.SemanticsNodeInteraction.fetchOneOrDie$default(SemanticsNodeInteraction.kt:150)
+	at androidx.compose.ui.test.SemanticsNodeInteraction.fetchSemanticsNode(SemanticsNodeInteraction.kt:84)
+	at androidx.compose.ui.test.AssertionsKt.assert(Assertions.kt:263)
+	at androidx.compose.ui.test.AssertionsKt.assert$default(Assertions.kt:255)
+	at androidx.compose.ui.test.AssertionsKt.assertIsFocused(Assertions.kt:116)
+	at dev.photohouse.tv.TvUiTest.remoteFocusOpensPhotoAndBackRestoresSelectedTile(TvUiTest.kt:91)
+
+FAILURES!!!
+Tests run: 7,  Failures: 3
+
+
+INSTRUMENTATION_CODE: -1
