@@ -175,6 +175,28 @@ real reviewed metadata publication and projector acceptance remain pending.
 V2 catalog/video source integration is implemented; real prepared-media coverage
 and the v2 origin/publication remain a coordinated backend continuation.
 
+### Approved real-media canary
+
+Version code 7 allows an in-place update from the v6 pilot using the existing
+debug signer. Default builds still have no server configured. A private catalog
+build explicitly selects version 2 and the backend's verified origin/address;
+discovery remains independently opt-in. A v1-configured APK cannot play v2 video.
+
+After the backend publishes an approved canary, `:home-core:catalogLanPilotTest`
+uses the production HTTPS adapter and video reader with normal TLS validation.
+It requires `PHOTOHOUSE_CATALOG_LIVE_APPROVED=true`, private
+`PHOTOHOUSE_CATALOG_TEST_ORIGIN` / `PHOTOHOUSE_CATALOG_TEST_ADDRESS`, and the
+reviewed `PHOTOHOUSE_CATALOG_PHOTO_ID`, `PHOTOHOUSE_CATALOG_PHOTO_PAGE`,
+`PHOTOHOUSE_CATALOG_VIDEO_ID`, and `PHOTOHOUSE_CATALOG_VIDEO_PAGE` inputs.
+Keep values and test outputs private. Ordinary tests exclude this test.
+
+The check reads only page one and the explicitly selected pages, verifies both
+preview variants for the photo/video, streams at most 64 MiB of prepared video
+through bounded Range reads, checks its full SHA-256, and exercises a backward
+seek. Media remains in memory; it is not written to files or included in reports.
+This proves client transport/integrity, not Android decoding or projector playback.
+Full-library coverage must be reported separately from a successful two-item test.
+
 [App-contained LAN configuration return](../../docs/evidence/android/home-tv-lan-map/RETURN.md).
 
 [Original integration return](../../docs/evidence/android/home-feed/RETURN.md).

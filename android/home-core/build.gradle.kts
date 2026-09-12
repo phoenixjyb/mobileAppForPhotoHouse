@@ -11,7 +11,7 @@ dependencies {
 }
 
 // Ordinary tests remain synthetic and loopback-only. Real LAN reads need explicit opt-in.
-tasks.test { exclude("**/HomeLanPilotTest*") }
+tasks.test { exclude("**/HomeLanPilotTest*", "**/CatalogLanPilotTest*") }
 tasks.register<Test>("lanPilotTest") {
     description = "Read the explicitly authorized synthetic LAN feed using in-app address mapping"
     group = "verification"
@@ -22,6 +22,20 @@ tasks.register<Test>("lanPilotTest") {
     doFirst {
         require(System.getenv("PHOTOHOUSE_HOME_TEST_ORIGIN") != null && System.getenv("PHOTOHOUSE_HOME_TEST_ADDRESS") != null) {
             "Explicit private synthetic home-feed origin and address are required"
+        }
+    }
+}
+
+tasks.register<Test>("catalogLanPilotTest") {
+    description = "Read an explicitly approved real catalog canary through the production adapter"
+    group = "verification"
+    testClassesDirs = sourceSets.test.get().output.classesDirs
+    classpath = sourceSets.test.get().runtimeClasspath
+    include("**/CatalogLanPilotTest.class")
+    outputs.upToDateWhen { false }
+    doFirst {
+        require(System.getenv("PHOTOHOUSE_CATALOG_LIVE_APPROVED") == "true") {
+            "Explicit live catalog approval and private canary inputs are required"
         }
     }
 }
