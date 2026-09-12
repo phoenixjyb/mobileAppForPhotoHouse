@@ -1,0 +1,35 @@
+{
+  "base": "421ca8e077a511d1cbe65087d6dd892b2c7b31db",
+  "artwork_sha256": "c8fc559e39c5c4d0b9902cafca47e15ac4e6cfa2cbc18d81a40d956e8a8f8909",
+  "artifacts": {
+    "app": {
+      "bytes": 9591239,
+      "sha256": "ce87eebdc2d9952254d8d7586764fc235310975361191b18943cf35b4adf157c",
+      "lint_errors": 0,
+      "lint_warnings": [
+        "OldTargetApi",
+        "MonochromeLauncherIcon"
+      ]
+    },
+    "connected": {
+      "bytes": 10199882,
+      "sha256": "b593b07c5f550af470443e56677027c8bcf264a9e2c7aa5a8d191bb5300ccf5d",
+      "lint_errors": 0,
+      "lint_warnings": [
+        "ExifInterface",
+        "OldTargetApi",
+        "MonochromeLauncherIcon"
+      ]
+    },
+    "tv": {
+      "bytes": 10250832,
+      "sha256": "48055207b257b03ccd60d6632169c00ccda27c7d6fb88604b248a0a45a21de91",
+      "lint_errors": 0,
+      "lint_warnings": [
+        "OldTargetApi",
+        "DiscouragedApi",
+        "MonochromeLauncherIcon"
+      ]
+    }
+  }
+}

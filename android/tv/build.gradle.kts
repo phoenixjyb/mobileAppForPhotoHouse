@@ -16,6 +16,7 @@ require(configuredLanAddress.isEmpty() || configuredOrigin.isNotEmpty()) { "LAN 
 require(configuredLanAddress.isEmpty() || configuredLanAddress.matches(Regex("[0-9.]{7,15}"))) { "Invalid LAN address" }
 require(configuredOrigin.none { it == '\n' || it == '\r' || it == '"' || it == '\\' }) { "Invalid configured origin" }
 android {
+    sourceSets.getByName("main").res.srcDir("../branding/res")
     namespace = "dev.photohouse.tv"
     compileSdk = 34
     buildToolsVersion = "34.0.0"

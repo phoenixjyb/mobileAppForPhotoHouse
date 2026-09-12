@@ -8,6 +8,7 @@ val configuredOrigin = providers.gradleProperty("photohouseOrigin").orElse(local
 // Only an origin is configurable; no credentials or trust overrides are build inputs.
 require(configuredOrigin.none { it == '\n' || it == '\r' || it == '"' || it == '\\' }) { "Invalid configured origin" }
 android {
+    sourceSets.getByName("main").res.srcDir("../branding/res")
     namespace = "dev.photohouse.connected"
     compileSdk = 34
     buildToolsVersion = "34.0.0"
