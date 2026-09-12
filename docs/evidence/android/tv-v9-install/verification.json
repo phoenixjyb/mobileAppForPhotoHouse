@@ -1,0 +1,72 @@
+{
+  "source_commit": "0a4291ec2b02ec0668e823eb7d2d660484e63327",
+  "base": "eb59766d41b47864a6792f50a0c8bae240843774",
+  "artifact": "PhotoHouse-TV-v9.apk",
+  "bytes": 10411068,
+  "sha256": "6535fa69e852671443f943be85bef1f54bb1b494f993a3299b84befa55df6c82",
+  "package": "dev.photohouse.tv",
+  "version_code": 9,
+  "version_name": "0.9-tv-catalog-dev",
+  "min_sdk": 26,
+  "target_sdk": 34,
+  "signer_sha256": "56d7591b2b6c2538d506d1fe51327444f2307736cb12f5beefa08f1c410d6d28",
+  "native_abis": [],
+  "catalog_version": 2,
+  "discovery_enabled": false,
+  "private_origin_configured": true,
+  "app_lan_mapping_configured": true,
+  "test_assets_packaged": false,
+  "physical_installation": false,
+  "tests": {
+    "home_core_jvm": 85,
+    "tv_jvm": 2,
+    "failures": 0,
+    "errors": 0,
+    "skipped": 0,
+    "ui": {
+      "1.0": {
+        "passed": 25,
+        "seconds": 275.71
+      },
+      "2.0": {
+        "passed": 25,
+        "seconds": 319.173
+      }
+    }
+  },
+  "lint": {
+    "errors": 0,
+    "warnings": [
+      "OldTargetApi",
+      "DiscouragedApi",
+      "MonochromeLauncherIcon"
+    ],
+    "information_count": 4
+  },
+  "contract_checks": {
+    "frozen_phone": true,
+    "home_v1": true,
+    "catalog_v2": true,
+    "discovery_v1": true,
+    "tv_boundaries": true,
+    "backend_v2_schema_and_example_exact_match": true
+  },
+  "emulator": {
+    "avd": "Medium_Phone_API_36.0",
+    "api": 36,
+    "serial": "emulator-5580",
+    "landscape": true,
+    "physical_tv": false,
+    "configured_apk_install_and_cold_start": "PASS",
+    "cold_start_total_ms": 5675,
+    "configured_start_network_disabled": true
+  },
+  "limitations": [
+    "No physical projector installation or playback/audio acceptance.",
+    "No actual approved-peer LAN media access during this APK packaging task.",
+    "Private server settings are excluded from Git.",
+    "Discovery remains disabled pending its approved backend.",
+    "Enlarged gallery uses scrolling; controls are not all simultaneously visible.",
+    "No push or merge; no phone APK built in this slice."
+  ]
+}
