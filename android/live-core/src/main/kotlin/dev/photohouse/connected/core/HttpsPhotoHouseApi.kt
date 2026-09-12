@@ -30,8 +30,8 @@ class TrustedOrigin private constructor(internal val url: HttpUrl) {
 /** Application construction always uses platform trust and hostname validation.
  * The internal overload is visible only to this module's JVM test friend source set.
  */
-class HttpsPhotoHouseApi internal constructor(private val origin: TrustedOrigin, client: OkHttpClient, private val detailPreviewSize: Int = 256) : PhotoHouseApi {
-    constructor(origin: TrustedOrigin, detailPreviewSize: Int = 256) : this(origin, OkHttpClient(), detailPreviewSize)
+class HttpsPhotoHouseApi internal constructor(private val origin: TrustedOrigin, client: OkHttpClient, private val detailPreviewSize: Int = 256, override val discoveryEnabled: Boolean = false) : PhotoHouseApi {
+    constructor(origin: TrustedOrigin, detailPreviewSize: Int = 256, discoveryEnabled: Boolean = false) : this(origin, OkHttpClient(), detailPreviewSize, discoveryEnabled)
     init { require(detailPreviewSize in 64..1024) }
     private val client = client.newBuilder()
         .followRedirects(false).followSslRedirects(false).retryOnConnectionFailure(false)
@@ -53,10 +53,10 @@ class HttpsPhotoHouseApi internal constructor(private val origin: TrustedOrigin,
         require(id.matches(Regex("[1-9][0-9]{0,18}")) && id.toLongOrNull() != null)
         return id
     }
-    private suspend fun packet(url: HttpUrl, token: Bearer?, body: String? = null, limit: Int = JSON_LIMIT, missingAllowed: Boolean = false, accept: String = "application/json", rangeStart: Long? = null): Packet {
+    private suspend fun packet(url: HttpUrl, token: Bearer?, body: String? = null, limit: Int = JSON_LIMIT, missingAllowed: Boolean = false, accept: String = "application/json", rangeStart: Long? = null, requestLimit: Int = 2048): Packet {
         require(url.scheme == "https" && url.host == origin.url.host && url.port == origin.url.port)
         val bytes = body?.toByteArray(Charsets.UTF_8)
-        if (bytes != null && bytes.size > 2048) throw ApiFailure(FailureKind.INVALID_INPUT)
+        if (bytes != null && bytes.size > requestLimit) throw ApiFailure(FailureKind.INVALID_INPUT)
         val request = Request.Builder().url(url).header("Accept", accept)
             .header("Cache-Control", "no-store")
             .apply { rangeStart?.let { header("Range", "bytes=$it-${it + limit - 1}"); header("Accept-Encoding", "identity") } }
@@ -126,6 +126,27 @@ class HttpsPhotoHouseApi internal constructor(private val origin: TrustedOrigin,
         if (packet.contentType?.substringBefore(';')?.trim()?.lowercase() != "application/json") throw ApiFailure(FailureKind.INVALID_RESPONSE)
         return try { Wire.json.decodeFromString(serializer, packet.bytes.toString(Charsets.UTF_8)) }
         catch (_: Exception) { throw ApiFailure(FailureKind.INVALID_RESPONSE) }
+    }
+    private fun discoveryUrl(library: String, operation: String): HttpUrl {
+        require(discoveryEnabled && PhoneDiscoveryWire.validLibrary(library))
+        return origin.url.newBuilder().addPathSegment("libraries").addPathSegment(library)
+            .addPathSegments("discovery/v1").addPathSegment(operation).build()
+    }
+    override suspend fun facets(token: Bearer, library: String, facet: PhoneFacet, page: Int, binding: String?): PhoneFacetPage {
+        require(page in 1..5000 && (binding == null || PhoneDiscoveryWire.validHash(binding)) && (page == 1 || binding != null))
+        val target = discoveryUrl(library, "facets").newBuilder().addQueryParameter("facet", facet.wire)
+            .addQueryParameter("page", page.toString()).addQueryParameter("page_size", "50")
+            .apply { binding?.let { addQueryParameter("binding", it) } }.build()
+        val result = packet(target, token)
+        if (result.code != 200 || result.contentType?.substringBefore(';')?.trim()?.lowercase() != "application/json") throw ApiFailure(FailureKind.INVALID_RESPONSE)
+        return PhoneDiscoveryWire.facets(result.bytes, library, facet, page, binding = binding)
+    }
+    override suspend fun search(token: Bearer, library: String, binding: String, filters: PhoneFilters, page: Int, fingerprint: String?): PhoneSearchPage {
+        val target = discoveryUrl(library, "search")
+        val body = PhoneDiscoveryWire.request(binding, filters, page, fingerprint = fingerprint)
+        val result = packet(target, token, body, requestLimit = 20 * 1024)
+        if (result.code != 200 || result.contentType?.substringBefore(';')?.trim()?.lowercase() != "application/json") throw ApiFailure(FailureKind.INVALID_RESPONSE)
+        return PhoneDiscoveryWire.search(result.bytes, library, binding, page, fingerprint = fingerprint)
     }
     override suspend fun login(phone: String, password: String): SessionToken {
         Admission.password(password)

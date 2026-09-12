@@ -22,6 +22,22 @@ class ConnectedUiTest {
     private val scope = CoroutineScope(SupervisorJob() + Dispatchers.Main.immediate)
     @After fun stop() { scope.cancel() }
     private class SyntheticApi : PhotoHouseApi {
+        override var discoveryEnabled = false
+        var discoveryError: ApiFailure? = null
+        var discoverySearches = 0
+        var discoveredFilters: PhoneFilters? = null
+        private val pinned = PhoneChoice("7", "Sample family", 1, listOf("示例家人"))
+        override suspend fun facets(token: Bearer, library: String, facet: PhoneFacet, page: Int, binding: String?): PhoneFacetPage {
+            val snap = PhoneSnapshot(library, "b".repeat(64), "1", PhoneDiscoveryWire.fields, 51, 51,
+                PhoneDiscoveryWire.fields.associateWith { PhoneCoverage(51, 0) }, "2026-01-01", "2026-12-31", listOf(pinned))
+            val choices = if (page == 1) (1..50).map { if (it == 7) pinned else PhoneChoice(it.toString(), "Sample $it · 示例", 1) }
+                else listOf(PhoneChoice("51", "Later choice · 后页选项", 1))
+            return PhoneFacetPage(snap, facet, page, 50, 51, page == 1, choices)
+        }
+        override suspend fun search(token: Bearer, library: String, binding: String, filters: PhoneFilters, page: Int, fingerprint: String?): PhoneSearchPage {
+            discoverySearches++; discoveredFilters = filters; discoveryError?.let { throw it }
+            return PhoneSearchPage(Gallery(library, page, 50, 51, originalsAllowed, photos), binding, "f".repeat(64), page == 1)
+        }
         var previewBytes: ByteArray? = null
         var videoBytes = byteArrayOf()
         val videoReads = java.util.concurrent.CopyOnWriteArrayList<Pair<Long, Int>>()
@@ -111,6 +127,53 @@ class ConnectedUiTest {
             File(rule.activity.filesDir, "$name.png").outputStream().use { bitmap.compress(Bitmap.CompressFormat.PNG, 100, it) }
             bitmap.recycle()
         }
+    }
+    private fun clickTag(tag: String) { reveal(hasTestTag(tag)); rule.onNodeWithTag(tag).performClick(); rule.waitForIdle() }
+    @Test fun discoverySelectionPagingMediaReturnAndBilingualLayout() {
+        val api = SyntheticApi().apply { discoveryEnabled = true }
+        val store = ConnectedStore(api, scope)
+        rule.runOnUiThread { rule.activity.setContent { ConnectedApp(store) }; store.authenticate("+12025550123", "synthetic-password-only") }
+        click("Open library"); clickTag("open-discovery")
+        clickTag("pin-7")
+        capture("discovery-en")
+        clickTag("facet-next"); clickTag("choice-people-51"); clickTag("facet-previous")
+        assertEquals(listOf("7", "51"), store.state.value.discovery!!.filters.people.map { it.id })
+        clickTag("facet-tags")
+        clickTag("choice-tags-1")
+        reveal(hasTestTag("discovery-caption")); rule.onNodeWithTag("discovery-caption").performTextInput("生日 birthday")
+        clickTag("discovery-media-video")
+        assertEquals(0, api.discoverySearches)
+        clickTag("discovery-quick-apply")
+        assertEquals(1, api.discoverySearches); assertEquals("生日 birthday", api.discoveredFilters!!.caption)
+        click("Next")
+        reveal(hasTestTag("media-1")); rule.onNodeWithTag("media-1").performClick(); rule.waitForIdle()
+        assertNull(store.state.value.video) // Fresh detail denies originals; discovery does not grant them.
+        click("Back to results")
+        assertEquals(2, store.state.value.gallery!!.page)
+        clickTag("open-discovery")
+        click("简体中文")
+        reveal(hasText("寻找回忆")); capture("discovery-zh")
+        clickTag("discovery-apply")
+        rule.runOnUiThread { store.background() }
+        rule.waitForIdle(); assertNull(store.state.value.discovery); assertTrue(store.state.value.previews.isEmpty())
+    }
+    @Test fun discoveryInvalidDatesAndStaleBindingRequireExplicitReapply() {
+        val api = SyntheticApi().apply { discoveryEnabled = true }
+        val store = ConnectedStore(api, scope)
+        rule.runOnUiThread { rule.activity.setContent { ConnectedApp(store) }; store.authenticate("+12025550123", "synthetic-password-only") }
+        click("Open library"); clickTag("open-discovery")
+        reveal(hasTestTag("discovery-from")); rule.onNodeWithTag("discovery-from").performTextInput("2026-02-30")
+        clickTag("discovery-apply"); assertEquals(0, api.discoverySearches)
+        reveal(hasTestTag("discovery-input-error")); rule.onNodeWithTag("discovery-input-error").assertIsDisplayed()
+        clickTag("discovery-clear")
+        api.discoveryError = ApiFailure(FailureKind.HTTP, 409)
+        clickTag("discovery-apply")
+        assertTrue(store.state.value.discovery!!.changed); assertEquals(1, api.discoverySearches)
+        api.discoveryError = null; clickTag("discovery-reload")
+        assertEquals(1, api.discoverySearches); assertEquals("", store.state.value.discovery!!.filters.from)
+        clickTag("discovery-apply"); assertEquals(2, api.discoverySearches)
+        rule.runOnUiThread { store.logout() }; rule.waitForIdle()
+        assertNull(store.state.value.discovery); assertNull(store.state.value.gallery)
     }
     @Test fun galleryTapOpensPhotoAndDetailsActionKeepsMetadataReachable() {
         val api = SyntheticApi().apply { photos = listOf(photo.copy(kind = "image")); originalsAllowed = true; total = 100 }

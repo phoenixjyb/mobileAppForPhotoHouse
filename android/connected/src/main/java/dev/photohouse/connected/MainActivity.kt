@@ -20,7 +20,7 @@ class MainActivity : ComponentActivity() {
             @Suppress("UNCHECKED_CAST")
             override fun <T : ViewModel> create(modelClass: Class<T>): T {
                 val origin = runCatching { TrustedOrigin.parse(BuildConfig.PHOTOHOUSE_ORIGIN) }.getOrNull()
-                return ConnectedViewModel(origin?.let { HttpsPhotoHouseApi(it) }) as T
+                return ConnectedViewModel(origin?.let { HttpsPhotoHouseApi(it, discoveryEnabled = BuildConfig.PHOTOHOUSE_DISCOVERY_ENABLED) }) as T
             }
         }
     }

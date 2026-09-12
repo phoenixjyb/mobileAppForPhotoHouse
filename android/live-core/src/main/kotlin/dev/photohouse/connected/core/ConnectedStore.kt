@@ -5,10 +5,10 @@ import kotlinx.coroutines.*
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.asStateFlow
 
-enum class Message { SIGNED_OUT_LOCAL, SIGNED_OUT_CONFIRMED, SESSION_ENDED, ACCESS_DENIED, UNAVAILABLE, TLS_ERROR, CLOSED, RATE_LIMITED, INVALID_INPUT, INVALID_RESPONSE, TOO_LARGE, MEDIA_UNAVAILABLE }
+enum class Message { SIGNED_OUT_LOCAL, SIGNED_OUT_CONFIRMED, SESSION_ENDED, ACCESS_DENIED, UNAVAILABLE, TLS_ERROR, CLOSED, RATE_LIMITED, INVALID_INPUT, INVALID_RESPONSE, TOO_LARGE, MEDIA_UNAVAILABLE, DISCOVERY_CHANGED, DISCOVERY_INPUT }
 data class LiveProblem(val message: Message, val retryAtMillis: Long = 0)
 /** Only the current page's IDs, never a persistent or cross-library history. */
-data class PhotoNavigation(val page: Int, val assetIds: List<String>, val index: Int)
+data class PhotoNavigation(val page: Int, val assetIds: List<String>, val index: Int, val discovery: PhoneDiscoveryState? = null)
 data class LiveState(
     val generation: Long = 0, val session: Session? = null, val library: String? = null,
     val gallery: Gallery? = null, val detail: Detail? = null, val captions: Captions? = null,
@@ -18,6 +18,7 @@ data class LiveState(
     val video: VideoReader? = null,
     val viewingOriginal: Boolean = false, val originalPhoto: ByteArray? = null,
     val photoSlideshow: Boolean = false,
+    val discovery: PhoneDiscoveryState? = null,
 )
 
 /** UI-dispatcher-confined; only the wire DTO module is shared with fixture code. */
@@ -32,6 +33,7 @@ class ConnectedStore(private val api: PhotoHouseApi, private val scope: Coroutin
     private var expiryJob: Job? = null
     private val requests = mutableSetOf<Job>()
     private var retry: (() -> Unit)? = null
+    val discoveryEnabled get() = api.discoveryEnabled
     val hasSession get() = token != null
     val cachedBytes get() = state.value.previews.values.sumOf { it.size }
 
@@ -120,12 +122,105 @@ class ConnectedStore(private val api: PhotoHouseApi, private val scope: Coroutin
             catch (e: Exception) { readFailure(e, generation, credential) { loadPage(page) } }
         }
     }
+    fun navigatePage(page: Int) { if (state.value.discovery != null) searchDiscoveryPage(page) else loadPage(page) }
+    fun openDiscovery() {
+        if (!api.discoveryEnabled || !allowed() || coolingDown()) return
+        loadDiscoveryFacet(PhoneFacet.PEOPLE, 1, PhoneDiscoveryState())
+    }
+    fun editDiscovery() {
+        if (!allowed() || state.value.busy) return
+        val current = state.value.discovery ?: return
+        val library = state.value.library
+        invalidate(keepIdentity = true)
+        mutable.value = state.value.copy(library = library, discovery = current.copy(editing = true, result = null))
+    }
+    fun updateDiscoveryFilters(filters: PhoneFilters) {
+        if (!allowed() || state.value.busy) return
+        val current = state.value.discovery ?: return
+        if (!current.editing || current.snapshot == null) return
+        // Only records actually shown in this scope can become selected IDs.
+        for ((next, previous, field) in listOf(Triple(filters.people, current.filters.people, PhoneFacet.PEOPLE),
+            Triple(filters.tags, current.filters.tags, PhoneFacet.TAGS), Triple(filters.places, current.filters.places, PhoneFacet.PLACES))) {
+            val known = previous + (current.facetPage?.takeIf { it.facet == field }?.items ?: emptyList()) +
+                (if (field == PhoneFacet.PEOPLE) current.snapshot.pins else emptyList())
+            if (next.size > 20 || next.any { choice -> choice !in known } || next.map { it.id }.distinct().size != next.size) return
+        }
+        mutable.value = state.value.copy(discovery = current.copy(filters = filters, inputInvalid = false))
+    }
+    fun loadDiscoveryFacet(facet: PhoneFacet, page: Int = 1, context: PhoneDiscoveryState? = state.value.discovery) {
+        if (!api.discoveryEnabled || !allowed() || coolingDown() || page !in 1..5000) return
+        val previous = context ?: PhoneDiscoveryState()
+        val snapshot = previous.snapshot
+        if (page > 1 && snapshot == null) return
+        val library = state.value.library!!; val credential = token!!
+        invalidate(keepIdentity = true)
+        mutable.value = state.value.copy(library = library, busy = true, discovery = previous.copy(editing = true, facetPage = null))
+        launch { generation ->
+            try {
+                val response = api.facets(credential, library, facet, page, snapshot?.binding)
+                if (!active(generation)) return@launch
+                validResponse(response.snapshot.library == library && response.facet == facet && response.page == page && response.size == 50)
+                validResponse(snapshot == null || response.snapshot == snapshot)
+                mutable.value = state.value.copy(busy = false, discovery = previous.copy(snapshot = response.snapshot,
+                    facetPage = response, editing = true, changed = false, inputInvalid = false))
+            } catch (e: CancellationException) { throw e }
+            catch (e: Exception) { discoveryFailure(e, generation, credential, library) }
+        }
+    }
+    fun applyDiscovery() {
+        val context = state.value.discovery ?: return
+        if (state.value.busy || context.snapshot == null) return
+        if (runCatching { context.filters.json().keys.all { it in context.snapshot.enabled } }.getOrDefault(false)) {
+            searchDiscoveryPage(1, context.copy(result = null))
+        } else mutable.value = state.value.copy(discovery = context.copy(inputInvalid = true))
+    }
+    fun searchDiscoveryPage(page: Int, context: PhoneDiscoveryState? = state.value.discovery) {
+        if (!api.discoveryEnabled || !allowed() || coolingDown() || page !in 1..100000) return
+        val previous = context ?: return; val snapshot = previous.snapshot ?: return
+        val fingerprint = if (page == 1) null else previous.result?.fingerprint ?: return
+        val library = state.value.library!!; val credential = token!!
+        if (snapshot.library != library) return
+        invalidate(keepIdentity = true)
+        mutable.value = state.value.copy(library = library, busy = true, discovery = previous.copy(editing = false))
+        launch { generation ->
+            try {
+                val result = api.search(credential, library, snapshot.binding, previous.filters, page, fingerprint)
+                if (!active(generation)) return@launch
+                validResponse(result.gallery.library_id == library && result.gallery.page == page && result.gallery.page_size == 50 &&
+                    result.binding == snapshot.binding && (fingerprint == null || result.fingerprint == fingerprint))
+                mutable.value = state.value.copy(gallery = result.gallery, discovery = previous.copy(result = result, editing = false))
+                val images = mutableMapOf<String, ByteArray>(); var byteCount = 0
+                for (asset in result.gallery.items) {
+                    val bytes = api.thumbnail(credential, library, asset)
+                    if (!active(generation)) return@launch
+                    if (bytes != null && bytes.size <= HttpsPhotoHouseApi.IMAGE_LIMIT && byteCount + bytes.size <= CACHE_LIMIT) {
+                        images[asset.id] = bytes; byteCount += bytes.size
+                        mutable.value = state.value.copy(previews = images.toMap())
+                    }
+                }
+                mutable.value = state.value.copy(busy = false)
+            } catch (e: CancellationException) { throw e }
+            catch (e: Exception) { discoveryFailure(e, generation, credential, library) }
+        }
+    }
+    private suspend fun discoveryFailure(error: Exception, generation: Long, credential: Bearer, library: String) {
+        if (!active(generation)) return
+        if (error is ApiFailure && error.status == 409) {
+            invalidate(keepIdentity = true)
+            mutable.value = state.value.copy(library = library, discovery = PhoneDiscoveryState(changed = true), problem = LiveProblem(Message.DISCOVERY_CHANGED))
+            // The user obtains fresh facets, then explicitly applies a new query.
+        } else {
+            readFailure(error, generation, credential) { openDiscovery() }
+            if (active(generation) && error is ApiFailure && error.status == 400)
+                mutable.value = state.value.copy(problem = LiveProblem(Message.DISCOVERY_INPUT))
+        }
+    }
     fun openMedia(asset: Asset) = openAsset(asset, viewMedia = true)
     fun openAsset(asset: Asset, viewMedia: Boolean = false) {
         val gallery = state.value.gallery
         val ids = gallery?.items?.map { it.id }.orEmpty()
         val index = ids.indexOf(asset.id)
-        val navigation = if (gallery != null && index >= 0) PhotoNavigation(gallery.page, ids, index) else null
+        val navigation = if (gallery != null && index >= 0) PhotoNavigation(gallery.page, ids, index, state.value.discovery) else null
         openPhoto(asset.id, navigation, mediaAfterLoad = viewMedia)
     }
     fun adjacentPhoto(direction: Int) {
@@ -136,7 +231,10 @@ class ConnectedStore(private val api: PhotoHouseApi, private val scope: Coroutin
         openPhoto(navigation.assetIds[index], navigation.copy(index = index))
     }
     fun backToPhotos() {
-        loadPage(state.value.photoNavigation?.page ?: state.value.gallery?.page ?: 1)
+        val navigation = state.value.photoNavigation
+        val context = navigation?.discovery
+        if (context != null) searchDiscoveryPage(navigation.page, context)
+        else loadPage(navigation?.page ?: state.value.gallery?.page ?: 1)
     }
     fun openVideo() {
         if (!allowed() || state.value.busy || state.value.video != null || coolingDown()) return
@@ -259,7 +357,7 @@ class ConnectedStore(private val api: PhotoHouseApi, private val scope: Coroutin
     private suspend fun readFailure(error: Exception, generation: Long, credential: Bearer, retryRead: () -> Unit) {
         if (!active(generation)) return
         state.value.video?.close()
-        mutable.value = state.value.copy(video = null, gallery = null, detail = null, captions = null, previews = emptyMap(), photoNavigation = null, originalPhoto = null, viewingOriginal = false, photoSlideshow = false, busy = false, problem = problem(error))
+        mutable.value = state.value.copy(video = null, gallery = null, detail = null, captions = null, previews = emptyMap(), photoNavigation = null, originalPhoto = null, viewingOriginal = false, photoSlideshow = false, discovery = null, busy = false, problem = problem(error))
         if (error is ApiFailure && error.status == 401) {
             mutable.value = state.value.copy(busy = true)
             try {

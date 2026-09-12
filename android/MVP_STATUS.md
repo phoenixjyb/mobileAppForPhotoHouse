@@ -1,5 +1,10 @@
 # Android family browsing MVP — current status
 
+For the later phone/TV media and opt-in search additions, start with
+[phone/TV parity](PHONE_TV_PARITY.md) and the
+[protected discovery candidate](phone-discovery-contract/README.md). The original
+browsing-MVP audit below remains historical evidence for its stated scope.
+
 **Local implementation is complete for the agreed first browsing MVP. Live pipeline
 and family/device acceptance are pending.** Current audit: PH-ANDROID-MVP-COMPLETION-01,
 on top of `5773ec27db19012dd5d6de3d2717b2d781e6d664`. No source gap was demonstrated,

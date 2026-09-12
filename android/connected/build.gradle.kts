@@ -7,6 +7,8 @@ val localConfig = Properties().apply {
 val configuredOrigin = providers.gradleProperty("photohouseOrigin").orElse(localConfig.getProperty("photohouseOrigin", "")).get()
 // Only an origin is configurable; no credentials or trust overrides are build inputs.
 require(configuredOrigin.none { it == '\n' || it == '\r' || it == '"' || it == '\\' }) { "Invalid configured origin" }
+val discoveryEnabled = providers.gradleProperty("photohousePhoneDiscoveryEnabled").orElse("false").get()
+require(discoveryEnabled in listOf("true", "false")) { "Invalid phone discovery switch" }
 android {
     sourceSets.getByName("main").res.srcDir("../branding/res")
     namespace = "dev.photohouse.connected"
@@ -17,8 +19,9 @@ android {
         minSdk = 26
         targetSdk = 34
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
-        versionCode = 3
-        versionName = "0.4-phone-streaming-dev"
+        versionCode = 4
+        versionName = "0.5-phone-discovery-dev"
+        buildConfigField("boolean", "PHOTOHOUSE_DISCOVERY_ENABLED", discoveryEnabled)
         buildConfigField("String", "PHOTOHOUSE_ORIGIN", "\"$configuredOrigin\"")
     }
     androidComponents { beforeVariants(selector().withBuildType("release")) { it.enable = false } }

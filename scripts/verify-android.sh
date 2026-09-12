@@ -8,6 +8,7 @@ python3 android/verify-connected-boundaries.py
 python3 android/verify-home-contract.py
 python3 android/verify-catalog-contract.py
 python3 android/verify-discovery-contract.py
+python3 android/verify-phone-discovery-contract.py
 python3 android/verify-tv-boundaries.py
 if [[ -z "${JAVA_HOME:-}" && "$(uname -s)" == Darwin ]]; then
   export JAVA_HOME="$(/usr/libexec/java_home -v 17)"
@@ -30,7 +31,7 @@ android/gradlew -p android :core:test :live-core:test :home-core:test :tv:testDe
   :app:lintDebug :app:assembleDebug :connected:lintDebug :connected:assembleDebug \
   :tv:lintDebug :tv:assembleDebug --console=plain "$@" \
   -PphotohouseOrigin= -PphotohouseTvOrigin= -PphotohouseTvLanAddress= \
-  -PphotohouseTvCatalogVersion=2 -PphotohouseTvDiscoveryEnabled=false
+  -PphotohouseTvCatalogVersion=2 -PphotohouseTvDiscoveryEnabled=false -PphotohousePhoneDiscoveryEnabled=false
 python3 - <<'PY'
 import hashlib, pathlib, zipfile, xml.etree.ElementTree as ET
 root = pathlib.Path('.')
