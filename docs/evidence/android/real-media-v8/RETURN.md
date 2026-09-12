@@ -39,3 +39,7 @@ The backend task returned source candidate `50391b6db8a7c41dc276f6ec36c28dfc0b0a
 The backend's `docs/security/HOME_VIDEO_RANGE_RETURN.md` proposes separately approved offline Windows staging/native tests, then a disabled candidate containing the existing 16 items plus the failed MOV. Activation/restart follows candidate review. Larger sustainable coverage also needs a reviewed carry-forward helper; current checkpoints cannot be rewritten or imported across changed script/base revisions. Captioning should remain running while only the owned preparation job is stopped if contention appears.
 
 No physical projector was reachable over ADB, so no physical installation or acceptance is claimed. No service restart, caption pause, publication change, push or merge occurred in this Android slice. Phone parity work was preserved and no new phone APK was delivered.
+
+## Full-library continuation
+
+The [full-library acceptance plan](FULL_LIBRARY_ACCEPTANCE.md) records the subsequent backend coordinator/audit return and the remaining Android long-media, revision-refresh and physical-projector gates. It does not change this APK or claim expanded live coverage.
