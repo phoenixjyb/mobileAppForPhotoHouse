@@ -7,6 +7,7 @@ projector failure is **not resolved or reproduced** by this source change.
 
 - Base: `db7d8344d922409b6b3db5b8e9511c1c02748685` (TV v9).
 - Branch: `codex/android-tv-playback-diagnostics`, isolated Android worktree.
+- Source commit: `4b826b615f405d414ba8d622ad2d1cf8f6f5f104`.
 - TV v10 is a diagnostic build, with the existing streaming/player architecture.
 - Public source contains no configured endpoint, real media, credentials or logs.
 - No backend edits, restart, media publication, physical installation, push or merge.
@@ -50,3 +51,26 @@ full-screen, replacement and background tests remain relevant regression checks.
 
 This is an emulator/source qualification, not physical-TV or full-library acceptance.
 The separate SMB task owns Windows share setup and its own validation/activation.
+
+## Validation result
+
+- 85 home-core and 2 TV JVM tests passed, zero failures/errors/skips.
+- Catalog/video regression: 9 tests at font scale 1.0 and 9 at 2.0 passed
+  on diagnostic source `3e166c83098344ab4f332baea69e2ccd0bb01626`.
+- After the layout-only follow-up, the exact installed unconfigured APK hash
+  matched the final build. The failure/code/retry test passed at both 1.0 and
+  2.0, including EN/ZH rendering. Reviewed final screenshots show code and
+  navigation fully visible; the error pane can scroll for longer explanations.
+- First new test run had a test-harness mistake (scrollTo on an unscrollable
+  button), corrected before the successful regression runs. An intermediate
+  render clipped the footer/code and was corrected. An overlapping build/test
+  attempt was discarded after APK hash mismatch; its result is not acceptance.
+  The final enlarged replay initially suffered an emulator app-startup ANR
+  before test execution, then passed on a bounded retry. Private failure logs
+  were preserved; successful runs are included here.
+- Unconfigured and configured debug APK builds and lint passed; 0 errors,
+  3 pre-existing warnings. All five offline contract/boundary verifiers passed.
+- Audio-focus refusal feedback was source/build checked but not independently
+  fault-injected. Physical projector media playback remains unverified.
+- Owned emulator was force-stopped/shut down; no phone/projector install or live
+  networking from the emulator. Shared runtime/captioning remained untouched.

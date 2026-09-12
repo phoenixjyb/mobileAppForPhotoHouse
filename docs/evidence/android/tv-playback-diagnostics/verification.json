@@ -1,0 +1,39 @@
+{
+  "source_commit": "4b826b615f405d414ba8d622ad2d1cf8f6f5f104",
+  "package": "dev.photohouse.tv",
+  "version_code": 10,
+  "version_name": "0.10-tv-playback-diagnostics",
+  "sha256": "10a8108e751e0df3a5273b02901b1eb628f47bc8e26a9fa2017c1a918aed79fd",
+  "bytes": 10421081,
+  "signer_matches_v9": true,
+  "configuration_matches_v9": true,
+  "physical_projector_verified": false,
+  "jvm": {
+    "passed": 87,
+    "failures": 0
+  },
+  "regression_source_commit": "3e166c83098344ab4f332baea69e2ccd0bb01626",
+  "regression_tests_per_scale": 9,
+  "final_layout_tests_per_scale": 1,
+  "scales": [
+    1.0,
+    2.0
+  ],
+  "lint_errors": 0,
+  "lint_warnings": 3,
+  "configured_build": "passed",
+  "unconfigured_build": "passed",
+  "offline_verifiers": 5,
+  "physical_projector": "not tested; user still reports failure",
+  "backend_changed": false,
+  "phone_changed": false,
+  "installed_unconfigured_sha256": "b741f9104b24423315c65053ac3744647d68fbf507aac7c5fc6d6ee251211eb1",
+  "final_layout_seconds": {
+    "1.0": 101.109,
+    "2.0": 24.24
+  },
+  "regression_seconds": {
+    "1.0": 155.584,
+    "2.0": 132.057
+  }
+}
