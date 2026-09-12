@@ -220,15 +220,15 @@ internal val Edge = Color(0xFF496258)
                     viewer -> {
                         val bytes = state.display
                         Box(Modifier.fillMaxWidth().weight(1f).background(Color.Black).testTag("viewer")) {
-                            TvImage(bytes, t("Photo", "照片") + " ${state.selected ?: ""}", Modifier.fillMaxSize(), if (state.asset?.kind == AssetKind.VIDEO) t("Video", "视频") else unavailableText(state.asset?.displayUnavailable, zh), transform = transform, loading = state.busy)
-
+                            if (state.videoFailed) Box(Modifier.fillMaxSize().verticalScroll(rememberScrollState()).focusable().padding(horizontal = 16.dp, vertical = 4.dp)) {
+                                Text(playbackFailure?.message(zh) ?: t("Playback unavailable. Retry or choose another video. [TV-READ]", "暂时无法播放。请重试或选择其他视频。[TV-READ]"), Modifier.testTag("video-error"))
+                            } else TvImage(bytes, t("Photo", "照片") + " ${state.selected ?: ""}", Modifier.fillMaxSize(), if (state.asset?.kind == AssetKind.VIDEO) t("Video", "视频") else unavailableText(state.asset?.displayUnavailable, zh), transform = transform, loading = state.busy)
                         }
                         if (state.asset?.kind == AssetKind.VIDEO) {
-                            Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                            Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(12.dp)) {
                                 if (state.asset?.video != null) TvButton(t("Open video", "打开视频"), Modifier.testTag("open-video"), enabled = !state.busy) { playing = false; playbackFailure = null; store.openVideo() }
-                                if (state.videoFailed) Text(playbackFailure?.message(zh) ?: t("Playback unavailable. Retry or choose another video. [TV-READ]", "暂时无法播放。请重试或选择其他视频。[TV-READ]"), Modifier.testTag("video-error"))
-                                else if (state.asset?.video == null) Text(unavailableText(state.asset?.videoUnavailable, zh), Modifier.testTag("video-unavailable"))
-                                else Text(t("Video · Press Play after opening", "视频 · 打开后按播放"))
+                                if (state.asset?.video == null) Text(unavailableText(state.asset?.videoUnavailable, zh), Modifier.testTag("video-unavailable"))
+                                else if (!state.videoFailed) Text(t("Video · Press Play after opening", "视频 · 打开后按播放"))
                             }
                         }
                         // Toolbar arrows move focus; immersive mode maps arrows to photos.
@@ -254,7 +254,7 @@ internal val Edge = Color(0xFF496258)
                             }
                             TvButton(if (state.feed?.version == 2) t("Details", "信息") else t("Captions", "说明")) { captions = !captions }
                         }
-                        Text("${state.index + 1} / ${state.feed!!.items.size}  ·  " +
+                        if (!state.videoFailed) Text("${state.index + 1} / ${state.feed!!.items.size}  ·  " +
                             if (state.asset?.kind == AssetKind.PHOTO) t("Prepared display image · 8 seconds per slide", "高清展示图 · 每张 8 秒") else t("Prepared media only", "仅播放已准备的媒体"), style = MaterialTheme.typography.labelSmall)
                     }
                     else -> {
