@@ -65,3 +65,17 @@ video decoding/audio and long-video behavior remain physical acceptance gates.
 Search stays disabled until the separate approved service exists. New video
 coverage must come from a coherent backend publication; installing v9 does not
 make unprepared assets playable or provide new persistent caching.
+
+## Publication activation follow-up
+
+The backend owner activated revision 2 while packaging completed, reporting
+15 photos and 2 short videos ready out of 27,842 catalog entries. At
+2026-09-12 21:20:51 +08 this Android task independently read back enabled revision 2,
+matching config/control hashes and catalog SHA-256
+`7fd30c43a677236e6bfe8ac62221514c1842d796370428701af9966ee1903eb4`.
+The v2 listener belonged to pythonw PID 8580; v1, API and caption process identities
+were preserved. Native curl verified the hostname/TLS chain and returned expected
+403 from the unapproved server peer. This is live publication identity/TLS evidence,
+not successful media access from an approved TV peer. The ready-item counts and
+57 complete-video Range checks are the backend owner's evidence. Longer qualified
+videos and the rest of the library still need their own coherent publication.

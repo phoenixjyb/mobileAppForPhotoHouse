@@ -68,5 +68,19 @@
     "Discovery remains disabled pending its approved backend.",
     "Enlarged gallery uses scrolling; controls are not all simultaneously visible.",
     "No push or merge; no phone APK built in this slice."
-  ]
+  ],
+  "backend_publication": {
+    "observed_at": "2026-09-12T21:20:51.2004005+08:00",
+    "revision": 2,
+    "enabled": true,
+    "catalog_sha256": "7fd30c43a677236e6bfe8ac62221514c1842d796370428701af9966ee1903eb4",
+    "config_and_control_hashes_match_owner": true,
+    "live_v2_pid": 8580,
+    "trusted_tls_unapproved_peer_status": 403,
+    "v1_api_caption_identities_preserved": true,
+    "ready_photos_backend_owner_report": 15,
+    "ready_videos_backend_owner_report": 2,
+    "total_assets_backend_owner_report": 27842,
+    "physical_allowed_peer_access": false
+  }
 }
