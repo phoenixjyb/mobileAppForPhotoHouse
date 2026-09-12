@@ -48,20 +48,26 @@ versionCode 2, versionName `0.3-phone-media-dev`, debug only and origin unset.
 - Screen-awake and immersive navigation flags are temporary; secure-window and
   normal TLS/authentication behavior remain unchanged.
 
-## TV test boundary
+## Integrated source and TV test boundary
 
-The saved configured `PhotoHouse-TV-home-v6.apk` supports testing the existing v1
-home feed. Its current server health and content have not been rechecked here.
-It has discovery disabled. `PhotoHouse-TV-discovery-v6-unconfigured.apk` has v2
-and discovery enabled but no origin, and cannot test real-album discovery yet.
-Both v6 artifacts predate the reviewed provenance-label correction; that label
-is only relevant to the discovery profile. Preserve the working v1 rollback.
+Phone media source `fd7a72ac400c604bf078d04f3fb62cbdee4be806` and TV v8 source
+`efadba4702c322f14d097640fad93fc6f07f46d0` are now combined in the integration
+history. This preserves both APKs; it does not automatically port TV-only UI
+behavior into the authenticated phone module. The v8 direct player opening,
+readiness-aware catalog navigation and remote focus changes remain in the home-TV
+path. Phone prepared-media access and protected discovery still need their own
+reviewed contracts/adapters.
 
-Real discovery still requires a reviewed catalog/index and people mapping,
-prepared photo/video coverage, an approved compatible served profile, a configured
-APK and actual projector acceptance. Synthetic export/ASGI and emulator results
-do not establish these conditions. Do not install the unconfigured discovery APK
-over the working projector build expecting it to find a server automatically.
+The private configured v8 APK targets catalog v2 with discovery disabled. It has
+four passing API-36 live-canary tests: all 32 previews for 16 prepared entries,
+photo zoom, video play and remote page navigation. The live publication recorded
+by that return contains 15 photos and one video; a later backend candidate is not
+proof of an activated release. Full-library processing and physical JMGO acceptance
+remain distinct gates. Public CI APKs have empty origins and cannot connect to the
+private service without an explicitly configured local build.
+
+See [v8 evidence](../docs/evidence/android/real-media-v8/RETURN.md) and its
+[full-library acceptance plan](../docs/evidence/android/real-media-v8/FULL_LIBRARY_ACCEPTANCE.md).
 
 ## Search continuation
 

@@ -2,15 +2,22 @@
 
 Native Android and iOS frontends for a private family PhotoHouse library.
 
-**Android status, 11 September 2026:** the invitation-based family browsing MVP
-is locally implemented, with source/JVM, pinned in-process backend and prior
-APK/emulator evidence. Live pipeline and physical-device acceptance remain pending.
-Start with [current Android MVP status](android/MVP_STATUS.md) and the
-[ordered pilot acceptance handoff](android/PILOT_ACCEPTANCE.md).
+**Android status, 12 September 2026:** this repository contains the authenticated
+phone media app and the separate home-TV v8 app, plus the original offline fixture
+app. Phone and TV support photo/video viewing with separate access policies and
+platform-specific controls. See [phone/TV capability parity](android/PHONE_TV_PARITY.md),
+[phone validation](docs/evidence/android/phone-media-parity/RETURN.md), and
+[TV v8 validation](docs/evidence/android/real-media-v8/RETURN.md).
+
+The public verification lane builds unconfigured debug APKs for all three apps.
+Private server-configured APKs remain outside Git. TV live-canary checks do not
+establish complete library preparation or physical-projector acceptance; phone
+protected discovery and some media-access parity remain outstanding.
 
 The frozen `photohouse-mobile-fixture-v1` tag and foundation documents below are
 historical starting points, not the current Android resume point. Existing iOS work
-is not assessed by this Android status update. No deployed backend is claimed.
+is not assessed by this Android integration. Runtime evidence remains scoped to
+the exact service and artifact described in each validation return.
 
 Mobile source belongs in
 [mobileAppForPhotoHouse](https://github.com/phoenixjyb/mobileAppForPhotoHouse).

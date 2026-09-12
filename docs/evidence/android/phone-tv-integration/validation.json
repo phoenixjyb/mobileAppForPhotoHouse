@@ -1,0 +1,39 @@
+{
+  "date": "2026-09-12",
+  "integration_merge": "52899ad68c44d519ec9bf41fc41078f4220da0ef",
+  "base": "5db14f38d3ff7872420f4c5ed16ff54b2cf9b4ac",
+  "phone_tip": "d224bc0feb64cecdc9658f827f61747b45aee519",
+  "tv_tip": "ca439f28c040a012c361d8bf172ee4674b3155fd",
+  "jvm": {
+    "core": {
+      "tests": 22,
+      "failures": 0,
+      "errors": 0,
+      "skipped": 0
+    },
+    "live-core": {
+      "tests": 76,
+      "failures": 0,
+      "errors": 0,
+      "skipped": 0
+    },
+    "home-core": {
+      "tests": 84,
+      "failures": 0,
+      "errors": 0,
+      "skipped": 0
+    },
+    "tv": {
+      "tests": 2,
+      "failures": 0,
+      "errors": 0,
+      "skipped": 0
+    }
+  },
+  "apk_sha256": {
+    "app": "d16eb8f689b8700dc1c26fde09b9e8c0e9c6ea9d57572b650fb689a1a48ad88d",
+    "connected": "ffc21988d83378e2af6ea9b0146662320a34f264dc72dbf3b7d3bd95dabeb438",
+    "tv": "61b6cf9aa6c0941eb02de20d2e8e3dc6a97620fcfa3d33b54fcb8f325145bb73"
+  },
+  "local_android_branches_contained": 13
+}

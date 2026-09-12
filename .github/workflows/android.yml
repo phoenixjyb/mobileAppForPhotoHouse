@@ -1,4 +1,4 @@
-name: Android local verification
+name: Android phone and TV verification
 on:
   pull_request:
     paths: ['android/**', 'contracts/**', 'scripts/verify-android.sh', 'scripts/verify-contracts.py', '.github/workflows/android.yml']
@@ -8,7 +8,7 @@ on:
 permissions:
   contents: read
 jobs:
-  fixture:
+  android:
     runs-on: ubuntu-24.04
     timeout-minutes: 20
     steps:
@@ -19,12 +19,12 @@ jobs:
         with:
           distribution: temurin
           java-version: '17'
-      - name: Verify contract, fixture and local TLS scenarios, lint and debug APKs
+      - name: Verify phone/TV contracts, synthetic JVM and local TLS scenarios, lint and debug APKs
         run: scripts/verify-android.sh
       - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
         if: always()
         with:
-          name: android-synthetic-fixture
+          name: android-unconfigured-debug
           retention-days: 7
           if-no-files-found: warn
           path: |
@@ -34,3 +34,7 @@ jobs:
             android/live-core/build/test-results/test/*.xml
             android/connected/build/outputs/apk/debug/*.apk
             android/connected/build/reports/lint-results-debug.*
+            android/home-core/build/test-results/test/*.xml
+            android/tv/build/test-results/testDebugUnitTest/*.xml
+            android/tv/build/outputs/apk/debug/*.apk
+            android/tv/build/reports/lint-results-debug.*
