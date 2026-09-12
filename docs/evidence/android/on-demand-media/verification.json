@@ -1,0 +1,115 @@
+{
+  "backend_source": "f131c3edfb55092df6ce8a85e7a520fb5515c011",
+  "backend_full_suite": {
+    "tests": 480,
+    "failures": 0,
+    "errors": 0,
+    "source": "ebd4c0d058f2b8af3ae9b185cb6268303cddb93f"
+  },
+  "backend_followup": {
+    "tests": 20,
+    "failures": 0,
+    "errors": 0,
+    "source": "f131c3edfb55092df6ce8a85e7a520fb5515c011"
+  },
+  "android_checks": {
+    "home-core": {
+      "tests": 88,
+      "failures": 0,
+      "errors": 0,
+      "skipped": 0
+    },
+    "live-core": {
+      "tests": 102,
+      "failures": 0,
+      "errors": 0,
+      "skipped": 0
+    },
+    "tv": {
+      "tests": 2,
+      "failures": 0,
+      "errors": 0,
+      "skipped": 0
+    },
+    "tv_lint": [
+      {
+        "severity": "Warning",
+        "id": "ExifInterface"
+      },
+      {
+        "severity": "Warning",
+        "id": "OldTargetApi"
+      },
+      {
+        "severity": "Warning",
+        "id": "DiscouragedApi"
+      },
+      {
+        "severity": "Warning",
+        "id": "MonochromeLauncherIcon"
+      }
+    ],
+    "connected_lint": [
+      {
+        "severity": "Warning",
+        "id": "ExifInterface"
+      },
+      {
+        "severity": "Warning",
+        "id": "OldTargetApi"
+      },
+      {
+        "severity": "Warning",
+        "id": "MonochromeLauncherIcon"
+      }
+    ]
+  },
+  "artifacts": [
+    {
+      "file": "PhotoHouse-TV-v11-on-demand.apk1",
+      "bytes": 10431268,
+      "sha256": "7c5fd22864332b05669cd8fafc12e47543ad3783bbb61d978223b83ec89fe9cc",
+      "signer_sha256": "56d7591b2b6c2538d506d1fe51327444f2307736cb12f5beefa08f1c410d6d28",
+      "package": "package: name='dev.photohouse.tv' versionCode='11' versionName='0.11-tv-on-demand' platformBuildVersionName='14' platformBuildVersionCode='34' compileSdkVersion='34' compileSdkVersionCodename='14'",
+      "origin": "unset",
+      "installed_on": "API 36 emulator only",
+      "installed_hash_matches": true
+    },
+    {
+      "file": "PhotoHouse-Phone-v5-on-demand.apk1",
+      "bytes": 10427132,
+      "sha256": "429cff0c1246c5a2028a1046ea9f70f310c7247aadacb12bcbb19aead515537c",
+      "signer_sha256": "56d7591b2b6c2538d506d1fe51327444f2307736cb12f5beefa08f1c410d6d28",
+      "package": "package: name='dev.photohouse.connected' versionCode='5' versionName='0.6-phone-on-demand' platformBuildVersionName='14' platformBuildVersionCode='34' compileSdkVersion='34' compileSdkVersionCodename='14'",
+      "origin": "unset",
+      "installed_on": "API 36 emulator only",
+      "installed_hash_matches": true
+    }
+  ],
+  "emulator": {
+    "avd": "Medium_Phone_API_36.0",
+    "api": 36,
+    "tv_new_flow_font_scales": [
+      1,
+      2
+    ],
+    "phone_new_flow_font_scales": [
+      1,
+      2
+    ],
+    "phone_languages": [
+      "en",
+      "zh"
+    ],
+    "rendered_screens_reviewed": true,
+    "decoder_checks": {
+      "tv": "passed: corrupt bytes, bounded pixels, JPEG EXIF and eight transforms",
+      "phone": "passed: corrupt bytes, bounded pixels, JPEG EXIF and eight transforms"
+    }
+  },
+  "windows_deployed": false,
+  "physical_installed": false,
+  "push": false,
+  "merge": false,
+  "android_application_source": "e9ce77b2ed068bd734b1098366043c543ab1cf46"
+}

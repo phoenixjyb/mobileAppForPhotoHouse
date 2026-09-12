@@ -13,3 +13,6 @@ anonymous phone fallback, original permission upgrade or persistent device cache
 
 Run `python3 android/verify-on-demand-contract.py` offline. Add `--backend-root`
 to verify the pinned Git blobs and current producer source before staging.
+
+TV discovery remains a v2 candidate and is disabled in the v3 build until its
+source-reference integration is implemented and verified.
