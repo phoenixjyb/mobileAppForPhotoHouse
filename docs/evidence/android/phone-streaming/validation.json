@@ -1,0 +1,43 @@
+{
+  "date": "2026-09-12",
+  "base": "8fdd280be55724ca020d12113cacc7a40463d08b",
+  "source_commit": "4c124e003f5f329c5d77b4726a29b2d9ba233d1e",
+  "branch": "codex/android-phone-parity-streaming",
+  "tests": {
+    "live-core": {
+      "tests": 80,
+      "failures": 0,
+      "errors": 0,
+      "skipped": 0
+    },
+    "home-core": {
+      "tests": 85,
+      "failures": 0,
+      "errors": 0,
+      "skipped": 0
+    }
+  },
+  "instrumentation": {
+    "normal": {
+      "passed": 15,
+      "seconds": 266.604
+    },
+    "large_2x": {
+      "passed": 15,
+      "seconds": 182.949
+    }
+  },
+  "apk": {
+    "package": "dev.photohouse.connected",
+    "version_code": 3,
+    "version_name": "0.4-phone-streaming-dev",
+    "origin_configured": false,
+    "bytes": 8864010,
+    "sha256": "97d9131f39128bad47f8d372e259f15e46f27a82c624c9d1ed02b899f264a5cd"
+  },
+  "lint": {
+    "errors": 0,
+    "warnings": 2
+  },
+  "synthetic_long_video_sha256": "7d53063fc30d48424b585294ce2499b1a5a96296fd1bf30ef471dfcd098b59b2"
+}

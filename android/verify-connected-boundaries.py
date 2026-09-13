@@ -16,7 +16,7 @@ assert [cert.get('src') for cert in network.iter('certificates')] == ['system']
 assert network.find('debug-overrides') is None
 for module in ('connected', 'live-core'):
     config = (root / module / 'build.gradle.kts').read_text()
-    assert 'project(":core")' not in config and 'project(":app")' not in config
+    assert 'project(":core")' not in config and 'project(":app")' not in config and 'project(":home-core")' not in config
     for source in (root / module / 'src/main').rglob('*.kt'):
         text = source.read_text()
         for forbidden in ('FixtureRepository', 'SharedPreferences', 'SavedStateHandle', 'rememberSaveable', 'FileOutputStream', 'hostnameVerifier(', 'sslSocketFactory(', 'WebView(', 'HttpLoggingInterceptor'):

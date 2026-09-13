@@ -13,9 +13,9 @@ green and cream phone design. UI language does not rewrite caption content.
 | Photo fit/fill, zoom/pan, immersive display | Implemented; explicit original permission and bounded decode | Implemented on prepared display bytes |
 | Next/previous within a page | Implemented in detail and original viewer | Implemented |
 | Photo slideshow | Explicit start, 8 seconds, current page only; stops at page end, video, denied/unavailable originals | Implemented on prepared media |
-| Video play/pause, seek, fit/fill, immersive display | Implemented; original permission and authenticated Range | Implemented for prepared v2 video |
+| Video play/pause, seek, fit/fill, immersive display | Implemented; original permission, authenticated Range, 32 GiB bounded reader and long-video feedback | Implemented for prepared v2 video |
 | Page selection | Numeric touch entry, bounds checked | Remote page controls |
-| People/aliases, dates, captions, tags, coarse places, combined search | Awaiting a reviewed protected contract and adapter | Source implemented; real publication/configuration/device acceptance pending |
+| People/aliases, dates, captions, tags, coarse places, combined search | Implemented behind an opt-in candidate build flag; live backend/device acceptance pending | Source implemented; real publication/configuration/device acceptance pending |
 | Themes/topics, named albums, GPS/radius search | Not implemented | Not implemented; theme/topic controls remain unavailable |
 
 The phone keeps authentication, current library membership and original-file
@@ -25,7 +25,28 @@ The current phone's original media path is not a prepared derivative endpoint;
 prepared playback for viewers without original access needs its own protected
 capability and contract. Do not grant originals merely to match TV behavior.
 
-## This phone media slice
+## Phone continuation, 12 September 2026
+
+Branch `codex/android-phone-parity-streaming` starts from integrated default
+`8fdd280be55724ca020d12113cacc7a40463d08b`. Phone build 3 (`0.4-phone-streaming-dev`)
+adds direct gallery-to-viewer opening, a separate Details action, 32 GiB Range
+handling and long-video seek/buffering feedback. Returned metadata controls media
+kind and original permission; a video still requires Play. Persistent caching is
+not enabled. See [streaming/cache policy](MEDIA_STREAMING.md).
+
+Protected discovery now has a separately pinned opt-in HTTP candidate and phone adapter/editor.
+Prepared derivatives remain blocked on their own reviewed HTTP capability. The backend owner is progressing discovery transport source and
+real full-library qualification separately. No phone route is inferred from TV.
+
+## Protected discovery continuation, 12 September 2026
+
+Phone versionCode 4 (`0.5-phone-discovery-dev`) retains phone streaming and shared
+branding, adding the separately pinned protected search contract, adapter and editor.
+The feature defaults off until explicit reviewed server/build configuration. Source
+checks, mock TLS, actual producer replay and emulator tests remain distinct from a
+live protected discovery service or family-device acceptance.
+
+## Earlier phone media slice
 
 Base `838d392861a474ad8b9e2faf0994f35f26b085cd`; isolated branch
 `codex/android-phone-media-parity`. Application `dev.photohouse.connected`,
@@ -53,10 +74,10 @@ versionCode 2, versionName `0.3-phone-media-dev`, debug only and origin unset.
 Phone media source `fd7a72ac400c604bf078d04f3fb62cbdee4be806` and TV v8 source
 `efadba4702c322f14d097640fad93fc6f07f46d0` are now combined in the integration
 history. This preserves both APKs; it does not automatically port TV-only UI
-behavior into the authenticated phone module. The v8 direct player opening,
+behavior into the authenticated phone module. Phone now also supports direct permitted-media opening. The v8
 readiness-aware catalog navigation and remote focus changes remain in the home-TV
-path. Phone prepared-media access and protected discovery still need their own
-reviewed contracts/adapters.
+path. Phone prepared-media access still needs its own reviewed contract. Protected
+discovery now has an opt-in candidate adapter; its live service remains pending.
 
 The private configured v8 APK targets catalog v2 with discovery disabled. It has
 four passing API-36 live-canary tests: all 32 previews for 16 prepared entries,
@@ -79,8 +100,27 @@ This adds no callable endpoint. Proposed HTTP/field names are not frozen.
 No guessed phone routes, global people list, caption-to-identity inference,
 or shared-contract edits belong in this media change.
 
-After coordinator review/freeze: implement the authenticated phone adapter,
-touch Explore editor and result navigation, then replay real producer responses
-and test denial, stale results, later-page selection, EN/ZH and enlarged fonts.
+The authenticated phone adapter, touch search editor and result navigation now consume
+backend candidate `af8e0c8cf749f6e963dd8b196dce9aa842240387` through the separate
+[opt-in phone discovery contract](phone-discovery-contract/README.md). The default APK
+keeps the feature disabled; protected server wiring, provenance/index admission and
+physical-device acceptance remain separate.
 High-resolution prepared media for non-original viewers is a distinct remaining
 contract. See this slice's [validation return](../docs/evidence/android/phone-media-parity/RETURN.md).
+
+## On-demand delivery candidate — 13 September 2026
+
+Both app formats now have an opt-in photo delivery path. TV v3 advertises
+on-demand previews and explicitly permitted originals; the phone opens optimized
+protected display images first, including for viewers without original grants.
+Both expose an explicit original-quality action where permitted and keep bounded
+EXIF-aware decoding, fit/zoom/fullscreen, navigation and memory-only state.
+TV now also consumes conservatively indexed H.264 original streams without
+conversion; existing prepared v2 video and phone authenticated original Range
+remain available. This does not add protected prepared-video access for phone
+viewers without original permission, HEVC/4K direct-play negotiation, tiled zoom,
+or automatic full-library preparation. The live v2 feed and physical projector
+playback remain separate rollout/acceptance gates.
+
+See [candidate contract](on-demand-contract/README.md) and
+[validation return](../docs/evidence/android/on-demand-media/RETURN.md).

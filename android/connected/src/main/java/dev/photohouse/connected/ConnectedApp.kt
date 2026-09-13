@@ -42,6 +42,8 @@ private class Words(val zh: Boolean) {
         Message.INVALID_INPUT -> t("Check your inputs. Use a country code and a password of 15–128 characters. If already registered, sign in.", "请检查输入，使用含国家码的手机号和 15–128 个字符的密码。已注册请登录。")
         Message.INVALID_RESPONSE -> t("The server response could not be displayed safely.", "无法安全显示服务器响应。")
         Message.TOO_LARGE -> t("This file is too large to display here.", "文件过大，无法在此处显示。")
+        Message.DISCOVERY_CHANGED -> t("Search information changed. Refresh options and apply your filters again.", "搜索资料已更新，请刷新选项后重新选择并应用条件。")
+        Message.DISCOVERY_INPUT -> t("Check your search filters and dates.", "请检查搜索条件和日期。")
         Message.MEDIA_UNAVAILABLE -> t("This media is unavailable.", "此媒体不可用。")
     }
     fun membership(m: Membership) = when {
@@ -69,7 +71,7 @@ private class Words(val zh: Boolean) {
         val galleryForJump = state.gallery
         if (jumpPage && galleryForJump != null && !state.covered && store != null) PhonePageJump(
             galleryForJump.page, galleryForJump.page_size, galleryForJump.total, words.zh,
-            { jumpPage = false }, { target -> jumpPage = false; store.loadPage(target) })
+            { jumpPage = false }, { target -> jumpPage = false; store.navigatePage(target) })
         if (settings) AlertDialog(
             onDismissRequest = { settings = false },
             title = { Text(t("Settings", "设置")) },
@@ -91,7 +93,7 @@ private class Words(val zh: Boolean) {
             BackHandler(store != null && state.library != null && !state.covered) {
                 if (state.video != null) store?.closeVideo()
                 else if (state.viewingOriginal) store?.closeOriginalPhoto()
-                else if (state.detail != null || state.photoNavigation != null) store?.backToPhotos() else store?.libraries()
+                else if (state.detail != null || state.photoNavigation != null) store?.backToPhotos() else if (state.discovery != null) { if (state.discovery?.editing == true) store?.loadPage(1) else store?.editDiscovery() } else store?.libraries()
             }
             if (state.video != null && !state.covered && store != null) {
                 val reader = state.video!!
@@ -101,7 +103,9 @@ private class Words(val zh: Boolean) {
             if (state.viewingOriginal && !state.covered && store != null) {
                 OriginalPhotoViewer(state.originalPhoto, state.busy, words.zh, store::closeOriginalPhoto,
                     state.photoNavigation, state.photoSlideshow, { store.adjacentOriginalPhoto(it) },
-                    store::togglePhotoSlideshow, store::stopPhotoSlideshow, store::advancePhotoSlideshow)
+                    store::togglePhotoSlideshow, store::stopPhotoSlideshow, store::advancePhotoSlideshow,
+                    originalQuality = state.photoOriginalQuality,
+                    onOriginal = if (state.detail?.originals_allowed == true) store::openOriginalPhoto else null)
                 return@Surface
             }
             LazyColumn(Modifier.fillMaxSize().safeDrawingPadding().testTag("connected-screen"), state = scroll,
@@ -160,8 +164,9 @@ private class Words(val zh: Boolean) {
                                     }
                                     item { key(state.generation) { InvitationForm(store, state, words) } }
                                 }
+                                state.discovery?.editing == true -> phoneDiscoveryEditor(store, state, words.zh)
                                 state.detail != null || state.photoNavigation != null -> {
-                                    item { TextButton(onClick = store::backToPhotos) { Text(t("Back to Photos", "返回照片")) } }
+                                    item { TextButton(onClick = store::backToPhotos) { Text(if (state.photoNavigation?.discovery != null) t("Back to results", "返回结果") else t("Back to Photos", "返回照片")) } }
                                     state.detail?.let { detail ->
                                         item { Preview(detail.asset, state.previews[detail.asset.id], words, detail = true) }
                                     }
@@ -175,6 +180,9 @@ private class Words(val zh: Boolean) {
                                         } }
                                     }
                                     state.detail?.let { detail ->
+                                    if (detail.asset.kind == "image" && store.photoDeliveryEnabled) item {
+                                        Button(onClick = store::openDisplayPhoto, enabled = !state.busy) { Text(t("View photo", "查看照片")) }
+                                    }
                                     if (detail.asset.kind == "image" && detail.originals_allowed) item {
                                         Button(onClick = store::openOriginalPhoto, enabled = !state.busy) { Text(t("Open original photo", "打开原始照片")) }
                                     }
@@ -204,20 +212,28 @@ private class Words(val zh: Boolean) {
                                 }
                                 else -> {
                                     item { Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
-                                        Text(t("Photos", "照片"), style = MaterialTheme.typography.headlineMedium, fontFamily = FontFamily.Serif)
+                                        Text(if (state.discovery != null) t("Search results", "搜索结果") else t("Photos", "照片"), style = MaterialTheme.typography.headlineMedium, fontFamily = FontFamily.Serif)
                                         Text(state.library.orEmpty(), style = MaterialTheme.typography.bodySmall,
                                             color = MaterialTheme.colorScheme.onSurfaceVariant)
+                                    } }
+                                    if (store.discoveryEnabled) item { FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                                        Button(onClick = { if (state.discovery == null) store.openDiscovery() else store.editDiscovery() }, enabled = !state.busy,
+                                            modifier = Modifier.testTag("open-discovery")) { Text(if (state.discovery == null) t("Find a memory", "寻找回忆") else t("Edit filters", "修改条件")) }
+                                        if (state.discovery != null) TextButton(onClick = { store.loadPage(1) }, enabled = !state.busy) { Text(t("All photos", "全部照片")) }
                                     } }
                                     state.gallery?.let { gallery ->
                                         if (gallery.items.isEmpty()) item { Text(t("This page has no photos", "此页没有照片")) }
                                         val columns = if (config.fontScale > 1.3f || config.screenWidthDp < 360) 1 else 2
                                         items(gallery.items.chunked(columns)) { row -> Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
-                                            row.forEach { asset -> Card(onClick = { store.openAsset(asset) }, modifier = Modifier.weight(1f)) {
+                                            row.forEach { asset -> Card(onClick = { store.openMedia(asset) }, modifier = Modifier.weight(1f).testTag("media-${asset.id}")) {
                                                 Preview(asset, state.previews[asset.id], words)
                                                 Column(Modifier.padding(14.dp), verticalArrangement = Arrangement.spacedBy(4.dp)) {
                                                     Text(asset.taken_at ?: t("Date unknown", "日期未知"), style = MaterialTheme.typography.titleSmall)
                                                     Text(t(if (asset.kind == "video") "Video" else "Photo", if (asset.kind == "video") "视频" else "照片"),
                                                         style = MaterialTheme.typography.labelMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                                                    TextButton(onClick = { store.openAsset(asset) }, modifier = Modifier.testTag("details-${asset.id}")) {
+                                                        Text(t("Details", "详情"))
+                                                    }
                                                 }
                                             } }
                                             if (row.size < columns) Spacer(Modifier.weight(1f))
@@ -225,9 +241,9 @@ private class Words(val zh: Boolean) {
                                         item {
                                             Text(t("Page ${gallery.page} · ${gallery.total} photos", "第 ${gallery.page} 页 · ${gallery.total} 张照片"))
                                             FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                                                OutlinedButton(onClick = { store.loadPage(gallery.page - 1) }, enabled = !state.busy && gallery.page > 1) { Text(t("Previous", "上一页")) }
-                                                OutlinedButton(onClick = { store.loadPage(gallery.page + 1) }, enabled = !state.busy && gallery.page < 100000 && gallery.page.toLong() * gallery.page_size < gallery.total) { Text(t("Next", "下一页")) }
-                                                OutlinedButton(onClick = { store.loadPage() }, enabled = !state.busy) { Text(t("Refresh", "刷新")) }
+                                                OutlinedButton(onClick = { store.navigatePage(gallery.page - 1) }, enabled = !state.busy && gallery.page > 1) { Text(t("Previous", "上一页")) }
+                                                OutlinedButton(onClick = { store.navigatePage(gallery.page + 1) }, enabled = !state.busy && gallery.page < 100000 && gallery.page.toLong() * gallery.page_size < gallery.total) { Text(t("Next", "下一页")) }
+                                                OutlinedButton(onClick = { store.navigatePage(1) }, enabled = !state.busy) { Text(t("Refresh", "刷新")) }
                                                 OutlinedButton(onClick = { jumpPage = true }, enabled = !state.busy) { Text(t("Go to page", "跳转页面")) }
                                             }
                                         }
@@ -299,7 +315,7 @@ private class Words(val zh: Boolean) {
     }
 }
 
-@Composable private fun PhotoHouseTheme(content: @Composable () -> Unit) {
+@Composable internal fun PhotoHouseTheme(content: @Composable () -> Unit) {
     MaterialTheme(
         colorScheme = lightColorScheme(
             primary = Color(0xFF365347), onPrimary = Color.White,

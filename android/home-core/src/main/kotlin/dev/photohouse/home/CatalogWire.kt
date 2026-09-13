@@ -4,6 +4,7 @@ import kotlinx.serialization.json.*
 
 /** Frozen home-catalog v2. Strict keys and bounded UTF-8 parsing; no permissive v1 fallback. */
 object CatalogWire {
+    const val ORIGINAL_MAX_BYTES = 64 * 1024 * 1024
     const val VIDEO_MAX_BYTES = 34359738368L
     const val READ_BYTES = 262144
     private fun bad(): Nothing = throw HomeFailure(HomeError.INVALID)
@@ -35,12 +36,13 @@ object CatalogWire {
             else -> bad()
         }
     }
-    fun previewPath(id: Int, variant: Variant, revision: Int) = "/home/v2/assets/$id/preview?variant=${variant.wire}&revision=$revision"
-    fun videoPath(id: Int, revision: Int) = "/home/v2/assets/$id/video?revision=$revision"
-    fun feed(bytes: ByteArray, page: Int, requestedRevision: Int? = null): HomeFeed = try {
+    fun previewPath(id: Int, variant: Variant, revision: Int, version: Int = 2) = "/home/v$version/assets/$id/preview?variant=${variant.wire}&revision=$revision"
+    fun videoPath(id: Int, revision: Int, version: Int = 2) = "/home/v$version/assets/$id/video?revision=$revision"
+    fun feed(bytes: ByteArray, page: Int, requestedRevision: Int? = null, version: Int = 2): HomeFeed = try {
+        check(version in 2..3)
         check(page in 1..100000 && (page == 1 || requestedRevision != null))
         val o = HomeWire.parse(bytes).obj("version", "revision", "library", "page", "page_size", "total", "has_more", "items")
-        check(o.getValue("version").number() == 2L)
+        check(o.getValue("version").number() == version.toLong())
         val revision = o.getValue("revision").number().toInt()
         check(requestedRevision == null || revision == requestedRevision)
         check(o.getValue("page").number() == page.toLong() && o.getValue("page_size").number() == 50L)
@@ -49,8 +51,10 @@ object CatalogWire {
         val library = o.getValue("library").obj("id", "title")
         val id = library.getValue("id").str(64); check(id.matches(Regex("[a-z0-9-]{1,64}")))
         val items = (o.getValue("items") as? JsonArray ?: bad()).map { element ->
-            val a = element.obj("id", "kind", "label", "width", "height", "previews", "video", "originals_allowed")
-            check(!a.getValue("originals_allowed").bool())
+            val keys = arrayOf("id", "kind", "label", "width", "height", "previews", "video", "originals_allowed")
+            val a = element.obj(*(if (version == 3) keys + "original" else keys))
+            val originalsAllowed = a.getValue("originals_allowed").bool()
+            if (version == 2) check(!originalsAllowed)
             for (dimension in listOf("width", "height")) a.getValue(dimension).let { if (it != JsonNull) it.number(1, 1000000) }
             val assetId = a.getValue("id").number().toInt()
             val kind = when (a.getValue("kind").str(16)) {
@@ -60,11 +64,16 @@ object CatalogWire {
             fun preview(v: Variant): Pair<Preview?, MediaUnavailable?> {
                 val raw = previews.getValue(v.wire); val p = raw as? JsonObject ?: bad()
                 if (p["state"] == JsonPrimitive("unavailable")) return null to raw.reason()
+                if (version == 3 && p["state"] == JsonPrimitive("on_demand")) {
+                    p.obj("state", "url"); check(kind == AssetKind.PHOTO)
+                    val url = p.getValue("url").str(160); check(url == previewPath(assetId, v, revision, version))
+                    return Preview(0, 0, v.bytes, "", url, onDemand = true) to null
+                }
                 p.obj("state", "width", "height", "bytes", "sha256", "url")
                 check(p.getValue("state").str(20) == "ready")
                 val w = p.getValue("width").number(1, v.edge.toLong()).toInt()
                 val h = p.getValue("height").number(1, v.edge.toLong()).toInt(); check(w.toLong() * h <= v.pixels)
-                val url = p.getValue("url").str(160); check(url == previewPath(assetId, v, revision))
+                val url = p.getValue("url").str(160); check(url == previewPath(assetId, v, revision, version))
                 return Preview(w, h, p.getValue("bytes").number(1, v.bytes.toLong()).toInt(), p.getValue("sha256").hash(), url) to null
             }
             val grid = preview(Variant.GRID); val display = preview(Variant.DISPLAY)
@@ -75,18 +84,31 @@ object CatalogWire {
                 val v = raw as? JsonObject ?: bad()
                 if (v["state"] == JsonPrimitive("unavailable")) unavailable = v.reason()
                 else {
-                    v.obj("state", "mime", "video_codec", "audio_codec", "width", "height", "duration_ms", "bytes", "sha256", "url")
-                    check(v.getValue("state").str(20) == "ready" && v.getValue("mime").str(32) == "video/mp4" && v.getValue("video_codec").str(8) == "h264")
+                    val direct = version == 3 && v["state"] == JsonPrimitive("direct")
+                    val keys = arrayOf("state", "mime", "video_codec", "audio_codec", "width", "height", "duration_ms", "bytes", "url")
+                    v.obj(*(if (direct) keys else keys + "sha256"))
+                    check(!direct || originalsAllowed)
+                    check((direct || v.getValue("state").str(20) == "ready") && v.getValue("mime").str(32) == "video/mp4" && v.getValue("video_codec").str(8) == "h264")
                     val audio = v.getValue("audio_codec").let { if (it == JsonNull) null else it.str(8).also { codec -> check(codec == "aac") } }
                     val w = v.getValue("width").number(1, 1920).toInt(); val h = v.getValue("height").number(1, 1920).toInt(); check(w.toLong() * h <= 2073600)
-                    val url = v.getValue("url").str(160); check(url == videoPath(assetId, revision))
-                    video = HomeVideo(w, h, v.getValue("duration_ms").number(1, 86400000).toInt(), v.getValue("bytes").number(1, VIDEO_MAX_BYTES), v.getValue("sha256").hash(), url, audio)
+                    val url = v.getValue("url").str(160); check(url == videoPath(assetId, revision, version))
+                    video = HomeVideo(w, h, v.getValue("duration_ms").number(1, 86400000).toInt(), v.getValue("bytes").number(1, VIDEO_MAX_BYTES), if (direct) "" else v.getValue("sha256").hash(), url, audio, direct)
                 }
             }
-            HomeAsset(assetId, a.getValue("label").str(256), grid.first, display.first, kind, video, grid.second, display.second, unavailable)
+            val original = if (version == 3 && a["original"] != JsonNull) {
+                check(originalsAllowed && kind == AssetKind.PHOTO)
+                val o = a.getValue("original").obj("mime", "bytes", "width", "height", "url")
+                val mime = o.getValue("mime").str(32); check(mime in listOf("image/jpeg", "image/png"))
+                val w = o.getValue("width").number(1, 32768).toInt(); val h = o.getValue("height").number(1, 32768).toInt()
+                check(w.toLong() * h <= 256_000_000)
+                val url = o.getValue("url").str(160); check(url == "/home/v3/assets/$assetId/original?revision=$revision")
+                HomeOriginal(mime, o.getValue("bytes").number(1, ORIGINAL_MAX_BYTES.toLong()).toInt(), w, h, url)
+            } else null
+            if (version == 3) check(originalsAllowed == (original != null || video?.direct == true))
+            HomeAsset(assetId, a.getValue("label").str(256), grid.first, display.first, kind, video, grid.second, display.second, unavailable, original)
         }
         check(items.size == minOf(50, maxOf(0, total - (page - 1) * 50)))
         check(items.zipWithNext().all { (a, b) -> a.id > b.id })
-        HomeFeed(revision, id, library.getValue("title").str(256), page, 50, total, more, items, version = 2)
+        HomeFeed(revision, id, library.getValue("title").str(256), page, 50, total, more, items, version = version)
     } catch (e: HomeFailure) { throw e } catch (_: Exception) { bad() }
 }

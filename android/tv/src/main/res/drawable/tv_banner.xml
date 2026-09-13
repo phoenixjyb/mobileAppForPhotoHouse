@@ -1,6 +1,7 @@
-<vector xmlns:android="http://schemas.android.com/apk/res/android" android:width="320dp" android:height="180dp" android:viewportWidth="320" android:viewportHeight="180">
- <path android:fillColor="#132722" android:pathData="M0,0h320v180h-320z"/>
- <path android:fillColor="#ECCB91" android:pathData="M86,28h148v124h-148z"/>
- <path android:fillColor="#315A48" android:pathData="M96,132l40,-60l35,40l23,-33l30,53z"/>
- <path android:fillColor="#FFFFFF" android:pathData="M192,40a15,15 0,1 0,0 30a15,15 0,1 0,0 -30"/>
-</vector>
+<?xml version="1.0" encoding="utf-8"?>
+<layer-list xmlns:android="http://schemas.android.com/apk/res/android">
+    <item><shape><size android:width="320dp" android:height="180dp" /><solid android:color="#FFF9F3" /></shape></item>
+    <item android:width="160dp" android:height="160dp" android:gravity="center">
+        <bitmap android:src="@drawable/photohouse_mark" android:gravity="fill" android:filter="true" />
+    </item>
+</layer-list>

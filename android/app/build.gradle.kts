@@ -1,5 +1,6 @@
 plugins { id("com.android.application"); kotlin("android") }
 android {
+    sourceSets.getByName("main").res.srcDir("../branding/res")
     namespace = "dev.photohouse.fixture"
     compileSdk = 34
     buildToolsVersion = "34.0.0"

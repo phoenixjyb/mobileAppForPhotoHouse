@@ -35,7 +35,14 @@ internal class VideoDataSource(private val reader: VideoReader) : MediaDataSourc
     override fun close() { }
 }
 internal data class Playback(val ready: Boolean = false, val playing: Boolean = false, val position: Int = 0,
-    val duration: Int = 0, val width: Int = 16, val height: Int = 9, val seeking: Boolean = false)
+    val duration: Int = 0, val width: Int = 16, val height: Int = 9, val seeking: Boolean = false, val buffering: Boolean = false)
+
+internal fun videoTime(milliseconds: Int): String {
+    val seconds = milliseconds.coerceAtLeast(0) / 1000
+    val minutes = seconds / 60
+    return if (minutes < 60) "$minutes:${(seconds % 60).toString().padStart(2, '0')}"
+    else "${minutes / 60}:${(minutes % 60).toString().padStart(2, '0')}:${(seconds % 60).toString().padStart(2, '0')}"
+}
 
 /** Every platform-player operation runs on one looper; close cancels HTTP before release. */
 internal class NativeVideoPlayer(context: Context, private val reader: VideoReader,
@@ -51,6 +58,7 @@ internal class NativeVideoPlayer(context: Context, private val reader: VideoRead
     private var player: MediaPlayer? = null
     private var surface: Surface? = null
     private var state = Playback()
+    private var seekGeneration = 0L
     private val noisy = object : BroadcastReceiver() { override fun onReceive(context: Context?, intent: Intent?) { pause() } }
     private val app = context.applicationContext
     init {
@@ -82,7 +90,14 @@ internal class NativeVideoPlayer(context: Context, private val reader: VideoRead
                 }
             }
             p.setOnCompletionListener { state = state.copy(playing = false, position = state.duration); audio.abandonAudioFocusRequest(focus); publish() }
-            p.setOnSeekCompleteListener { state = state.copy(seeking = false, position = p.currentPosition); publish() }
+            p.setOnSeekCompleteListener { seekGeneration++; state = state.copy(seeking = false, position = p.currentPosition); publish() }
+            p.setOnInfoListener { _, what, _ ->
+                when (what) {
+                    MediaPlayer.MEDIA_INFO_BUFFERING_START -> { state = state.copy(buffering = true); publish(); true }
+                    MediaPlayer.MEDIA_INFO_BUFFERING_END -> { state = state.copy(buffering = false); publish(); true }
+                    else -> false
+                }
+            }
             p.setOnErrorListener { _, _, _ -> error(); true }
             p.setDataSource(VideoDataSource(reader))
             p.prepareAsync()
@@ -104,7 +119,9 @@ internal class NativeVideoPlayer(context: Context, private val reader: VideoRead
     fun seek(milliseconds: Int) = command {
         if (!state.ready || state.seeking) return@command
         state = state.copy(seeking = true); publish()
+        val generation = ++seekGeneration
         player?.seekTo(milliseconds.coerceIn(0, state.duration).toLong(), MediaPlayer.SEEK_CLOSEST)
+        handler.postDelayed({ if (!closed.get() && state.seeking && seekGeneration == generation) error() }, 30000)
     }
     fun poll() = command {
         if (state.ready && !state.seeking) { state = state.copy(position = player?.currentPosition ?: 0); publish() }
@@ -156,8 +173,11 @@ internal class NativeVideoPlayer(context: Context, private val reader: VideoRead
             TextButton(onClick = { fill = !fill }) { Text(if (fill) t("Fit video", "完整视频") else t("Fill screen", "填满屏幕")) }
         }
         Text(if (fill) t("Fill · edges cropped", "填满 · 边缘已裁切") else t("Fit · whole video", "适合 · 完整视频"), Modifier.testTag("video-fit-mode"), style = MaterialTheme.typography.labelMedium)
-        if (!state.ready) { LinearProgressIndicator(Modifier.fillMaxWidth()); Text(t("Loading video…", "正在加载视频…")) }
-        Text("${state.position / 1000} / ${state.duration / 1000} " + t("seconds", "秒"), Modifier.testTag("video-position"))
+        if (!state.ready || state.seeking || state.buffering) {
+            LinearProgressIndicator(Modifier.fillMaxWidth())
+            Text(when { !state.ready -> t("Loading video…", "正在加载视频…"); state.seeking -> t("Seeking…", "正在跳转…"); else -> t("Buffering…", "正在缓冲…") })
+        }
+        Text("${videoTime(state.position)} / ${videoTime(state.duration)}", Modifier.testTag("video-position"))
         FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
             Button(onClick = player::playPause, enabled = state.ready && !state.seeking) { Text(if (state.playing) t("Pause", "暂停") else t("Play", "播放")) }
             OutlinedButton(onClick = { player.seek(state.position - 10000) }, enabled = state.ready && !state.seeking) { Text(t("Back 10s", "后退 10 秒")) }
@@ -173,6 +193,9 @@ internal class NativeVideoPlayer(context: Context, private val reader: VideoRead
     if (fullScreen) FilledTonalButton(onClick = { fullScreen = false },
         modifier = Modifier.align(Alignment.TopEnd).safeDrawingPadding().padding(12.dp).testTag("video-exit-fullscreen")) {
         Text(t("Show controls", "显示控制"))
+    }
+    if (fullScreen && (state.seeking || state.buffering)) Surface(Modifier.align(Alignment.BottomCenter).safeDrawingPadding().padding(16.dp)) {
+        Text(if (state.seeking) t("Seeking…", "正在跳转…") else t("Buffering…", "正在缓冲…"), Modifier.padding(12.dp))
     }
     }
 }

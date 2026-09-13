@@ -1,0 +1,59 @@
+{
+  "base": "6b794c835339a63a3b6f0bc70f32a3de1bb03b3e",
+  "source_commit": "4fdec0cfe47938b7dd2c00e0f188c6b7afc89355",
+  "backend_commit": "af8e0c8cf749f6e963dd8b196dce9aa842240387",
+  "backend_http_tests": 18,
+  "producer_examples": 14,
+  "verified_source_inputs": 33,
+  "jvm": {
+    "phone": {
+      "tests": 98,
+      "failures": 0,
+      "errors": 0,
+      "skipped": 0
+    },
+    "home": {
+      "tests": 85,
+      "failures": 0,
+      "errors": 0,
+      "skipped": 0
+    },
+    "fixture": {
+      "tests": 22,
+      "failures": 0,
+      "errors": 0,
+      "skipped": 0
+    },
+    "tv": {
+      "tests": 2,
+      "failures": 0,
+      "errors": 0,
+      "skipped": 0
+    }
+  },
+  "apks": {
+    "app": {
+      "bytes": 9591239,
+      "sha256": "ce87eebdc2d9952254d8d7586764fc235310975361191b18943cf35b4adf157c"
+    },
+    "connected": {
+      "bytes": 10423157,
+      "sha256": "9556e1a51d362a98a024aa057b2c66cbf5a16fee13c1485063e47fe6ecb3a3ad"
+    },
+    "tv": {
+      "bytes": 10250812,
+      "sha256": "53d4a5cfceac3f8cbcaf47b52a37effe632e1cc396ddbfee22ed328d5d340e9e"
+    }
+  },
+  "phone_discovery_enabled": false,
+  "phone_origin_configured": false,
+  "ui_final_normal": {
+    "tests": 17,
+    "seconds": 158.367
+  },
+  "ui_final_large": {
+    "tests": 17,
+    "seconds": 161.634
+  },
+  "backend_preparation_evidence": "3674c555df6e5cab50be8640821126c6bcab54f0"
+}

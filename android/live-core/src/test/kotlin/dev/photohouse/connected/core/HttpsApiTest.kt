@@ -35,6 +35,20 @@ class HttpsApiTest {
     }
     private fun range(body: String = "abcd", header: String = "bytes 0-3/10") = MockResponse().setResponseCode(206)
         .setHeader("Content-Type", "video/mp4").setHeader("Content-Range", header).setBody(body)
+    @Test fun optimizedPhotoUsesProtectedDisplayRouteAndNeverOriginalFallback() = runBlocking {
+        TlsFixture().use { f ->
+            val api = HttpsPhotoHouseApi(f.origin, f.client, photoDeliveryEnabled = true)
+            f.server.enqueue(MockResponse().setHeader("Content-Type", "image/jpeg").setBody("synthetic"))
+            assertEquals("synthetic", api.displayPhoto(token, "family", "1").toString(Charsets.UTF_8))
+            val request = f.server.takeRequest()
+            assertEquals("/assets/1/display?library=family", request.path)
+            assertEquals("Bearer " + "T".repeat(43), request.getHeader("Authorization"))
+            f.server.enqueue(MockResponse().setResponseCode(503))
+            assertEquals(503, failure { api.displayPhoto(token, "family", "1") }.status)
+            assertEquals(2, f.server.requestCount)
+        }
+    }
+
     @Test fun videoRangesAuthenticateEverySeekWithStrictSameOriginHeaders() = runBlocking {
         TlsFixture().use { f ->
             f.server.enqueue(range()); f.server.enqueue(range("ij", "bytes 8-9/10"))
@@ -66,10 +80,25 @@ class HttpsApiTest {
                 f.server.enqueue(response)
                 assertTrue(failure { f.api.videoRange(token, "family", "1", 0, 4) }.kind in setOf(FailureKind.INVALID_RESPONSE, FailureKind.TOO_LARGE))
             }
-            f.server.enqueue(range(header = "bytes 0-3/4294967297"))
+            f.server.enqueue(range(header = "bytes 0-3/${HttpsPhotoHouseApi.VIDEO_FILE_LIMIT + 1}"))
             assertEquals(FailureKind.TOO_LARGE, failure { f.api.videoRange(token, "family", "1", 0, 4) }.kind)
             f.server.enqueue(range().setHeader("Content-Length", 5))
             assertEquals(FailureKind.TOO_LARGE, failure { f.api.videoRange(token, "family", "1", 0, 4) }.kind)
+        }
+    }
+    @Test fun multiGigabyteSeeksUseLongOffsetsWithoutDownloadingTheFile() = runBlocking {
+        TlsFixture().use { f ->
+            val total = 8193114694L
+            for (start in listOf(0L, 4294967296L, total - 4)) {
+                f.server.enqueue(range("abcd", "bytes $start-${start + 3}/$total"))
+                val result = f.api.videoRange(token, "family", "1", start, 4)
+                assertEquals(total, result.total); assertEquals(start, result.start)
+                assertEquals(4, result.bytes.size)
+                val request = f.server.takeRequest()
+                assertEquals("bytes=$start-${start + 3}", request.getHeader("Range"))
+                assertEquals(1, request.headers.values("Authorization").size)
+            }
+            assertEquals(3, f.server.requestCount)
         }
     }
     @Test fun videoDenialRateLimitRedirectAndCancellationHaveNoAutomaticRetry() = runBlocking {

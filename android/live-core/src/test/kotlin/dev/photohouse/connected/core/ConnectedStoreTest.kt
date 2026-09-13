@@ -11,6 +11,14 @@ class ConnectedStoreTest {
     private val asset = Asset("1", "image", 256, 256, null, null, "/assets/1/thumbnail?library=family")
     private fun membership(id: String, available: Boolean = true) = Membership(id, "approved", "viewer", 1, null, 0, available)
     private inner class FakeApi : PhotoHouseApi {
+        override var photoDeliveryEnabled = false
+        var displayReads = 0
+        var displayError: Exception? = null
+        var displayGate: CompletableDeferred<Unit>? = null
+        override suspend fun displayPhoto(token: Bearer, library: String, assetId: String): ByteArray {
+            displayReads++; displayGate?.let { withContext(NonCancellable) { it.await() } }
+            displayError?.let { throw it }; return byteArrayOf(4, 5, 6)
+        }
         var currentSession = Session("account-a", "+12025550123", listOf(membership("family"), membership("second"), membership("closed", false)))
         var sessionReads = 0; var galleryReads = 0; var imageReads = 0; var logouts = 0; var accepts = 0; var logins = 0
         var admissionError: Exception? = null
@@ -71,6 +79,60 @@ class ConnectedStoreTest {
     }
     private fun TestScope.store(api: FakeApi) = ConnectedStore(api, backgroundScope) { testScheduler.currentTime }
     private fun TestScope.signIn(store: ConnectedStore) { store.authenticate("+12025550123", "synthetic-password-only"); runCurrent(); assertNotNull(store.state.value.session) }
+
+    @Test fun onDemandViewerWorksWithoutOriginalPermissionAndDoesNotUpgradeIt() = runTest {
+        val api = FakeApi().apply { photoDeliveryEnabled = true }
+        val store = store(api); signIn(store); store.selectLibrary("family"); runCurrent()
+        store.openMedia(asset); runCurrent()
+        assertTrue(store.state.value.viewingOriginal); assertFalse(store.state.value.photoOriginalQuality)
+        assertEquals(1, api.displayReads); assertEquals(0, api.originalReads)
+        store.openOriginalPhoto(); runCurrent(); assertEquals(0, api.originalReads)
+        store.logout(); runCurrent(); assertNull(store.state.value.originalPhoto)
+    }
+    @Test fun originalQualityRemainsExplicitAndDisplayFailureNeverFallsBackToOriginals() = runTest {
+        val api = FakeApi().apply { photoDeliveryEnabled = true; originalsAllowed = true }
+        val store = store(api); signIn(store); store.selectLibrary("family"); runCurrent()
+        store.openMedia(asset); runCurrent(); assertEquals(0, api.originalReads)
+        store.openOriginalPhoto(); runCurrent(); assertEquals(1, api.originalReads); assertTrue(store.state.value.photoOriginalQuality)
+        api.displayError = ApiFailure(FailureKind.HTTP, 503)
+        store.openMedia(asset); runCurrent(); assertEquals(1, api.originalReads); assertNull(store.state.value.originalPhoto)
+    }
+    @Test fun lateOnDemandResponseCannotReappearAfterLogout() = runTest {
+        val api = FakeApi().apply { photoDeliveryEnabled = true; displayGate = CompletableDeferred() }
+        val store = store(api); signIn(store); store.selectLibrary("family"); runCurrent()
+        store.openMedia(asset); runCurrent(); store.logout(); runCurrent()
+        api.displayGate!!.complete(Unit); runCurrent()
+        assertNull(store.state.value.originalPhoto); assertFalse(store.state.value.viewingOriginal)
+    }
+
+    @Test fun galleryMediaTapUsesFreshKindAndPermissionAndDetailsRemainSeparate() = runTest {
+        for (kind in listOf("image", "video")) for (permitted in listOf(false, true)) {
+            val api = FakeApi().apply { assets = listOf(asset.copy(kind = kind)); originalsAllowed = permitted }
+            val store = store(api); signIn(store); store.selectLibrary("family"); runCurrent()
+            store.openMedia(asset); runCurrent() // Deliberately stale gallery kind for video.
+            assertEquals(permitted && kind == "image", store.state.value.viewingOriginal)
+            assertEquals(permitted && kind == "video", store.state.value.video != null)
+            assertEquals(if (permitted && kind == "image") 1 else 0, api.originalReads)
+            assertFalse(store.state.value.photoSlideshow)
+            assertEquals(0, store.state.value.photoNavigation?.index)
+            store.backToPhotos(); runCurrent(); store.openAsset(asset); runCurrent()
+            assertFalse(store.state.value.viewingOriginal); assertNull(store.state.value.video)
+            store.logout(); runCurrent()
+        }
+    }
+
+    @Test fun lateGalleryMediaTapCannotOpenAfterLogoutLibraryChangeOrBackground() = runTest {
+        for (kind in listOf("image", "video")) for (boundary in listOf("logout", "library", "background")) {
+            val api = FakeApi().apply { assets = listOf(asset.copy(kind = kind)); originalsAllowed = true }
+            val store = store(api); signIn(store); store.selectLibrary("family"); runCurrent()
+            val gate = CompletableDeferred<Unit>(); api.detailGate = gate
+            store.openMedia(asset); runCurrent()
+            when (boundary) { "logout" -> store.logout(); "library" -> store.selectLibrary("second"); else -> store.background() }
+            runCurrent(); gate.complete(Unit); runCurrent()
+            assertNull(store.state.value.video); assertFalse(store.state.value.viewingOriginal)
+            assertNull(store.state.value.originalPhoto); assertEquals(0, api.originalReads)
+        }
+    }
 
     @Test fun refusedInvitationNeverCreatesSessionOrTriggersAutomaticAdmissionRetry() = runTest {
         // Invalid, already-used and wrong-phone codes intentionally have the same

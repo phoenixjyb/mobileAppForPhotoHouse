@@ -9,6 +9,29 @@ import java.util.concurrent.TimeUnit
 import java.util.concurrent.atomic.AtomicInteger
 
 class VideoReaderTest {
+    @Test fun largeFileSeeksAndEofKeepAllocationsBoundedAndReauthorizeRepeatReads() {
+        val total = 8193114694L
+        val calls = mutableListOf<Pair<Long, Int>>()
+        var deny = false
+        val reader = VideoReader({ start, count ->
+            calls += start to count
+            if (deny) throw ApiFailure(FailureKind.HTTP, 403)
+            VideoChunk(start, total, ByteArray(minOf(count.toLong(), total - start).toInt()) { ((start + it) % 251).toByte() })
+        }, Long.MAX_VALUE, { 0 }) { }
+        reader.use {
+            val buffer = ByteArray(16) { 77 }
+            assertEquals(16, it.readAt(4294967296L, buffer, 0, 16))
+            assertEquals((4294967296L % 251).toByte(), buffer[0])
+            assertEquals(4, it.readAt(total - 4, buffer, 3, 12))
+            assertEquals(-1, it.readAt(total, buffer, 0, 1))
+            assertEquals(3, calls.size)
+            deny = true; buffer.fill(77)
+            assertTrue(runCatching { it.readAt(4294967296L, buffer, 0, 16) }.isFailure)
+            assertArrayEquals(ByteArray(16) { 77 }, buffer)
+            assertTrue(it.isClosed)
+            assertEquals(4, calls.size)
+        }
+    }
     @Test fun randomReadsAreBoundedAndEofAndZeroLengthDoNotFetch() {
         val calls = mutableListOf<Pair<Long, Int>>()
         val reader = VideoReader({ start, length -> calls += start to length; VideoChunk(start, 800000, ByteArray(length) { ((start + it) % 251).toByte() }) }, Long.MAX_VALUE, { 0 }) { fail("Unexpected failure") }

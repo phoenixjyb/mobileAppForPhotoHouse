@@ -1,0 +1,216 @@
+> Task :app:clean
+> Task :connected:clean
+> Task :tv:clean
+> Task :app:preBuild UP-TO-DATE
+> Task :app:preDebugBuild UP-TO-DATE
+> Task :app:mergeDebugNativeDebugMetadata NO-SOURCE
+> Task :core:checkKotlinGradlePluginConfigurationErrors
+> Task :protocol:checkKotlinGradlePluginConfigurationErrors
+> Task :protocol:compileKotlin UP-TO-DATE
+> Task :protocol:compileJava NO-SOURCE
+> Task :core:compileKotlin UP-TO-DATE
+> Task :core:compileJava NO-SOURCE
+> Task :core:processResources NO-SOURCE
+> Task :core:classes UP-TO-DATE
+> Task :core:jar UP-TO-DATE
+> Task :protocol:processResources NO-SOURCE
+> Task :protocol:classes UP-TO-DATE
+> Task :protocol:jar UP-TO-DATE
+> Task :app:checkKotlinGradlePluginConfigurationErrors
+> Task :app:generateDebugResValues
+> Task :app:mapDebugSourceSetPaths
+> Task :app:generateDebugResources
+> Task :app:checkDebugAarMetadata
+> Task :app:packageDebugResources
+> Task :app:parseDebugLocalResources
+> Task :app:createDebugCompatibleScreenManifests
+> Task :app:extractDeepLinksDebug
+> Task :app:mergeDebugResources
+> Task :app:processDebugMainManifest
+> Task :app:processDebugManifest
+> Task :app:processDebugManifestForPackage
+> Task :app:javaPreCompileDebug
+> Task :app:mergeDebugShaders
+> Task :app:compileDebugShaders NO-SOURCE
+> Task :app:generateDebugAssets UP-TO-DATE
+> Task :app:mergeDebugAssets
+> Task :app:compressDebugAssets
+> Task :app:desugarDebugFileDependencies
+> Task :app:checkDebugDuplicateClasses
+> Task :app:mergeDebugStartupProfile UP-TO-DATE
+> Task :app:processDebugResources
+> Task :app:mergeExtDexDebug
+> Task :app:mergeLibDexDebug
+> Task :app:mergeDebugJniLibFolders
+> Task :app:mergeDebugNativeLibs NO-SOURCE
+> Task :app:stripDebugDebugSymbols NO-SOURCE
+> Task :app:validateSigningDebug
+> Task :app:writeDebugAppMetadata
+> Task :app:writeDebugSigningConfigVersions
+> Task :connected:preBuild UP-TO-DATE
+> Task :connected:preDebugBuild UP-TO-DATE
+> Task :connected:mergeDebugNativeDebugMetadata NO-SOURCE
+> Task :live-core:checkKotlinGradlePluginConfigurationErrors
+> Task :live-core:compileKotlin UP-TO-DATE
+> Task :live-core:compileJava NO-SOURCE
+> Task :live-core:processResources NO-SOURCE
+> Task :live-core:classes UP-TO-DATE
+> Task :live-core:jar UP-TO-DATE
+> Task :connected:checkKotlinGradlePluginConfigurationErrors
+> Task :connected:generateDebugBuildConfig
+> Task :connected:checkDebugAarMetadata
+> Task :connected:generateDebugResValues
+> Task :connected:mapDebugSourceSetPaths
+> Task :connected:generateDebugResources
+> Task :connected:mergeDebugResources
+> Task :connected:packageDebugResources
+> Task :connected:parseDebugLocalResources
+> Task :connected:createDebugCompatibleScreenManifests
+> Task :connected:extractDeepLinksDebug
+> Task :connected:processDebugMainManifest
+> Task :connected:processDebugManifest
+> Task :connected:processDebugManifestForPackage
+> Task :connected:processDebugResources
+> Task :app:compileDebugKotlin
+> Task :app:compileDebugJavaWithJavac NO-SOURCE
+> Task :app:dexBuilderDebug
+> Task :app:mergeDebugGlobalSynthetics
+> Task :app:processDebugJavaRes
+> Task :app:mergeDebugJavaResource
+> Task :app:mergeProjectDexDebug
+> Task :app:packageDebug
+> Task :app:createDebugApkListingFileRedirect
+> Task :app:assembleDebug
+> Task :connected:javaPreCompileDebug
+> Task :connected:mergeDebugShaders
+> Task :connected:compileDebugShaders NO-SOURCE
+> Task :connected:generateDebugAssets UP-TO-DATE
+> Task :connected:mergeDebugAssets
+> Task :connected:compressDebugAssets
+> Task :connected:desugarDebugFileDependencies
+> Task :connected:checkDebugDuplicateClasses
+> Task :connected:mergeDebugStartupProfile UP-TO-DATE
+> Task :connected:compileDebugKotlin
+> Task :connected:compileDebugJavaWithJavac
+> Task :connected:dexBuilderDebug
+> Task :connected:mergeDebugGlobalSynthetics
+> Task :connected:processDebugJavaRes
+> Task :connected:mergeExtDexDebug
+> Task :connected:mergeLibDexDebug
+> Task :connected:mergeProjectDexDebug
+> Task :connected:mergeDebugJniLibFolders
+> Task :connected:mergeDebugNativeLibs NO-SOURCE
+> Task :connected:stripDebugDebugSymbols NO-SOURCE
+> Task :connected:validateSigningDebug
+> Task :connected:writeDebugAppMetadata
+> Task :connected:writeDebugSigningConfigVersions
+> Task :tv:preBuild UP-TO-DATE
+> Task :tv:preDebugBuild UP-TO-DATE
+> Task :tv:mergeDebugNativeDebugMetadata NO-SOURCE
+> Task :home-core:checkKotlinGradlePluginConfigurationErrors
+> Task :home-core:compileKotlin UP-TO-DATE
+> Task :home-core:compileJava NO-SOURCE
+> Task :home-core:processResources NO-SOURCE
+> Task :home-core:classes UP-TO-DATE
+> Task :home-core:jar UP-TO-DATE
+> Task :tv:checkKotlinGradlePluginConfigurationErrors
+> Task :tv:generateDebugBuildConfig
+> Task :tv:checkDebugAarMetadata
+> Task :tv:generateDebugResValues
+> Task :tv:mapDebugSourceSetPaths
+> Task :tv:generateDebugResources
+> Task :connected:mergeDebugJavaResource
+> Task :tv:mergeDebugResources
+> Task :tv:packageDebugResources
+> Task :tv:parseDebugLocalResources
+> Task :tv:createDebugCompatibleScreenManifests
+> Task :tv:extractDeepLinksDebug
+> Task :tv:processDebugMainManifest
+> Task :tv:processDebugManifest
+> Task :tv:processDebugManifestForPackage
+> Task :tv:processDebugResources
+> Task :connected:packageDebug
+> Task :connected:createDebugApkListingFileRedirect
+> Task :connected:assembleDebug
+> Task :tv:javaPreCompileDebug
+> Task :tv:mergeDebugShaders
+> Task :tv:compileDebugShaders NO-SOURCE
+> Task :tv:generateDebugAssets UP-TO-DATE
+> Task :tv:mergeDebugAssets
+> Task :tv:compressDebugAssets
+> Task :tv:desugarDebugFileDependencies
+> Task :tv:checkDebugDuplicateClasses
+> Task :tv:mergeDebugStartupProfile UP-TO-DATE
+> Task :tv:mergeExtDexDebug
+> Task :tv:mergeLibDexDebug
+> Task :tv:mergeDebugJniLibFolders
+> Task :tv:mergeDebugNativeLibs NO-SOURCE
+> Task :tv:stripDebugDebugSymbols NO-SOURCE
+> Task :tv:validateSigningDebug
+> Task :tv:writeDebugAppMetadata
+> Task :tv:writeDebugSigningConfigVersions
+> Task :app:bundleDebugClassesToCompileJar
+> Task :app:preDebugAndroidTestBuild SKIPPED
+> Task :app:generateDebugAndroidTestResValues
+> Task :app:generateDebugAndroidTestLintModel
+> Task :app:extractProguardFiles
+> Task :app:generateDebugLintReportModel
+> Task :app:preDebugUnitTestBuild UP-TO-DATE
+> Task :app:generateDebugUnitTestLintModel
+
+> Task :tv:compileDebugKotlin
+w: file://${WORKTREE}/android/tv/src/main/java/dev/photohouse/tv/TvApp.kt:127:25 Name shadowed: focusedWindow
+w: file://${WORKTREE}/android/tv/src/main/java/dev/photohouse/tv/TvVideoPlayer.kt:223:13 'LinearProgressIndicator(Float, Modifier = ..., Color = ..., Color = ..., StrokeCap = ...): Unit' is deprecated. Use the overload that takes `progress` as a lambda
+
+> Task :tv:compileDebugJavaWithJavac
+> Task :app:lintAnalyzeDebug
+> Task :tv:dexBuilderDebug
+> Task :tv:mergeDebugGlobalSynthetics
+> Task :tv:processDebugJavaRes
+> Task :tv:mergeProjectDexDebug
+> Task :tv:mergeDebugJavaResource
+> Task :tv:packageDebug
+> Task :tv:createDebugApkListingFileRedirect
+> Task :tv:assembleDebug
+> Task :app:lintAnalyzeDebugAndroidTest
+> Task :connected:bundleDebugClassesToCompileJar
+> Task :connected:preDebugAndroidTestBuild SKIPPED
+> Task :connected:generateDebugAndroidTestResValues
+> Task :connected:generateDebugAndroidTestLintModel
+> Task :connected:extractProguardFiles
+> Task :connected:generateDebugLintReportModel
+> Task :connected:preDebugUnitTestBuild UP-TO-DATE
+> Task :connected:generateDebugUnitTestLintModel
+> Task :app:lintAnalyzeDebugUnitTest
+
+> Task :app:lintReportDebug
+Wrote HTML report to file://${WORKTREE}/android/app/build/reports/lint-results-debug.html
+
+> Task :app:lintDebug
+> Task :connected:lintAnalyzeDebugAndroidTest
+> Task :connected:lintAnalyzeDebugUnitTest
+> Task :tv:bundleDebugClassesToCompileJar
+> Task :tv:preDebugAndroidTestBuild SKIPPED
+> Task :tv:generateDebugAndroidTestResValues
+> Task :tv:generateDebugAndroidTestLintModel
+> Task :tv:extractProguardFiles
+> Task :tv:generateDebugLintReportModel
+> Task :tv:preDebugUnitTestBuild UP-TO-DATE
+> Task :tv:generateDebugUnitTestLintModel
+> Task :connected:lintAnalyzeDebug
+
+> Task :connected:lintReportDebug
+Wrote HTML report to file://${WORKTREE}/android/connected/build/reports/lint-results-debug.html
+
+> Task :connected:lintDebug
+> Task :tv:lintAnalyzeDebugAndroidTest
+> Task :tv:lintAnalyzeDebugUnitTest
+> Task :tv:lintAnalyzeDebug
+
+> Task :tv:lintReportDebug
+Wrote HTML report to file://${WORKTREE}/android/tv/build/reports/lint-results-debug.html
+
+> Task :tv:lintDebug
+
+BUILD SUCCESSFUL in 32s
+157 actionable tasks: 146 executed, 11 up-to-date

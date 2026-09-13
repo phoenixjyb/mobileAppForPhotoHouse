@@ -7,7 +7,7 @@ val localConfig = Properties().apply {
 val configuredOrigin = providers.gradleProperty("photohouseTvOrigin").orElse(localConfig.getProperty("photohouseTvOrigin", "")).get()
 val configuredLanAddress = providers.gradleProperty("photohouseTvLanAddress").orElse(localConfig.getProperty("photohouseTvLanAddress", "")).get()
 val configuredCatalogVersion = providers.gradleProperty("photohouseTvCatalogVersion").orElse(localConfig.getProperty("photohouseTvCatalogVersion", "1")).get()
-require(configuredCatalogVersion in listOf("1", "2")) { "Unsupported TV catalog version" }
+require(configuredCatalogVersion in listOf("1", "2", "3")) { "Unsupported TV catalog version" }
 val configuredDiscovery = providers.gradleProperty("photohouseTvDiscoveryEnabled").orElse(localConfig.getProperty("photohouseTvDiscoveryEnabled", "false")).get()
 require(configuredDiscovery in listOf("true", "false")) { "Invalid discovery switch" }
 require(configuredDiscovery != "true" || configuredCatalogVersion == "2") { "Discovery requires catalog v2" }
@@ -16,6 +16,7 @@ require(configuredLanAddress.isEmpty() || configuredOrigin.isNotEmpty()) { "LAN 
 require(configuredLanAddress.isEmpty() || configuredLanAddress.matches(Regex("[0-9.]{7,15}"))) { "Invalid LAN address" }
 require(configuredOrigin.none { it == '\n' || it == '\r' || it == '"' || it == '\\' }) { "Invalid configured origin" }
 android {
+    sourceSets.getByName("main").res.srcDir("../branding/res")
     namespace = "dev.photohouse.tv"
     compileSdk = 34
     buildToolsVersion = "34.0.0"
@@ -24,8 +25,8 @@ android {
         minSdk = 26
         targetSdk = 34
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
-        versionCode = 8
-        versionName = "0.8-tv-catalog-dev"
+        versionCode = 12
+        versionName = "0.12-tv-media-recovery"
         buildConfigField("int", "PHOTOHOUSE_CATALOG_VERSION", configuredCatalogVersion)
         buildConfigField("boolean", "PHOTOHOUSE_DISCOVERY_ENABLED", configuredDiscovery)
         buildConfigField("String", "PHOTOHOUSE_ORIGIN", "\"$configuredOrigin\"")

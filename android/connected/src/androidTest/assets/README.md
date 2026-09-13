@@ -18,3 +18,11 @@ ffmpeg -hide_banner -loglevel error \
 This is a 20-second, 320×180, H.264/AAC MP4; general device/codec performance and
 physical speaker output are separate acceptance gates. No FFmpeg code or runtime
 is included in either Android APK.
+
+
+`synthetic-long-video.mp4` uses the same mathematical source and codec settings,
+with `-t 125 -threads 1`. It is a 125-second fast-start H.264/AAC MP4 used only in
+instrumentation to verify preparation before full download, seeks beyond one
+minute, near-end/backward seeks, playback and lifecycle cancellation. It is not a
+multi-gigabyte performance benchmark. Large offsets are tested separately with
+bounded synthetic Range responses; no multi-gigabyte file is allocated.
