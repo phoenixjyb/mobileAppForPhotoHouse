@@ -1,0 +1,17 @@
+{
+  "filename": "PhotoHouse-TV-v12-media-recovery.apk1",
+  "sha256": "5b54e3c54ec8a775fceefc62f40133cbc6360b79819380dd5ccbc45849d29564",
+  "bytes": 10438599,
+  "versionCode": 12,
+  "versionName": "0.12-tv-media-recovery",
+  "signer_sha256": "56d7591b2b6c2538d506d1fe51327444f2307736cb12f5beefa08f1c410d6d28",
+  "backend_pin": "5269257b4b2a791b59f9181aa83d8e70a5d03b4d",
+  "configured": true,
+  "physical_installation": false,
+  "home_core_tests": 91,
+  "tv_jvm_tests": 2,
+  "native_player_emulator_tests": 4,
+  "recovery_emulator_tests": 2,
+  "lint_errors": 0,
+  "lint_warnings": 4
+}

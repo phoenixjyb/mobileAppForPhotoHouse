@@ -25,8 +25,8 @@ android {
         minSdk = 26
         targetSdk = 34
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
-        versionCode = 11
-        versionName = "0.11-tv-on-demand"
+        versionCode = 12
+        versionName = "0.12-tv-media-recovery"
         buildConfigField("int", "PHOTOHOUSE_CATALOG_VERSION", configuredCatalogVersion)
         buildConfigField("boolean", "PHOTOHOUSE_DISCOVERY_ENABLED", configuredDiscovery)
         buildConfigField("String", "PHOTOHOUSE_ORIGIN", "\"$configuredOrigin\"")

@@ -60,16 +60,18 @@ internal class NativeVideoPlayer(context: Context, private val reader: HomeVideo
     private var state = Playback()
     private val noisy = object : BroadcastReceiver() { override fun onReceive(context: Context?, intent: Intent?) { pause() } }
     private val app = context.applicationContext
+    private val failureSent = AtomicBoolean(false)
     init {
-        if (Build.VERSION.SDK_INT >= 33) app.registerReceiver(noisy, IntentFilter(AudioManager.ACTION_AUDIO_BECOMING_NOISY), Context.RECEIVER_NOT_EXPORTED)
-        else @Suppress("UnspecifiedRegisterReceiverFlag") app.registerReceiver(noisy, IntentFilter(AudioManager.ACTION_AUDIO_BECOMING_NOISY))
+        try {
+            if (Build.VERSION.SDK_INT >= 33) app.registerReceiver(noisy, IntentFilter(AudioManager.ACTION_AUDIO_BECOMING_NOISY), Context.RECEIVER_NOT_EXPORTED)
+            else @Suppress("UnspecifiedRegisterReceiverFlag") app.registerReceiver(noisy, IntentFilter(AudioManager.ACTION_AUDIO_BECOMING_NOISY))
+        } catch (_: Exception) { error(TvPlaybackFailure(TvPlaybackFailure.Stage.SETUP)) }
         reader.onClose(::close)
     }
     private fun publish() { val value = state; main.post { if (!closed.get()) changed(value) } }
     private fun command(stage: TvPlaybackFailure.Stage = TvPlaybackFailure.Stage.CONTROL, block: () -> Unit) {
         handler.post { if (!closed.get()) try { block() } catch (_: Exception) { error(TvPlaybackFailure(stage)) } }
     }
-    private val failureSent = AtomicBoolean(false)
     private fun error(reason: TvPlaybackFailure) {
         if (!closed.get() && failureSent.compareAndSet(false, true)) {
             close() // Stop audio and cancel reads before publishing an error.
@@ -214,7 +216,7 @@ internal class NativeVideoPlayer(context: Context, private val reader: HomeVideo
                     override fun onSurfaceTextureDestroyed(texture: SurfaceTexture): Boolean {
                         val wasClosed = player.isClosed
                         player.close()
-                        if (!wasClosed) onClose()
+                        if (!wasClosed) onFailure(TvPlaybackFailure(TvPlaybackFailure.Stage.SURFACE))
                         return true
                     }
                 }

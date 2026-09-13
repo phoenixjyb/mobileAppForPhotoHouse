@@ -2,10 +2,11 @@ package dev.photohouse.tv
 
 /** Only fixed labels and native numeric codes leave the player; never exception messages/URLs. */
 internal data class TvPlaybackFailure(val stage: Stage, val what: Int? = null, val extra: Int? = null) {
-    enum class Stage { SETUP, NATIVE, PREPARE_TIMEOUT, CONTROL }
+    enum class Stage { SETUP, NATIVE, PREPARE_TIMEOUT, CONTROL, SURFACE }
     val code: String get() = "TV-${stage.name}" + if (stage == Stage.NATIVE) " (${what ?: 0}, ${extra ?: 0})" else ""
     fun message(zh: Boolean): String {
         val text = when (stage) {
+            Stage.SURFACE -> if (zh) "视频画面被中断，请重新打开视频。" else "The video surface was interrupted. Reopen the video."
             Stage.PREPARE_TIMEOUT -> if (zh) "视频加载超时。请重试。" else "Video preparation timed out. Please retry."
             Stage.SETUP -> if (zh) "无法启动电视播放器。" else "The TV player could not start."
             Stage.CONTROL -> if (zh) "电视播放器操作失败。请重新打开视频。" else "The TV player could not complete the action. Reopen the video."
