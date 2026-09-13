@@ -1,7 +1,9 @@
 # PhotoHouse Mobile working agreements
 
-Read README.md, docs/DEVELOPMENT_PLAN.md, docs/SECURITY_AND_VOICE.md,
-contracts/README.md, and your assigned capsule before implementation.
+Use the assigned capsule when continuing a task. Read `contracts/README.md` for
+shared interface/fixture changes, `docs/SECURITY_AND_VOICE.md` for authorization or
+voice, and `docs/DEVELOPMENT_PLAN.md` for ownership/parity planning. A small local
+change does not require every overview document.
 
 ## Ownership
 
@@ -20,8 +22,11 @@ contracts/README.md, and your assigned capsule before implementation.
 - This repository is public. Never commit credentials, private hostnames or
   addresses, account records, invitation tokens, signing assets, real photos,
   voice recordings, biometric embeddings, databases, or model weights.
-- Use synthetic fixtures. A fixture authorization state is not real access
-  control. Keep real networking disabled in the first platform slices.
+- Use synthetic fixtures for offline tests. A fixture authorization state is not
+  real access control. Fixture-only slices keep networking disabled; an authorized
+  real-networking slice follows its current contract and access controls.
+- Keep anonymous selected-media TV access separate from authenticated protected
+  phone/library access. Do not reuse public-media exceptions for private libraries.
 - Registration without a valid owner-issued, phone-bound invitation is denied.
   Valid invited registration grants viewer membership only in that invited library;
   no open signup or implicit household access. No debug/localhost/VPN bypass may
@@ -34,6 +39,10 @@ contracts/README.md, and your assigned capsule before implementation.
   installation, store submission, production signing, push, or merge without
   authorization for that operation. A design task is not a deployment request.
 - Keep user-owned edits intact. Never reset, clean, stash, or discard them.
+
+A requested fix includes the local edit/check/repair loop within the assigned
+scope. Use affected platform checks; broaden to parity checks for shared changes.
+Routine choices within the capsule do not require a coordinator round trip.
 
 ## Evidence
 
