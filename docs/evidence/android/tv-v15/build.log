@@ -1,0 +1,181 @@
+To honour the JVM settings for this build a single-use Daemon process will be forked. For more on this, please refer to https://docs.gradle.org/8.10.2/userguide/gradle_daemon.html#sec:disabling_the_daemon in the Gradle documentation.
+Daemon will be stopped at the end of the build 
+> Task :home-core:checkKotlinGradlePluginConfigurationErrors
+> Task :home-core:processResources NO-SOURCE
+> Task :home-core:processTestResources
+> Task :tv:checkKotlinGradlePluginConfigurationErrors
+> Task :tv:preBuild UP-TO-DATE
+> Task :tv:preDebugBuild UP-TO-DATE
+> Task :tv:generateDebugBuildConfig
+> Task :tv:checkDebugAarMetadata
+> Task :tv:generateDebugResValues
+> Task :tv:mapDebugSourceSetPaths
+> Task :tv:generateDebugResources
+> Task :tv:mergeDebugResources
+> Task :tv:packageDebugResources
+> Task :tv:parseDebugLocalResources
+> Task :tv:createDebugCompatibleScreenManifests
+> Task :tv:extractDeepLinksDebug
+> Task :tv:processDebugMainManifest
+> Task :tv:processDebugManifest
+> Task :tv:processDebugManifestForPackage
+> Task :tv:processDebugResources
+> Task :tv:javaPreCompileDebug
+> Task :tv:preDebugUnitTestBuild UP-TO-DATE
+> Task :tv:javaPreCompileDebugUnitTest
+> Task :tv:preDebugAndroidTestBuild SKIPPED
+> Task :tv:generateDebugAndroidTestResValues
+> Task :tv:extractProguardFiles
+> Task :tv:mergeDebugNativeDebugMetadata NO-SOURCE
+> Task :tv:mergeDebugShaders
+> Task :tv:compileDebugShaders NO-SOURCE
+> Task :tv:generateDebugAssets UP-TO-DATE
+> Task :tv:mergeDebugAssets
+> Task :tv:compressDebugAssets
+> Task :tv:desugarDebugFileDependencies
+> Task :tv:checkDebugDuplicateClasses
+> Task :tv:mergeDebugStartupProfile
+> Task :tv:mergeExtDexDebug
+> Task :tv:mergeDebugJniLibFolders
+> Task :tv:validateSigningDebug
+> Task :tv:writeDebugAppMetadata
+> Task :tv:writeDebugSigningConfigVersions
+> Task :tv:processDebugAndroidTestManifest
+> Task :tv:generateDebugAndroidTestBuildConfig
+> Task :tv:checkDebugAndroidTestAarMetadata
+> Task :tv:mapDebugAndroidTestSourceSetPaths
+> Task :tv:generateDebugAndroidTestResources
+> Task :tv:mergeDebugAndroidTestResources
+> Task :tv:processDebugAndroidTestResources
+> Task :tv:javaPreCompileDebugAndroidTest
+> Task :tv:mergeDebugAndroidTestShaders
+> Task :tv:compileDebugAndroidTestShaders NO-SOURCE
+> Task :tv:generateDebugAndroidTestAssets UP-TO-DATE
+> Task :tv:mergeDebugAndroidTestAssets
+> Task :tv:compressDebugAndroidTestAssets
+> Task :tv:desugarDebugAndroidTestFileDependencies
+> Task :tv:checkDebugAndroidTestDuplicateClasses
+> Task :tv:mergeExtDexDebugAndroidTest
+> Task :tv:mergeDebugAndroidTestJniLibFolders
+> Task :tv:validateSigningDebugAndroidTest
+> Task :tv:writeDebugAndroidTestSigningConfigVersions
+> Task :connected:preBuild UP-TO-DATE
+> Task :connected:preDebugBuild UP-TO-DATE
+> Task :connected:mergeDebugNativeDebugMetadata NO-SOURCE
+> Task :live-core:checkKotlinGradlePluginConfigurationErrors
+> Task :protocol:checkKotlinGradlePluginConfigurationErrors
+> Task :protocol:compileKotlin
+> Task :protocol:compileJava NO-SOURCE
+
+> Task :home-core:compileKotlin
+w: file:///Users/yanbo/Projects/mobileAppForPhotoHouse-tv-v15/android/home-core/src/main/kotlin/dev/photohouse/home/CatalogWire.kt:62:17 Name shadowed: keys
+w: file:///Users/yanbo/Projects/mobileAppForPhotoHouse-tv-v15/android/home-core/src/main/kotlin/dev/photohouse/home/CatalogWire.kt:96:25 Name shadowed: keys
+w: file:///Users/yanbo/Projects/mobileAppForPhotoHouse-tv-v15/android/home-core/src/main/kotlin/dev/photohouse/home/CatalogWire.kt:108:21 Name shadowed: o
+
+> Task :home-core:compileJava NO-SOURCE
+> Task :home-core:classes UP-TO-DATE
+> Task :home-core:jar
+> Task :live-core:compileKotlin
+> Task :home-core:compileTestKotlin
+> Task :home-core:compileTestJava NO-SOURCE
+> Task :home-core:testClasses
+
+> Task :tv:compileDebugKotlin
+w: file:///Users/yanbo/Projects/mobileAppForPhotoHouse-tv-v15/android/tv/src/main/java/dev/photohouse/tv/TvApp.kt:130:25 Name shadowed: focusedWindow
+w: file:///Users/yanbo/Projects/mobileAppForPhotoHouse-tv-v15/android/tv/src/main/java/dev/photohouse/tv/TvVideoPlayer.kt:245:13 'LinearProgressIndicator(Float, Modifier = ..., Color = ..., Color = ..., StrokeCap = ...): Unit' is deprecated. Use the overload that takes `progress` as a lambda
+
+> Task :home-core:test
+> Task :tv:compileDebugJavaWithJavac
+> Task :tv:bundleDebugClassesToCompileJar
+> Task :tv:bundleDebugClassesToRuntimeJar
+> Task :tv:processDebugJavaRes
+> Task :tv:compileDebugUnitTestKotlin
+> Task :tv:generateDebugAndroidTestLintModel
+> Task :tv:compileDebugUnitTestJavaWithJavac NO-SOURCE
+> Task :tv:processDebugUnitTestJavaRes
+> Task :tv:testDebugUnitTest
+> Task :tv:generateDebugLintReportModel
+> Task :tv:generateDebugUnitTestLintModel
+> Task :tv:lintAnalyzeDebugAndroidTest
+> Task :tv:lintAnalyzeDebugUnitTest
+> Task :tv:dexBuilderDebug
+> Task :tv:mergeDebugGlobalSynthetics
+> Task :tv:mergeDebugJavaResource
+> Task :tv:mergeLibDexDebug
+> Task :tv:mergeProjectDexDebug
+> Task :tv:mergeDebugNativeLibs NO-SOURCE
+> Task :tv:stripDebugDebugSymbols NO-SOURCE
+> Task :tv:lintAnalyzeDebug
+
+> Task :tv:lintReportDebug
+Wrote HTML report to file:///Users/yanbo/Projects/mobileAppForPhotoHouse-tv-v15/android/tv/build/reports/lint-results-debug.html
+
+> Task :tv:lintDebug
+> Task :tv:packageDebug
+> Task :tv:createDebugApkListingFileRedirect
+> Task :tv:assembleDebug
+> Task :tv:mergeLibDexDebugAndroidTest
+> Task :tv:mergeDebugAndroidTestNativeLibs NO-SOURCE
+> Task :tv:stripDebugAndroidTestDebugSymbols NO-SOURCE
+> Task :live-core:compileJava NO-SOURCE
+> Task :live-core:processResources NO-SOURCE
+> Task :live-core:classes UP-TO-DATE
+> Task :live-core:jar
+> Task :protocol:processResources NO-SOURCE
+> Task :protocol:classes UP-TO-DATE
+> Task :protocol:jar
+> Task :connected:checkKotlinGradlePluginConfigurationErrors
+> Task :connected:generateDebugBuildConfig
+> Task :connected:checkDebugAarMetadata
+> Task :connected:generateDebugResValues
+> Task :connected:mapDebugSourceSetPaths
+> Task :connected:generateDebugResources
+> Task :connected:mergeDebugResources
+> Task :connected:packageDebugResources
+> Task :connected:parseDebugLocalResources
+> Task :connected:createDebugCompatibleScreenManifests
+> Task :connected:extractDeepLinksDebug
+> Task :connected:processDebugMainManifest
+> Task :connected:processDebugManifest
+> Task :connected:processDebugManifestForPackage
+> Task :connected:processDebugResources
+> Task :tv:compileDebugAndroidTestKotlin
+> Task :tv:compileDebugAndroidTestJavaWithJavac
+> Task :tv:dexBuilderDebugAndroidTest
+> Task :tv:mergeDebugAndroidTestGlobalSynthetics
+> Task :tv:processDebugAndroidTestJavaRes
+> Task :tv:mergeDebugAndroidTestJavaResource
+> Task :tv:mergeProjectDexDebugAndroidTest
+> Task :tv:packageDebugAndroidTest
+> Task :tv:createDebugAndroidTestApkListingFileRedirect
+> Task :tv:assembleDebugAndroidTest
+> Task :connected:javaPreCompileDebug
+> Task :connected:mergeDebugShaders
+> Task :connected:compileDebugShaders NO-SOURCE
+> Task :connected:generateDebugAssets UP-TO-DATE
+> Task :connected:mergeDebugAssets
+> Task :connected:compressDebugAssets
+> Task :connected:desugarDebugFileDependencies
+> Task :connected:checkDebugDuplicateClasses
+> Task :connected:mergeDebugStartupProfile
+> Task :connected:compileDebugKotlin
+> Task :connected:compileDebugJavaWithJavac
+> Task :connected:mergeExtDexDebug
+> Task :connected:dexBuilderDebug
+> Task :connected:mergeDebugGlobalSynthetics
+> Task :connected:processDebugJavaRes
+> Task :connected:mergeLibDexDebug
+> Task :connected:mergeProjectDexDebug
+> Task :connected:mergeDebugJniLibFolders
+> Task :connected:mergeDebugNativeLibs NO-SOURCE
+> Task :connected:stripDebugDebugSymbols NO-SOURCE
+> Task :connected:validateSigningDebug
+> Task :connected:writeDebugAppMetadata
+> Task :connected:writeDebugSigningConfigVersions
+> Task :connected:mergeDebugJavaResource
+> Task :connected:packageDebug
+> Task :connected:createDebugApkListingFileRedirect
+> Task :connected:assembleDebug
+
+BUILD SUCCESSFUL in 53s
+129 actionable tasks: 129 executed

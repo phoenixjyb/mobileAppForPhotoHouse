@@ -169,13 +169,37 @@ class CatalogHttpTest {
         try { untrusted.feed(1); fail("Untrusted TLS accepted") }
         catch (e: HomeFailure) { assertEquals(HomeError.TLS, e.kind) }
     }
+    @Test fun interruptedHttpsRangeRecoversSameBytesWithoutClosingPlayerSource() {
+        val bytes = catalogResource("catalog-video.mp4").copyOfRange(12, 24336)
+        server.enqueue(range(bytes).setSocketPolicy(SocketPolicy.DISCONNECT_DURING_RESPONSE_BODY))
+        server.enqueue(range(bytes))
+        var failures = 0
+        val source = api.video(catalogFixture().items[0], 1) { failures++ }
+        source.use {
+            val buffer = ByteArray(4) { 99 }
+            assertEquals(4, it.readAt(12, buffer, 0, 4))
+            assertArrayEquals(bytes.copyOfRange(0, 4), buffer)
+            assertEquals(0, failures)
+            assertEquals(24336L, it.size())
+            assertEquals(4, it.readAt(16, buffer, 0, 4)) // recovered window is reusable
+            assertArrayEquals(bytes.copyOfRange(4, 8), buffer)
+            assertEquals(2, server.requestCount)
+            val first = server.takeRequest(); val retry = server.takeRequest()
+            assertEquals(first.path, retry.path)
+            assertEquals("bytes=12-24335", retry.getHeader("Range"))
+            assertEquals(first.getHeader("Range"), retry.getHeader("Range"))
+            assertNull(retry.getHeader("Authorization")); assertNull(retry.getHeader("Cookie"))
+        }
+    }
     @Test fun truncatedHttpsRangeCannotReturnPartOfTheRequestedBuffer() {
-        server.enqueue(range().setSocketPolicy(SocketPolicy.DISCONNECT_DURING_RESPONSE_BODY))
+        val before = server.requestCount
+        repeat(3) { server.enqueue(range().setSocketPolicy(SocketPolicy.DISCONNECT_DURING_RESPONSE_BODY)) }
         var failure: Exception? = null
         val source = api.video(catalogFixture().items[0], 1) { failure = it }
         val buffer = ByteArray(4) { 99 }
         assertThrows(IOException::class.java) { source.readAt(12, buffer, 0, 4) }
         assertEquals(HomeError.OFFLINE, (failure as HomeFailure).kind)
+        assertEquals(3, server.requestCount - before)
         assertArrayEquals(ByteArray(4) { 99 }, buffer)
     }
     @Test fun unavailableAndChangedUrlsNeverRequestUnapprovedMedia() = runBlocking {

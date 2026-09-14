@@ -28,8 +28,8 @@ android {
         minSdk = 26
         targetSdk = 34
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
-        versionCode = 14
-        versionName = "0.14-tv-compact-playback"
+        versionCode = 15
+        versionName = "0.15-tv-read-recovery"
         buildConfigField("int", "PHOTOHOUSE_CATALOG_VERSION", configuredCatalogVersion)
         buildConfigField("boolean", "PHOTOHOUSE_BROWSE_ENABLED", configuredBrowse)
         buildConfigField("boolean", "PHOTOHOUSE_DISCOVERY_ENABLED", configuredDiscovery)

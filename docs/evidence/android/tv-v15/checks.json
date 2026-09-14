@@ -1,0 +1,16 @@
+{
+  "home-core": {
+    "tests": 103,
+    "failures": 0,
+    "errors": 0,
+    "skipped": 0
+  },
+  "tv": {
+    "tests": 2,
+    "failures": 0,
+    "errors": 0,
+    "skipped": 0
+  },
+  "unconfigured_apk_sha256": "0fce61f116f7b8fd04e26a79b1c8839c42113d52319a45f14cb663854e99e774",
+  "native_tests": 7
+}

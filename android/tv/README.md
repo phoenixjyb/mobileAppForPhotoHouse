@@ -7,6 +7,13 @@ Build-time catalog selection is explicit; there is no endpoint/version fallback.
 
 ## Implemented flow
 
+V15 recovers interrupted catalog-video HTTPS reads with at most two retries
+(250 ms then 750 ms backoff), sharing one 20-second deadline per range. Each
+attempt uses the same asset, revision, offset and strict response checks. TLS,
+denial, revision, malformed-data and server-availability failures are not retried.
+Closing/backgrounding cancels the active request or backoff. Phone Home mode uses
+the same adapter; protected phone networking is unchanged.
+
 V14 keeps gallery controls on one compact horizontal row. Media type, readiness,
 ordering and paging stay directly accessible; More contains Explore, refresh,
 preview retry, language and disconnect. Large text can scroll horizontally without
