@@ -16,6 +16,7 @@ green and cream phone design. UI language does not rewrite caption content.
 | Video play/pause, seek, fit/fill, immersive display | Implemented; original permission, authenticated Range, 32 GiB bounded reader and long-video feedback | Implemented for prepared v2 video |
 | Page selection | Numeric touch entry, bounds checked | Remote page controls |
 | People/aliases, dates, captions, tags, coarse places, combined search | Implemented behind an opt-in candidate build flag; live backend/device acceptance pending | Source implemented; real publication/configuration/device acceptance pending |
+| Ready-first, ready-only, All/Photos/Videos | Outstanding: protected prepared-media contract required | Implemented locally in opt-in v13/v3 candidate; live rollout pending |
 | Themes/topics, named albums, GPS/radius search | Not implemented | Not implemented; theme/topic controls remain unavailable |
 
 The phone keeps authentication, current library membership and original-file

@@ -26,10 +26,15 @@ data class HomeAsset(val id: Int, val caption: String, val grid: Preview?, val d
     fun preview(variant: Variant) = if (variant == Variant.GRID) grid else display
 }
 data class HomeFeed(val revision: Int, val id: String, val title: String, val page: Int,
-                    val pageSize: Int, val total: Int, val hasMore: Boolean, val items: List<HomeAsset>, val version: Int = 1)
+                    val pageSize: Int, val total: Int, val hasMore: Boolean, val items: List<HomeAsset>, val version: Int = 1, val browseCounts: BrowseCounts? = null)
 enum class HomeError { INVALID, DENIED, CHANGED, BUSY, UNAVAILABLE, OFFLINE, TLS }
 class HomeFailure(val kind: HomeError, val retryAfterMillis: Long = 0) : Exception(kind.name)
 interface HomeApi {
+    val browseEnabled: Boolean get() = false
+    suspend fun feed(page: Int, revision: Int?, selection: BrowseSelection): HomeFeed {
+        if (selection != BrowseSelection()) throw HomeFailure(HomeError.INVALID)
+        return feed(page, revision)
+    }
     val catalogVersion: Int get() = 1
     val retryRevisionChanges: Boolean get() = true
     suspend fun feed(page: Int, revision: Int?): HomeFeed = feed(page)

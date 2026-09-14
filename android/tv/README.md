@@ -236,3 +236,14 @@ the actual Android parser, including reviewed identity coverage, blocked tags,
 missing metadata and v2 photo/video availability.
 
 [Exporter integration evidence](../../docs/evidence/android/discovery-export/RETURN.md).
+
+## Readiness browsing candidate (v13)
+
+Use `photohouseTvCatalogVersion=3` and `photohouseTvBrowseEnabled=true` only
+with the producer pinned in `android/readiness-browse-contract/manifest.json`.
+Default is off. The candidate adds Ready first, Ready only and All/Photos/Videos
+controls, applies them before server pagination, and reports published readiness
+counts. Existing private origin configuration is still required; the public APK
+is unconfigured. No source edit installs or activates this candidate.
+
+See [evidence and remaining phone parity](../../docs/evidence/android/readiness-browse/RETURN.md).

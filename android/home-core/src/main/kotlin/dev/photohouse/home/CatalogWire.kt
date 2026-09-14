@@ -38,10 +38,18 @@ object CatalogWire {
     }
     fun previewPath(id: Int, variant: Variant, revision: Int, version: Int = 2) = "/home/v$version/assets/$id/preview?variant=${variant.wire}&revision=$revision"
     fun videoPath(id: Int, revision: Int, version: Int = 2) = "/home/v$version/assets/$id/video?revision=$revision"
-    fun feed(bytes: ByteArray, page: Int, requestedRevision: Int? = null, version: Int = 2): HomeFeed = try {
+    fun feed(bytes: ByteArray, page: Int, requestedRevision: Int? = null, version: Int = 2, selection: BrowseSelection? = null): HomeFeed = try {
         check(version in 2..3)
         check(page in 1..100000 && (page == 1 || requestedRevision != null))
-        val o = HomeWire.parse(bytes).obj("version", "revision", "library", "page", "page_size", "total", "has_more", "items")
+        check(selection == null || version == 3)
+        val keys = arrayOf("version", "revision", "library", "page", "page_size", "total", "has_more", "items")
+        val o = HomeWire.parse(bytes).obj(*(if (selection == null) keys else keys + "browse"))
+        val counts = selection?.let {
+            val b = o.getValue("browse").obj("version", "availability", "order", "media", "ready_total", "matching_total")
+            check(b.getValue("version").number() == 1L)
+            check(b.getValue("availability").str(16) == it.availability.wire && b.getValue("order").str(16) == it.order.wire && b.getValue("media").str(16) == it.media.wire)
+            BrowseCounts(b.getValue("ready_total").number(0, 100000).toInt(), b.getValue("matching_total").number(0, 100000).toInt()).also { c -> check(c.ready <= c.matching) }
+        }
         check(o.getValue("version").number() == version.toLong())
         val revision = o.getValue("revision").number().toInt()
         check(requestedRevision == null || revision == requestedRevision)
@@ -108,7 +116,24 @@ object CatalogWire {
             HomeAsset(assetId, a.getValue("label").str(256), grid.first, display.first, kind, video, grid.second, display.second, unavailable, original)
         }
         check(items.size == minOf(50, maxOf(0, total - (page - 1) * 50)))
-        check(items.zipWithNext().all { (a, b) -> a.id > b.id })
-        HomeFeed(revision, id, library.getValue("title").str(256), page, 50, total, more, items, version = version)
+        check(items.map { it.id }.distinct().size == items.size)
+        if (selection != null && counts != null) {
+            check(total == if (selection.availability == Availability.READY) counts.ready else counts.matching)
+            check(items.all { selection.media == BrowseMedia.ALL || it.kind == if (selection.media == BrowseMedia.PHOTOS) AssetKind.PHOTO else AssetKind.VIDEO })
+            check(selection.availability != Availability.READY || items.all { it.deliveryReady() })
+            val visibleReady = items.count { it.deliveryReady() }
+            check(visibleReady <= counts.ready)
+            if (selection.availability == Availability.ALL) {
+                check(items.size - visibleReady <= counts.matching - counts.ready)
+                if (selection.order == BrowseOrder.READY_FIRST) check(items.withIndex().all { (index, asset) ->
+                    asset.deliveryReady() == ((page - 1) * 50 + index < counts.ready)
+                })
+            }
+        }
+        check(items.zipWithNext().all { (a, b) ->
+            if (selection?.order == BrowseOrder.READY_FIRST && a.deliveryReady() != b.deliveryReady()) a.deliveryReady()
+            else a.id > b.id
+        })
+        HomeFeed(revision, id, library.getValue("title").str(256), page, 50, total, more, items, version = version, browseCounts = counts)
     } catch (e: HomeFailure) { throw e } catch (_: Exception) { bad() }
 }

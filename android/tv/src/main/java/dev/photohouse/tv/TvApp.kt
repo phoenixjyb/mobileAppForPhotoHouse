@@ -26,6 +26,8 @@ import androidx.compose.ui.platform.LocalView
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.platform.LocalWindowInfo
 import androidx.compose.ui.text.font.FontFamily
+import androidx.compose.ui.semantics.semantics
+import androidx.compose.ui.semantics.selected
 import androidx.compose.ui.unit.dp
 import dev.photohouse.home.*
 import kotlinx.coroutines.delay
@@ -280,6 +282,24 @@ internal val Edge = Color(0xFF496258)
                             TvButton(t("Edit filters", "修改条件"), Modifier.testTag("edit-search")) { exploring = true; discovery?.open() }
                             TvButton(t("Clear search", "清除搜索"), Modifier.testTag("clear-results")) { discovery?.clearResults() }
                         }
+                        if (store.browseEnabled) {
+                            val selection = store.selection
+                            Row(Modifier.horizontalScroll(rememberScrollState()), horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+                                TvButton(if (selection.order == BrowseOrder.READY_FIRST) t("✓ Ready first", "✓ 优先显示已就绪") else t("Ready first", "优先显示已就绪"), Modifier.testTag("ready-first").semantics { selected = selection.order == BrowseOrder.READY_FIRST }, enabled = !state.busy) {
+                                    store.selectBrowse(selection.copy(order = if (selection.order == BrowseOrder.READY_FIRST) BrowseOrder.CATALOG else BrowseOrder.READY_FIRST))
+                                }
+                                TvButton(if (selection.availability == Availability.READY) t("✓ Ready only", "✓ 仅显示已就绪") else t("Ready only", "仅显示已就绪"), Modifier.testTag("ready-only").semantics { selected = selection.availability == Availability.READY }, enabled = !state.busy) {
+                                    store.selectBrowse(selection.copy(availability = if (selection.availability == Availability.READY) Availability.ALL else Availability.READY))
+                                }
+                                for (media in BrowseMedia.entries) {
+                                    val label = when (media) { BrowseMedia.ALL -> t("All", "全部"); BrowseMedia.PHOTOS -> t("Photos", "照片"); BrowseMedia.VIDEOS -> t("Videos", "视频") }
+                                    TvButton((if (selection.media == media) "✓ " else "") + label, Modifier.testTag("browse-${media.wire}").semantics { selected = selection.media == media }, enabled = !state.busy) { store.selectBrowse(selection.copy(media = media)) }
+                                }
+                            }
+                            gallery?.browseCounts?.let { counts ->
+                                Text(t("${counts.ready} of ${counts.matching} available · Newest added first within each group", "${counts.matching} 项中 ${counts.ready} 项已就绪 · 各组按最新加入排序"), Modifier.testTag("browse-counts"), color = Muted, style = MaterialTheme.typography.labelSmall)
+                            }
+                        }
                         if (gallery != null && gallery.total > 50) TvButton(t("Go to page", "跳转页面"), Modifier.testTag("page-jump"), enabled = !state.busy) { pages = true }
                         if (gallery != null) Text(t("Page ${gallery.page} · ${gallery.total} assets", "第 ${gallery.page} 页 · 共 ${gallery.total} 项"), style = MaterialTheme.typography.labelSmall)
                         if (gallery != null && gallery.version >= 2 && gallery.items.any { !it.mediaReady() }) {
@@ -288,7 +308,7 @@ internal val Edge = Color(0xFF496258)
                                 "本页 ${gallery.items.size} 项中有 $ready 项可观看 · 其余媒体仍需服务器准备。"),
                                 Modifier.testTag("page-availability"), color = Muted, style = MaterialTheme.typography.labelSmall)
                         }
-                        if (gallery != null && gallery.items.isEmpty()) Text(if (discoveryState.query != null) t("No matching memories. Try fewer filters.", "没有匹配的回忆，试试减少筛选条件。") else t("No photos here yet.", "这里还没有照片。"))
+                        if (gallery != null && gallery.items.isEmpty()) Text(if (discoveryState.query != null) t("No matching memories. Try fewer filters.", "没有匹配的回忆，试试减少筛选条件。") else if (store.browseEnabled && store.selection.availability == Availability.READY) t("Nothing ready here yet. Show all or refresh after more media is published.", "暂无已就绪内容。可显示全部，或在发布更多媒体后刷新。") else t("No photos here yet.", "这里还没有照片。"))
                         if (state.gridProblems.isNotEmpty() || state.missingGrids.any { id -> gallery?.items?.any { it.id == id && it.grid != null } == true }) {
                             TvButton(t("Retry missing previews", "重试未加载的预览"), Modifier.testTag("retry-previews")) { store.retryPreviews() }
                         }
