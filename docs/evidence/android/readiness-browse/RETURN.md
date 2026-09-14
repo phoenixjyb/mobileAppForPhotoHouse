@@ -1,5 +1,7 @@
 # Readiness browsing: local TV candidate and protected-phone gap
 
+Subsequent delivery: [configured APK staging receipt](DELIVERY.md).
+
 14 September 2026. Branch `codex/android-readiness-browse`, isolated worktree
 `mobileAppForPhotoHouse-android-readiness-browse`.
 Mobile base: `531f12796d2433347f07b53940d1148317c8ad14`.
