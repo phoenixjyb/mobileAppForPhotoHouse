@@ -34,6 +34,7 @@ class TvMediaRecoveryTest {
         rule.onNodeWithTag("open-video").assertExists()
         rule.onNodeWithTag("grid").assertDoesNotExist()
         assertEquals(1, store.state.value.selected); assertNotNull(store.state.value.feed)
+        rule.showAction("language")
         rule.onNodeWithTag("language").performClick()
         rule.onNodeWithTag("video-error").assertTextContains("TV-READ-OFFLINE", substring = true)
         rule.runOnUiThread {
@@ -59,8 +60,10 @@ class TvMediaRecoveryTest {
         }
         val store = HomeStore(api, scope)
         rule.runOnUiThread { rule.activity.setContent { TvApp(store) }; store.foreground() }
+        rule.showAction("retry-previews")
         rule.onNodeWithTag("retry-previews").assertExists()
         rule.runOnUiThread { offline = false }
+        rule.showAction("retry-previews")
         rule.onNodeWithTag("retry-previews").performClick()
         rule.waitUntil(10000) { rule.onAllNodesWithTag("tv-image", useUnmergedTree = true).fetchSemanticsNodes().size == 1 }
         assertNotNull(store.state.value.grids[1])

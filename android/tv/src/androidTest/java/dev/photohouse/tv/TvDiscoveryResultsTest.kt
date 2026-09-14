@@ -57,6 +57,7 @@ class TvDiscoveryResultsTest {
         rule.waitForIdle(); return browse to controller
     }
     private fun search() {
+        rule.showAction("explore")
         rule.onNodeWithTag("explore").performClick()
         rule.waitUntil(10000) { rule.onAllNodesWithTag("quick-person-1").fetchSemanticsNodes().size == 1 }
         rule.onNodeWithTag("quick-person-1").performClick(); rule.waitForIdle()
@@ -92,6 +93,7 @@ class TvDiscoveryResultsTest {
         key(KeyEvent.KEYCODE_BACK)
         rule.onNodeWithTag("asset-102").assertIsFocused()
         assertEquals(setOf("1"), controller.state.value.query!!.people)
+        rule.showAction("clear-results")
         rule.onNodeWithTag("clear-results").performScrollTo().performClick()
         rule.onNodeWithTag("applied-search").assertDoesNotExist(); assertEquals(2, base.reads)
     }
@@ -101,10 +103,11 @@ class TvDiscoveryResultsTest {
         rule.onNodeWithText("No matching memories. Try fewer filters.").assertExists()
         rule.onNodeWithTag("asset-101").assertDoesNotExist(); capture("discovery-empty")
         result.failure = HomeError.CHANGED
-        rule.onNodeWithText("Refresh", substring = false).performClick()
+        rule.showAction("explore"); rule.onNodeWithText("Refresh", substring = false).performClick()
         rule.onNodeWithText("The library changed. Edit filters to start a fresh search.").assertExists()
         assertEquals(1, base.reads)
         result.failure = null
+        rule.showAction("edit-search")
         rule.onNodeWithTag("edit-search").performClick()
         rule.waitUntil(10000) { gateway.loads == 2 }
         rule.onNodeWithTag("quick-person-1").performClick()
@@ -112,12 +115,13 @@ class TvDiscoveryResultsTest {
         assertEquals(2, gateway.queries.size)
         key(KeyEvent.KEYCODE_BACK)
         rule.onNodeWithTag("applied-search").assertDoesNotExist()
-        rule.waitUntil(10000) { rule.onAllNodes(hasTestTag("explore") and isFocused()).fetchSemanticsNodes().size == 1 }
-        rule.onNodeWithTag("explore").assertIsFocused(); assertEquals(2, base.reads)
+        rule.waitUntil(10000) { rule.onAllNodes(hasTestTag("gallery-more") and isFocused()).fetchSemanticsNodes().size == 1 }
+        rule.onNodeWithTag("gallery-more").assertIsFocused(); assertEquals(2, base.reads)
     }
     @Test fun metadataRetryAndDeniedResultsClearPrivateStateWithoutFallback() {
         val base = Api(); val gateway = Gateway(Api(failure = HomeError.DENIED)).apply { failure = HomeError.OFFLINE }
         val (browse, controller) = install(base, gateway)
+        rule.showAction("explore")
         rule.onNodeWithTag("explore").performClick()
         rule.onNodeWithTag("discovery-error").assertExists(); capture("discovery-error")
         assertTrue(gateway.queries.isEmpty()); gateway.failure = null

@@ -42,11 +42,11 @@ internal val Edge = Color(0xFF496258)
 @Composable internal fun TvButton(label: String, modifier: Modifier = Modifier, enabled: Boolean = true, onClick: () -> Unit) {
     var focused by remember { mutableStateOf(false) }
     // TV focus must survive a touch/air-mouse interaction and return to the remote.
-    Button(onClick, modifier.heightIn(min = 52.dp).focusProperties { canFocus = enabled }.onFocusChanged { focused = it.isFocused }, enabled = enabled,
-        shape = RoundedCornerShape(12.dp),
+    Button(onClick, modifier.heightIn(min = 40.dp).focusProperties { canFocus = enabled }.onFocusChanged { focused = it.isFocused }, enabled = enabled,
+        shape = RoundedCornerShape(10.dp), contentPadding = PaddingValues(horizontal = 12.dp, vertical = 6.dp),
         border = BorderStroke(if (focused) 3.dp else 1.dp, if (focused) Gold else Edge),
         colors = ButtonDefaults.buttonColors(containerColor = if (focused) Gold else Moss,
-            contentColor = if (focused) Ink else Cream)) { Text(label) }
+            contentColor = if (focused) Ink else Cream)) { Text(label, maxLines = 1, style = MaterialTheme.typography.labelMedium) }
 }
 
 @Composable fun TvApp(browseStore: HomeStore?, discovery: DiscoveryController? = null) {
@@ -171,7 +171,8 @@ internal val Edge = Color(0xFF496258)
                 }
                 return@Surface
             }
-            Column(Modifier.fillMaxSize().safeDrawingPadding().padding(horizontal = 32.dp, vertical = 20.dp).testTag("tv-screen")) {
+            Column(Modifier.fillMaxSize().safeDrawingPadding().padding(horizontal = 28.dp, vertical = 12.dp).testTag("tv-screen")) {
+                if (route != "grid") {
                 Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(12.dp), verticalAlignment = Alignment.CenterVertically) {
                     Column(Modifier.weight(1f)) {
                         Text(t("PhotoHouse", "拾光相册"), fontFamily = FontFamily.Serif, style = MaterialTheme.typography.titleLarge)
@@ -180,7 +181,8 @@ internal val Edge = Color(0xFF496258)
                     TvButton(if (zh) "English" else "简体中文", Modifier.testTag("language")) { language = if (zh) "en" else "zh" }
                     if (state.feed != null && !state.covered) TvButton(t("Disconnect", "断开连接"), Modifier.testTag("disconnect")) { playing = false; discovery?.background(); browseStore?.disconnect() }
                 }
-                Spacer(Modifier.height(12.dp))
+                Spacer(Modifier.height(8.dp))
+                }
                 if (state.busy) LinearProgressIndicator(Modifier.fillMaxWidth())
                 state.problem?.let { problem ->
                     Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(12.dp)) {
@@ -270,48 +272,59 @@ internal val Edge = Color(0xFF496258)
                     }
                     else -> {
                         val gallery = state.feed
-                        Row(Modifier.horizontalScroll(rememberScrollState()), horizontalArrangement = Arrangement.spacedBy(10.dp), verticalAlignment = Alignment.CenterVertically) {
-                            Text(if (discoveryState.query != null) t("Search results", "搜索结果") else gallery?.title.orEmpty(), Modifier.widthIn(max = 220.dp), maxLines = 1, style = MaterialTheme.typography.titleMedium)
-                            TvButton(t("Explore", "探索"), Modifier.testTag("explore").focusRequester(exploreFocus)) { exploring = true; discovery?.open() }
-                            TvButton(t("Refresh", "刷新"), if (focusAsset == null) Modifier.focusRequester(first) else Modifier, enabled = !state.busy) { store.loadPage(gallery?.page ?: 1) }
-                            TvButton(t("Previous page", "上一页"), enabled = !state.busy && gallery != null && gallery.page > 1) { store.loadPage(gallery!!.page - 1) }
-                            TvButton(t("Next page", "下一页"), enabled = !state.busy && gallery != null && gallery.hasMore && gallery.page < 2000) { store.loadPage(gallery!!.page + 1) }
-                        }
-                        if (discoveryState.query != null) Row(Modifier.horizontalScroll(rememberScrollState()), horizontalArrangement = Arrangement.spacedBy(10.dp), verticalAlignment = Alignment.CenterVertically) {
-                            Text(t("${discoveryState.query!!.count} filters applied", "已应用 ${discoveryState.query!!.count} 类条件"), color = Gold, modifier = Modifier.testTag("applied-search"))
-                            TvButton(t("Edit filters", "修改条件"), Modifier.testTag("edit-search")) { exploring = true; discovery?.open() }
-                            TvButton(t("Clear search", "清除搜索"), Modifier.testTag("clear-results")) { discovery?.clearResults() }
-                        }
-                        if (store.browseEnabled) {
-                            val selection = store.selection
-                            Row(Modifier.horizontalScroll(rememberScrollState()), horizontalArrangement = Arrangement.spacedBy(10.dp)) {
-                                TvButton(if (selection.order == BrowseOrder.READY_FIRST) t("✓ Ready first", "✓ 优先显示已就绪") else t("Ready first", "优先显示已就绪"), Modifier.testTag("ready-first").semantics { selected = selection.order == BrowseOrder.READY_FIRST }, enabled = !state.busy) {
-                                    store.selectBrowse(selection.copy(order = if (selection.order == BrowseOrder.READY_FIRST) BrowseOrder.CATALOG else BrowseOrder.READY_FIRST))
-                                }
-                                TvButton(if (selection.availability == Availability.READY) t("✓ Ready only", "✓ 仅显示已就绪") else t("Ready only", "仅显示已就绪"), Modifier.testTag("ready-only").semantics { selected = selection.availability == Availability.READY }, enabled = !state.busy) {
-                                    store.selectBrowse(selection.copy(availability = if (selection.availability == Availability.READY) Availability.ALL else Availability.READY))
-                                }
+                        var menu by remember { mutableStateOf(false) }
+                        val selection = store.selection
+                        val previewRetry = state.gridProblems.isNotEmpty() || state.missingGrids.any { id -> gallery?.items?.any { it.id == id && it.grid != null } == true }
+                        // One persistent control row. Secondary actions open a remote-friendly menu.
+                        Row(Modifier.fillMaxWidth().testTag("gallery-toolbar").horizontalScroll(rememberScrollState()),
+                            horizontalArrangement = Arrangement.spacedBy(6.dp), verticalAlignment = Alignment.CenterVertically) {
+                            if (store.browseEnabled) {
                                 for (media in BrowseMedia.entries) {
                                     val label = when (media) { BrowseMedia.ALL -> t("All", "全部"); BrowseMedia.PHOTOS -> t("Photos", "照片"); BrowseMedia.VIDEOS -> t("Videos", "视频") }
-                                    TvButton((if (selection.media == media) "✓ " else "") + label, Modifier.testTag("browse-${media.wire}").semantics { selected = selection.media == media }, enabled = !state.busy) { store.selectBrowse(selection.copy(media = media)) }
+                                    TvButton((if (selection.media == media) "✓ " else "") + label,
+                                        Modifier.testTag("browse-${media.wire}").semantics { selected = selection.media == media }, !state.busy) { store.selectBrowse(selection.copy(media = media)) }
+                                }
+                                TvButton((if (selection.availability == Availability.READY) "✓ " else "") + t("Ready only", "仅已就绪"),
+                                    Modifier.testTag("ready-only").semantics { selected = selection.availability == Availability.READY }, !state.busy) {
+                                    store.selectBrowse(selection.copy(availability = if (selection.availability == Availability.READY) Availability.ALL else Availability.READY))
+                                }
+                                TvButton((if (selection.order == BrowseOrder.READY_FIRST) "✓ " else "") + t("Ready first", "就绪优先"),
+                                    Modifier.testTag("ready-first").semantics { selected = selection.order == BrowseOrder.READY_FIRST }, !state.busy) {
+                                    store.selectBrowse(selection.copy(order = if (selection.order == BrowseOrder.READY_FIRST) BrowseOrder.CATALOG else BrowseOrder.READY_FIRST))
                                 }
                             }
-                            gallery?.browseCounts?.let { counts ->
-                                Text(t("${counts.ready} of ${counts.matching} available · Newest added first within each group", "${counts.matching} 项中 ${counts.ready} 项已就绪 · 各组按最新加入排序"), Modifier.testTag("browse-counts"), color = Muted, style = MaterialTheme.typography.labelSmall)
+                            TvButton(t("Previous page", "上一页"), enabled = !state.busy && gallery != null && gallery.page > 1) { store.loadPage(gallery!!.page - 1) }
+                            TvButton(t("Next page", "下一页"), enabled = !state.busy && gallery != null && gallery.hasMore && gallery.page < 2000) { store.loadPage(gallery!!.page + 1) }
+                            if (gallery != null && gallery.total > 50) TvButton(t("Page ${gallery.page}…", "第 ${gallery.page} 页…"), Modifier.testTag("page-jump"), !state.busy) { pages = true }
+                            Box {
+                                TvButton(t("More", "更多"), Modifier.testTag("gallery-more").focusRequester(exploreFocus)
+                                    .then(if (focusAsset == null) Modifier.focusRequester(first) else Modifier)) { menu = true }
+                                DropdownMenu(expanded = menu, onDismissRequest = { menu = false }) {
+                                    DropdownMenuItem(text = { Text(t("Explore", "探索")) }, modifier = Modifier.testTag("explore"), onClick = { menu = false; exploring = true; discovery?.open() })
+                                    DropdownMenuItem(text = { Text(t("Refresh", "刷新")) }, enabled = !state.busy, onClick = { menu = false; store.loadPage(gallery?.page ?: 1) })
+                                    if (discoveryState.query != null) {
+                                        DropdownMenuItem(text = { Text(t("Edit filters", "修改条件")) }, modifier = Modifier.testTag("edit-search"), onClick = { menu = false; exploring = true; discovery?.open() })
+                                        DropdownMenuItem(text = { Text(t("Clear search", "清除搜索")) }, modifier = Modifier.testTag("clear-results"), onClick = { menu = false; discovery?.clearResults() })
+                                    }
+                                    if (previewRetry) DropdownMenuItem(text = { Text(t("Retry missing previews", "重试未加载的预览")) }, modifier = Modifier.testTag("retry-previews"), onClick = { menu = false; store.retryPreviews() })
+                                    DropdownMenuItem(text = { Text(if (zh) "English" else "简体中文") }, modifier = Modifier.testTag("language"), onClick = { menu = false; language = if (zh) "en" else "zh" })
+                                    DropdownMenuItem(text = { Text(t("Disconnect", "断开连接")) }, modifier = Modifier.testTag("disconnect"), onClick = { menu = false; playing = false; discovery?.background(); browseStore?.disconnect() })
+                                }
                             }
                         }
-                        if (gallery != null && gallery.total > 50) TvButton(t("Go to page", "跳转页面"), Modifier.testTag("page-jump"), enabled = !state.busy) { pages = true }
-                        if (gallery != null) Text(t("Page ${gallery.page} · ${gallery.total} assets", "第 ${gallery.page} 页 · 共 ${gallery.total} 项"), style = MaterialTheme.typography.labelSmall)
-                        if (gallery != null && gallery.version >= 2 && gallery.items.any { !it.mediaReady() }) {
+                        Row(Modifier.fillMaxWidth().padding(top = 4.dp), horizontalArrangement = Arrangement.SpaceBetween) {
+                            Text(if (discoveryState.query != null) t("Search results", "搜索结果") else t("PhotoHouse", "拾光相册"), style = MaterialTheme.typography.labelMedium, color = Cream)
+                            Text(t("Page ${gallery?.page ?: 1} · ${gallery?.total ?: 0} assets", "第 ${gallery?.page ?: 1} 页 · 共 ${gallery?.total ?: 0} 项"), style = MaterialTheme.typography.labelSmall, color = Muted)
+                        }
+                        if (discoveryState.query != null) Text(t("${discoveryState.query!!.count} filters applied", "已应用 ${discoveryState.query!!.count} 类条件"), Modifier.testTag("applied-search"), style = MaterialTheme.typography.labelSmall, color = Muted)
+                        gallery?.browseCounts?.let { counts ->
+                            Text(t("${counts.ready} of ${counts.matching} available", "${counts.matching} 项中 ${counts.ready} 项已就绪"), Modifier.testTag("browse-counts"), color = Muted, style = MaterialTheme.typography.labelSmall)
+                        }
+                        if (gallery != null && !store.browseEnabled && gallery.version >= 2 && gallery.items.any { !it.mediaReady() }) {
                             val ready = gallery.items.count { it.mediaReady() }
-                            Text(t("$ready of ${gallery.items.size} ready on this page · Other media still needs server preparation.",
-                                "本页 ${gallery.items.size} 项中有 $ready 项可观看 · 其余媒体仍需服务器准备。"),
-                                Modifier.testTag("page-availability"), color = Muted, style = MaterialTheme.typography.labelSmall)
+                            Text(t("$ready of ${gallery.items.size} ready on this page", "本页 ${gallery.items.size} 项中有 $ready 项可观看"), Modifier.testTag("page-availability"), color = Muted, style = MaterialTheme.typography.labelSmall)
                         }
                         if (gallery != null && gallery.items.isEmpty()) Text(if (discoveryState.query != null) t("No matching memories. Try fewer filters.", "没有匹配的回忆，试试减少筛选条件。") else if (store.browseEnabled && store.selection.availability == Availability.READY) t("Nothing ready here yet. Show all or refresh after more media is published.", "暂无已就绪内容。可显示全部，或在发布更多媒体后刷新。") else t("No photos here yet.", "这里还没有照片。"))
-                        if (state.gridProblems.isNotEmpty() || state.missingGrids.any { id -> gallery?.items?.any { it.id == id && it.grid != null } == true }) {
-                            TvButton(t("Retry missing previews", "重试未加载的预览"), Modifier.testTag("retry-previews")) { store.retryPreviews() }
-                        }
                         LazyVerticalGrid(GridCells.Adaptive(if (LocalConfiguration.current.fontScale >= 1.5f) 240.dp else 180.dp), Modifier.weight(1f).testTag("grid"), state = grid,
                             contentPadding = PaddingValues(vertical = 12.dp), horizontalArrangement = Arrangement.spacedBy(12.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
                             items(gallery?.items.orEmpty(), key = { it.id }) { asset ->

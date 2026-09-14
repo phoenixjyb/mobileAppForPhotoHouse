@@ -21,6 +21,28 @@ import android.graphics.Canvas
 import java.io.File
 
 class TvVideoTest {
+    @Test fun blockedExtractorSetupTimesOutOutsidePlayerLooperAndCancelsRead() {
+        val entered = java.util.concurrent.CountDownLatch(1)
+        val released = java.util.concurrent.CountDownLatch(1)
+        val reported = java.util.concurrent.CountDownLatch(1)
+        var failure: TvPlaybackFailure? = null
+        val source = object : dev.photohouse.home.HomeVideoSource {
+            override fun size(): Long { entered.countDown(); released.await(5, java.util.concurrent.TimeUnit.SECONDS); return 1024 }
+            override fun readAt(position: Long, buffer: ByteArray, offset: Int, size: Int): Int = -1
+            override fun onClose(listener: () -> Unit) { }
+            override fun close() { released.countDown() }
+        }
+        val texture = android.graphics.SurfaceTexture(0)
+        val player = NativeVideoPlayer(rule.activity, source, {}, { failure = it; reported.countDown() }, 500)
+        try {
+            player.attach(texture)
+            assertTrue(entered.await(3, java.util.concurrent.TimeUnit.SECONDS))
+            assertTrue(reported.await(3, java.util.concurrent.TimeUnit.SECONDS))
+            assertEquals(TvPlaybackFailure.Stage.PREPARE_TIMEOUT, failure?.stage)
+            assertEquals(0L, released.count)
+            assertTrue(player.isClosed)
+        } finally { player.close(); texture.release() }
+    }
     @get:Rule val rule = createAndroidComposeRule<MainActivity>()
     private fun install(bytes: ByteArray? = null): HomeVideoReader {
         val data = bytes ?: InstrumentationRegistry.getInstrumentation().context.assets.open("synthetic-video.mp4").use { it.readBytes() }

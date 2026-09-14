@@ -45,7 +45,8 @@ internal data class Playback(val ready: Boolean = false, val playing: Boolean = 
 
 /** Every platform-player operation runs on one looper; close cancels HTTP before release. */
 internal class NativeVideoPlayer(context: Context, private val reader: HomeVideoSource,
-    private val changed: (Playback) -> Unit, private val failed: (TvPlaybackFailure) -> Unit) {
+    private val changed: (Playback) -> Unit, private val failed: (TvPlaybackFailure) -> Unit,
+    private val prepareTimeoutMs: Long = 30000) {
     private val thread = HandlerThread("PhotoHouseVideo").apply { start() }
     private val handler = Handler(thread.looper)
     private val main = Handler(Looper.getMainLooper())
@@ -61,6 +62,11 @@ internal class NativeVideoPlayer(context: Context, private val reader: HomeVideo
     private val noisy = object : BroadcastReceiver() { override fun onReceive(context: Context?, intent: Intent?) { pause() } }
     private val app = context.applicationContext
     private val failureSent = AtomicBoolean(false)
+    private val prepared = AtomicBoolean(false)
+    private val setupStarted = AtomicBoolean(false)
+    private val prepareWatchdog = Runnable {
+        if (!closed.get() && !prepared.get()) error(TvPlaybackFailure(TvPlaybackFailure.Stage.PREPARE_TIMEOUT))
+    }
     init {
         try {
             if (Build.VERSION.SDK_INT >= 33) app.registerReceiver(noisy, IntentFilter(AudioManager.ACTION_AUDIO_BECOMING_NOISY), Context.RECEIVER_NOT_EXPORTED)
@@ -78,7 +84,12 @@ internal class NativeVideoPlayer(context: Context, private val reader: HomeVideo
             main.post { failed(reason) }
         }
     }
-    fun attach(texture: SurfaceTexture) = command(TvPlaybackFailure.Stage.SETUP) {
+    fun attach(texture: SurfaceTexture) {
+        if (closed.get() || !setupStarted.compareAndSet(false, true)) return
+        // Start before setDataSource: vendor extractors can block that call.
+        // A watchdog on the player looper cannot interrupt its own blocked setup.
+        main.postDelayed(prepareWatchdog, prepareTimeoutMs)
+        command(TvPlaybackFailure.Stage.SETUP) {
         if (player != null) return@command
         surface = Surface(texture)
         val p = MediaPlayer()
@@ -93,6 +104,7 @@ internal class NativeVideoPlayer(context: Context, private val reader: HomeVideo
             }
             p.setOnPreparedListener {
                 if (!closed.get()) {
+                    prepared.set(true); main.removeCallbacks(prepareWatchdog)
                     state = state.copy(ready = true, duration = p.duration.coerceAtLeast(0),
                         width = p.videoWidth.takeIf { it > 0 } ?: state.width, height = p.videoHeight.takeIf { it > 0 } ?: state.height)
                     publish() // Explicit Play; never autoplay audio after preparation.
@@ -103,7 +115,7 @@ internal class NativeVideoPlayer(context: Context, private val reader: HomeVideo
             p.setOnErrorListener { _, what, extra -> error(TvPlaybackFailure(TvPlaybackFailure.Stage.NATIVE, what, extra)); true }
             p.setDataSource(VideoDataSource(reader))
             p.prepareAsync()
-            handler.postDelayed({ if (!closed.get() && !state.ready) error(TvPlaybackFailure(TvPlaybackFailure.Stage.PREPARE_TIMEOUT)) }, 30000)
+        }
         }
     }
     fun playPause() = command {
@@ -130,6 +142,7 @@ internal class NativeVideoPlayer(context: Context, private val reader: HomeVideo
     }
     fun close() {
         if (!closed.compareAndSet(false, true)) return
+        main.removeCallbacks(prepareWatchdog)
         reader.close()
         runCatching { app.unregisterReceiver(noisy) }
         handler.post {

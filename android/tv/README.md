@@ -7,6 +7,18 @@ Build-time catalog selection is explicit; there is no endpoint/version fallback.
 
 ## Implemented flow
 
+V14 keeps gallery controls on one compact horizontal row. Media type, readiness,
+ordering and paging stay directly accessible; More contains Explore, refresh,
+preview retry, language and disconnect. Large text can scroll horizontally without
+wrapping controls onto another row. Remote focus and the selected tile are retained.
+
+Video reads now reuse one memory-only window (at most 256 KiB), avoiding an HTTP
+request for every small native MP4-header probe. The shared reader also serves
+phone Home mode. Close/revision changes discard the window and cancel reads.
+The TV preparation deadline runs independently of the player looper, including
+blocked `setDataSource`, and returns the existing retryable diagnostic after 30s.
+This is a tested client improvement; real projector decoding still needs acceptance.
+
 - Configured cold start/foreground fetch the selected API automatically: v1
   `/home/v1/feed`, or v2 `/home/v2/catalog` starting at page 1.
 - V2 supports up to 100,000 published assets, 50 per page. Later pages carry the
