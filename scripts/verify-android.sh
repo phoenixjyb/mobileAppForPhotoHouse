@@ -11,6 +11,7 @@ python3 android/verify-discovery-contract.py
 python3 android/verify-phone-discovery-contract.py
 python3 android/verify-tv-boundaries.py
 python3 android/verify-on-demand-contract.py
+python3 android/verify-readiness-browse-contract.py
 if [[ -z "${JAVA_HOME:-}" && "$(uname -s)" == Darwin ]]; then
   export JAVA_HOME="$(/usr/libexec/java_home -v 17)"
 fi
@@ -31,8 +32,8 @@ android/gradlew -p android --version
 android/gradlew -p android :core:test :live-core:test :home-core:test :tv:testDebugUnitTest \
   :app:lintDebug :app:assembleDebug :connected:lintDebug :connected:assembleDebug \
   :tv:lintDebug :tv:assembleDebug --console=plain "$@" \
-  -PphotohouseOrigin= -PphotohouseTvOrigin= -PphotohouseTvLanAddress= \
-  -PphotohouseTvCatalogVersion=2 -PphotohouseTvDiscoveryEnabled=false -PphotohousePhoneDiscoveryEnabled=false
+  -PphotohouseOrigin= -PphotohousePhoneHomeOrigin= -PphotohousePhoneHomeLanAddress= -PphotohouseTvOrigin= -PphotohouseTvLanAddress= \
+  -PphotohouseTvCatalogVersion=2 -PphotohouseTvBrowseEnabled=false -PphotohouseTvDiscoveryEnabled=false -PphotohousePhoneDiscoveryEnabled=false
 python3 - <<'PY'
 import hashlib, pathlib, zipfile, xml.etree.ElementTree as ET
 root = pathlib.Path('.')
@@ -57,6 +58,9 @@ print('Connected APK SHA-256:', hashlib.sha256(connected.read_bytes()).hexdigest
 for module, package in [('connected', 'connected'), ('tv', 'tv')]:
     config = (root/f'android/{module}/build/generated/source/buildConfig/debug/dev/photohouse/{package}/BuildConfig.java').read_text()
     assert 'PHOTOHOUSE_ORIGIN = "";' in config, 'Public verification must use an unconfigured origin'
+    if module == 'connected':
+        assert 'PHOTOHOUSE_HOME_ORIGIN = "";' in config
+        assert 'PHOTOHOUSE_HOME_LAN_ADDRESS = "";' in config
     if module == 'tv':
         assert 'PHOTOHOUSE_LAN_ADDRESS = "";' in config, 'Public verification must not embed a private address'
         tv = root/'android/tv/build/outputs/apk/debug/tv-debug.apk'

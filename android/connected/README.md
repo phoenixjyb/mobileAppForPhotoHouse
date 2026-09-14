@@ -1,4 +1,10 @@
-# Connected Android development app
+# Phone Android development app
+
+Phone v6 adds an explicit **At home / Sign in** launcher. The new
+[Home mode](../PHONE_HOME_MODE.md) uses the existing anonymous home v3 publication
+with its own private routing and server audience. The account-mode history below
+retains its original protected scope; Home mode is not an account fallback.
+
 
 Current [MVP status and source/test mapping](../MVP_STATUS.md) ·
 [pilot acceptance/configuration](../PILOT_ACCEPTANCE.md). The scoped browsing MVP is
@@ -24,7 +30,7 @@ These are instructions for a later approved pilot, not authorization to build,
 open listeners or run a device in the current no-listener scope. Initial viewer
 original access must remain off. See the ordered pilot handoff above.
 
-The default build has an empty origin, displays “Server setup needed”, and cannot
+Default builds show the mode chooser; each destination has empty routing and cannot
 collect credentials or make requests. After the operator identifies a reviewed
 HTTPS deployment and approves the configuration/build lane, place `photohouseOrigin` in the ignored
 `android/local.properties` file. Its value must be an HTTPS origin with no

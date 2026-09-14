@@ -40,6 +40,13 @@ class HomeStore(private val api: HomeApi, private val scope: CoroutineScope,
     private var timer: Job? = null
     private var failures = 0
     private var notBefore = 0L
+    val browseEnabled get() = api.browseEnabled
+    var selection: BrowseSelection = BrowseSelection()
+        private set
+    fun selectBrowse(value: BrowseSelection) {
+        if (!api.browseEnabled || !visible || paused || value == selection) return
+        selection = value; revision = null; loadPage(1)
+    }
     private var page = 1
     private var revision: Int? = null
     private val previewMutex = Mutex()
@@ -73,7 +80,7 @@ class HomeStore(private val api: HomeApi, private val scope: CoroutineScope,
             if (!current(g)) return@launch
             mutable.value = HomeState(busy = true, covered = false)
             try {
-                val feed = api.feed(page, if (page == 1) null else revision)
+                val feed = api.feed(page, if (page == 1) null else revision, selection)
                 if (!current(g)) return@launch
                 revision = feed.revision
                 mutable.value = HomeState(feed = feed, covered = false)
@@ -136,7 +143,7 @@ class HomeStore(private val api: HomeApi, private val scope: CoroutineScope,
             delay(60000)
             if (!current(g)) return@launch
             try {
-                val fresh = api.feed(page, revision)
+                val fresh = api.feed(page, revision, selection)
                 if (!current(g)) return@launch
                 val old = state.value.feed
                 if (fresh != old) { if (api.catalogVersion >= 2) { page = 1; revision = null }; loadPage(page); return@launch }

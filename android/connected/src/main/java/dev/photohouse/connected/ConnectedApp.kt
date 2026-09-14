@@ -97,7 +97,7 @@ private class Words(val zh: Boolean) {
             }
             if (state.video != null && !state.covered && store != null) {
                 val reader = state.video!!
-                key(reader) { VideoPlayer(reader, words.zh, { store.closeVideo(reader) }) { store.videoPlaybackFailed(reader) } }
+                key(reader) { VideoPlayer(reader, words.zh, { store.closeVideo(reader) }) { store.videoPlaybackFailed(reader, nativeFailure = true) } }
                 return@Surface
             }
             if (state.viewingOriginal && !state.covered && store != null) {

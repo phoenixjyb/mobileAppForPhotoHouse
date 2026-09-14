@@ -12,10 +12,10 @@ import kotlin.coroutines.resume
 import kotlin.coroutines.resumeWithException
 
 /** Only the JVM test friend source set may inject a synthetic TLS client. */
-class HttpsCatalogApi internal constructor(private val origin: HomeOrigin, client: OkHttpClient, override val catalogVersion: Int = 2) : HomeApi {
-    constructor(origin: HomeOrigin, version: Int = 2) : this(origin, OkHttpClient(), version)
-    constructor(origin: HomeOrigin, address: HomeLanAddress, version: Int = 2) : this(origin, homeLanClient(origin, address), version)
-    init { require(catalogVersion in 2..3) }
+class HttpsCatalogApi internal constructor(private val origin: HomeOrigin, client: OkHttpClient, override val catalogVersion: Int = 2, override val browseEnabled: Boolean = false) : HomeApi {
+    constructor(origin: HomeOrigin, version: Int = 2, browseEnabled: Boolean = false) : this(origin, OkHttpClient(), version, browseEnabled)
+    constructor(origin: HomeOrigin, address: HomeLanAddress, version: Int = 2, browseEnabled: Boolean = false) : this(origin, homeLanClient(origin, address), version, browseEnabled)
+    init { require(catalogVersion in 2..3 && (!browseEnabled || catalogVersion == 3)) }
     private val client = client.newBuilder().followRedirects(false).followSslRedirects(false)
         .retryOnConnectionFailure(false).cookieJar(CookieJar.NO_COOKIES).cache(null)
         .authenticator(Authenticator.NONE).proxyAuthenticator(Authenticator.NONE)
@@ -102,11 +102,13 @@ class HttpsCatalogApi internal constructor(private val origin: HomeOrigin, clien
         }
     }
     override suspend fun feed(page: Int): HomeFeed = feed(page, null)
-    override suspend fun feed(page: Int, revision: Int?): HomeFeed {
+    override suspend fun feed(page: Int, revision: Int?): HomeFeed = feed(page, revision, BrowseSelection())
+    override suspend fun feed(page: Int, revision: Int?, selection: BrowseSelection): HomeFeed {
+        require(browseEnabled || selection == BrowseSelection())
         require(page in 1..100000 && (revision == null || revision > 0) && (page == 1 || revision != null))
-        val path = "/home/v$catalogVersion/catalog?page=$page&page_size=50" + (revision?.let { "&revision=$it" } ?: "")
+        val path = "/home/v$catalogVersion/catalog?page=$page&page_size=50" + (revision?.let { "&revision=$it" } ?: "") + if (browseEnabled) selection.query() else ""
         val bytes = requireNotNull(get(path, HomeLimits.JSON, "application/json"))
-        return withContext(Dispatchers.Default) { CatalogWire.feed(bytes, page, revision, catalogVersion) }
+        return withContext(Dispatchers.Default) { CatalogWire.feed(bytes, page, revision, catalogVersion, if (browseEnabled) selection else null) }
     }
     override suspend fun preview(asset: HomeAsset, variant: Variant, revision: Int): ByteArray? {
         val p = asset.preview(variant) ?: return null

@@ -1,0 +1,30 @@
+android/verify-catalog-contract.py: exit 0
+PASS v2 pin, 16-input manifest, contract/example and test-only video; explicit version selection
+
+android/verify-connected-boundaries.py: exit 0
+PASS connected app system TLS trust, no fixture dependencies, no credential/media persistence or logging
+PASS explicit phone Home mode, private LAN routing, separate protected transport
+
+android/verify-discovery-contract.py: exit 0
+PASS independent discovery pin, contract/schema/examples and 19-input manifest; v2 pin unchanged
+
+android/verify-fixture-boundaries.py: exit 0
+PASS wrapper SHA-256, no permissions/transport/storage/player, lifecycle/backup source guards
+
+android/verify-home-contract.py: exit 0
+PASS independent home-feed pin, exact contract and synthetic fixtures; protected phone pin unchanged
+
+android/verify-on-demand-contract.py: exit 0
+PASS on-demand producer pin, strict v3 synthetic example and independent phone display contract
+
+android/verify-phone-discovery-contract.py: exit 0
+PASS separate opt-in phone discovery pin: 4 files, 14 producer examples
+
+android/verify-readiness-browse-contract.py: exit 0
+PASS readiness browsing source pin, checksums and six synthetic producer pages
+
+android/verify-tv-boundaries.py: exit 0
+PASS TV launcher/no-touch, system TLS, privacy lifecycle, no fixture or persistent storage, separate origin and debug-only build
+
+scripts/verify-contracts.py: exit 0
+PASS frozen contract: 12 operations, 38 ASGI cases, 8 checksummed files
