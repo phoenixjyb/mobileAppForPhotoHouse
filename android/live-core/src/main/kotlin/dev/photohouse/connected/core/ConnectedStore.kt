@@ -256,10 +256,11 @@ class ConnectedStore(private val api: PhotoHouseApi, private val scope: Coroutin
         if (state.value.video !== reader) return
         if (usable() && state.value.video != null) retainDetail(viewingOriginal = false, busy = false)
     }
-    fun videoPlaybackFailed(reader: VideoReader) {
+    fun videoPlaybackFailed(reader: VideoReader, nativeFailure: Boolean = false) {
         if (state.value.video !== reader || !usable()) return
-        // Transport failure owns its classified error and any session recheck.
-        if (reader.isClosed) return
+        // Transport failure owns its classified error and any session recheck. A native
+        // failure may already have closed its source to stop reads/audio immediately.
+        if (reader.isClosed && !nativeFailure) return
         reader.close()
         retainDetail(viewingOriginal = false, busy = false)
         mutable.value = state.value.copy(problem = LiveProblem(Message.MEDIA_UNAVAILABLE))

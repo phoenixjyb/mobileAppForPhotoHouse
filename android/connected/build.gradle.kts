@@ -11,6 +11,10 @@ val discoveryEnabled = providers.gradleProperty("photohousePhoneDiscoveryEnabled
 require(discoveryEnabled in listOf("true", "false")) { "Invalid phone discovery switch" }
 val photoDeliveryEnabled = providers.gradleProperty("photohousePhonePhotoDeliveryEnabled").orElse("false").get()
 require(photoDeliveryEnabled in listOf("true", "false"))
+// Home mode has independent routing. Neither field can carry account credentials.
+val homeOrigin = providers.gradleProperty("photohousePhoneHomeOrigin").orElse(localConfig.getProperty("photohousePhoneHomeOrigin", "")).get()
+val homeAddress = providers.gradleProperty("photohousePhoneHomeLanAddress").orElse(localConfig.getProperty("photohousePhoneHomeLanAddress", "")).get()
+for (value in listOf(homeOrigin, homeAddress)) require(value.none { it == '\n' || it == '\r' || it == '"' || it == '\\' })
 android {
     sourceSets.getByName("main").res.srcDir("../branding/res")
     namespace = "dev.photohouse.connected"
@@ -21,8 +25,10 @@ android {
         minSdk = 26
         targetSdk = 34
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
-        versionCode = 5
-        versionName = "0.6-phone-on-demand"
+        versionCode = 6
+        versionName = "0.7-phone-home"
+        buildConfigField("String", "PHOTOHOUSE_HOME_ORIGIN", "\"$homeOrigin\"")
+        buildConfigField("String", "PHOTOHOUSE_HOME_LAN_ADDRESS", "\"$homeAddress\"")
         buildConfigField("boolean", "PHOTOHOUSE_DISCOVERY_ENABLED", discoveryEnabled)
         buildConfigField("boolean", "PHOTOHOUSE_PHOTO_DELIVERY_ENABLED", photoDeliveryEnabled)
         buildConfigField("String", "PHOTOHOUSE_ORIGIN", "\"$configuredOrigin\"")
@@ -37,6 +43,7 @@ android {
 }
 dependencies {
     implementation(project(":live-core"))
+    implementation(project(":home-core"))
     androidTestImplementation(platform("androidx.compose:compose-bom:2024.06.00"))
     androidTestImplementation("androidx.compose.ui:ui-test-junit4")
     androidTestImplementation("androidx.test:runner:1.6.2")

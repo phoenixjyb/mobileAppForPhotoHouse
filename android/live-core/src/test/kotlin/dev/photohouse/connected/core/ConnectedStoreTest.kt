@@ -221,6 +221,20 @@ class ConnectedStoreTest {
         assertEquals(2, api.sessionReads); assertNull(store.state.value.video); assertNull(store.state.value.detail)
         assertTrue(store.hasSession); assertEquals(Message.ACCESS_DENIED, store.state.value.problem?.message)
     }
+    @Test fun nativeFailureAfterSourceCloseRetainsDetailsAndRejectsLateOldReader() = runTest {
+        val api = FakeApi().apply { originalsAllowed = true; assets = listOf(asset.copy(kind = "video")) }
+        val store = store(api); signIn(store); store.selectLibrary("family"); runCurrent()
+        store.openAsset(api.assets.single()); runCurrent(); store.openVideo()
+        val reader = store.state.value.video!!
+        reader.close(); store.videoPlaybackFailed(reader, nativeFailure = true)
+        assertNull(store.state.value.video); assertNotNull(store.state.value.detail)
+        assertEquals(Message.MEDIA_UNAVAILABLE, store.state.value.problem?.message)
+        store.retry(); runCurrent(); store.openVideo()
+        val replacement = store.state.value.video!!
+        store.videoPlaybackFailed(reader, nativeFailure = true)
+        assertSame(replacement, store.state.value.video); assertFalse(replacement.isClosed)
+    }
+
     @Test fun videoOfflineRetryReloadsPermissionAndNeverRestartsPlayback() = runTest {
         val api = FakeApi().apply { originalsAllowed = true; assets = listOf(asset.copy(kind = "video")) }
         val store = store(api); signIn(store); store.selectLibrary("family"); runCurrent()
