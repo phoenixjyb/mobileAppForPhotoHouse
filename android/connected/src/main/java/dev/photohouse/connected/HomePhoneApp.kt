@@ -55,7 +55,7 @@ import kotlinx.coroutines.withContext
                 Text(t("Your album is covered.", "相册内容已隐藏。"))
             }
             exploring -> HomeDiscoveryEditor(discoveryState, zh, { exploring = false; discovery?.close() },
-                { discovery?.open() }, { discovery?.more(it) }, { discovery?.search(it); exploring = false }, { text, selected -> discovery?.findTags(text,selected) })
+                { discovery?.open() }, { discovery?.more(it) }, { discovery?.search(it); exploring = false }, { text, selected -> discovery?.findTags(text,selected) }, calendarEnabled=discovery?.calendarEnabled==true, onCalendar={discovery?.calendar(it)})
             state.video != null -> {
                 val video = requireNotNull(state.video)
                 val source = remember(video) { HomePlaybackSource(video) }
@@ -155,7 +155,7 @@ import kotlinx.coroutines.withContext
     } }
 }
 
-@Composable private fun HomeThumbnail(bytes: ByteArray?, caption: String, unavailable: String) {
+@Composable internal fun HomeThumbnail(bytes: ByteArray?, caption: String, unavailable: String) {
     val photo by produceState<DecodedPhoto?>(null, bytes) {
         value = if (bytes == null) null else withContext(Dispatchers.Default) { decodeOriginalPhoto(bytes) }
     }

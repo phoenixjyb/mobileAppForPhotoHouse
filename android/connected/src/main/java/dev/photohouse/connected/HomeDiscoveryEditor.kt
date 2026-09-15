@@ -14,7 +14,7 @@ import dev.photohouse.home.*
 /** Memory-only touch editor; identity labels and choices come from the reviewed server index. */
 @OptIn(ExperimentalLayoutApi::class)
 @Composable internal fun HomeDiscoveryEditor(state: DiscoveryState, zh: Boolean, close: () -> Unit,
-    retry: () -> Unit, more: (DiscoveryField) -> Unit, apply: (DiscoveryDraft) -> Unit, findTags: (String, Set<String>) -> Unit = { _, _ -> }) {
+    retry: () -> Unit, more: (DiscoveryField) -> Unit, apply: (DiscoveryDraft) -> Unit, findTags: (String, Set<String>) -> Unit = { _, _ -> }, calendarEnabled:Boolean=false,onCalendar:(CalendarRequest)->Unit={}) {
     fun t(en: String, cn: String) = if (zh) cn else en
     val snapshot = state.snapshot
     val options = snapshot?.options
@@ -47,6 +47,7 @@ import dev.photohouse.home.*
                 OutlinedTextField(draft.text, { draft = draft.copy(text = it) }, enabled = ready, label = { Text(t("Words in captions", "说明中的文字")) }, modifier = Modifier.fillMaxWidth().testTag("home-search-text"))
             }
             if (DiscoveryField.DATES in options.fields) item {
+                if(calendarEnabled) HomeCalendarPicker(state.calendar,zh,onCalendar) { from,through -> draft=draft.copy(from=from,through=through) }
                 OutlinedTextField(draft.from, { draft = draft.copy(from = it.take(10)) }, enabled = ready, singleLine = true, label = { Text(t("From · YYYY-MM-DD", "开始 · YYYY-MM-DD")) }, modifier = Modifier.fillMaxWidth().testTag("home-search-from"))
                 OutlinedTextField(draft.through, { draft = draft.copy(through = it.take(10)) }, enabled = ready, singleLine = true, label = { Text(t("Through · YYYY-MM-DD", "截至 · YYYY-MM-DD")) }, modifier = Modifier.fillMaxWidth().testTag("home-search-through"))
             }

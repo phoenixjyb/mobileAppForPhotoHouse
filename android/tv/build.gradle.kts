@@ -20,19 +20,23 @@ require(configuredLanAddress.isEmpty() || configuredLanAddress.matches(Regex("[0
 require(configuredOrigin.none { it == '\n' || it == '\r' || it == '"' || it == '\\' }) { "Invalid configured origin" }
 val tagLookupEnabled = providers.gradleProperty("photohouseHomeTagLookupEnabled").orElse("false").get()
 require(tagLookupEnabled in listOf("true", "false"))
+val calendarEnabled = providers.gradleProperty("photohouseHomeCalendarEnabled").orElse("false").get()
+require(calendarEnabled in listOf("true", "false"))
+require(calendarEnabled != "true" || tagLookupEnabled == "true")
 android {
     sourceSets.getByName("main").res.srcDir("../branding/res")
     namespace = "dev.photohouse.tv"
     compileSdk = 34
     buildToolsVersion = "34.0.0"
     defaultConfig {
+        buildConfigField("boolean", "PHOTOHOUSE_HOME_CALENDAR_ENABLED", calendarEnabled)
         buildConfigField("boolean", "PHOTOHOUSE_HOME_TAG_LOOKUP_ENABLED", tagLookupEnabled)
         applicationId = "dev.photohouse.tv"
         minSdk = 26
         targetSdk = 34
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
-        versionCode = 17
-        versionName = "0.17-home-tags"
+        versionCode = 18
+        versionName = "0.18-home-calendar"
         buildConfigField("int", "PHOTOHOUSE_CATALOG_VERSION", configuredCatalogVersion)
         buildConfigField("boolean", "PHOTOHOUSE_BROWSE_ENABLED", configuredBrowse)
         buildConfigField("boolean", "PHOTOHOUSE_DISCOVERY_ENABLED", configuredDiscovery)

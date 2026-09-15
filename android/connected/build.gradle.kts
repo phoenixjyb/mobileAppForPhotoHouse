@@ -19,19 +19,23 @@ val homeDiscoveryEnabled = providers.gradleProperty("photohousePhoneHomeDiscover
 require(homeDiscoveryEnabled in listOf("true", "false"))
 val tagLookupEnabled = providers.gradleProperty("photohouseHomeTagLookupEnabled").orElse("false").get()
 require(tagLookupEnabled in listOf("true", "false"))
+val calendarEnabled = providers.gradleProperty("photohouseHomeCalendarEnabled").orElse("false").get()
+require(calendarEnabled in listOf("true", "false"))
+require(calendarEnabled != "true" || tagLookupEnabled == "true")
 android {
     sourceSets.getByName("main").res.srcDir("../branding/res")
     namespace = "dev.photohouse.connected"
     compileSdk = 34
     buildToolsVersion = "34.0.0"
     defaultConfig {
+        buildConfigField("boolean", "PHOTOHOUSE_HOME_CALENDAR_ENABLED", calendarEnabled)
         buildConfigField("boolean", "PHOTOHOUSE_HOME_TAG_LOOKUP_ENABLED", tagLookupEnabled)
         applicationId = "dev.photohouse.connected"
         minSdk = 26
         targetSdk = 34
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
-        versionCode = 8
-        versionName = "0.9-phone-home-tags"
+        versionCode = 9
+        versionName = "0.10-phone-home-calendar"
         buildConfigField("boolean", "PHOTOHOUSE_HOME_DISCOVERY_ENABLED", homeDiscoveryEnabled)
         buildConfigField("String", "PHOTOHOUSE_HOME_ORIGIN", "\"$homeOrigin\"")
         buildConfigField("String", "PHOTOHOUSE_HOME_LAN_ADDRESS", "\"$homeAddress\"")

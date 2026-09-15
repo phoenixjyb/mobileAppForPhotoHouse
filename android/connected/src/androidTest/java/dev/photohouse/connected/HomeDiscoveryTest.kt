@@ -31,6 +31,14 @@ class HomeDiscoveryTest {
     private fun start() {
         browse=HomeStore(api(false),scope)
         val gateway=object:DiscoveryGateway {
+            override val calendarEnabled=true
+            override suspend fun calendar(snapshot:DiscoverySnapshot,request:CalendarRequest):CalendarPage {
+                val key=when(request.level) {"year"->"2026";"month"->"2026-02";else->"2026-02-03"}
+                val from=when(request.level) {"year"->"2026-01-01";"month"->"2026-02-01";else->key}
+                val through=when(request.level) {"year"->"2026-12-31";"month"->"2026-02-28";else->key}
+                return CalendarPage(request,1,false,12,2,listOf(CalendarBucket(key,from,through,12,null)))
+            }
+            override fun calendarCovers(snapshot:DiscoverySnapshot,page:CalendarPage)=api(false)
             override suspend fun load():DiscoverySnapshot {
                 if(unavailable) throw HomeFailure(HomeError.OFFLINE)
                 return DiscoverySnapshot(9,8,"synthetic","Our home",DiscoveryOptions(
@@ -100,6 +108,17 @@ class HomeDiscoveryTest {
         rule.onNodeWithTag("home-search-editor").performScrollToNode(hasTestTag("home-tag-query"));snapshot("home-tags-zh.png")
         tag("home-search-apply");rule.waitUntil { queries.size==1 }
         assertEquals(setOf("301","8999"),queries.single().tags)
+    }
+    @Test fun visualCalendarSelectsDayAndKeepsChosenPerson() {
+        start();tag("home-language");tag("home-explore");rule.waitUntil {discovery.state.value.snapshot!=null}
+        tag("home-choice-people-201");tag("calendar-open")
+        rule.waitUntil {discovery.state.value.calendar.page?.request==CalendarRequest()}
+        tag("calendar-2026");rule.waitUntil {discovery.state.value.calendar.page?.request==CalendarRequest(2026)}
+        tag("calendar-2026-02");rule.waitUntil {discovery.state.value.calendar.page?.request==CalendarRequest(2026,2)}
+        rule.onNodeWithTag("home-search-editor").performScrollToNode(hasTestTag("calendar-2026-02-03"));snapshot("home-calendar-zh.png")
+        tag("calendar-2026-02-03");tag("home-search-apply");rule.waitUntil {queries.size==1}
+        assertEquals("2026-02-03",queries.single().from);assertEquals("2026-02-03",queries.single().through)
+        assertEquals(setOf("201"),queries.single().people)
     }
     private fun snapshot(name:String) { rule.runOnUiThread {
         val view=rule.activity.window.decorView;val b=Bitmap.createBitmap(view.width,view.height,Bitmap.Config.ARGB_8888)

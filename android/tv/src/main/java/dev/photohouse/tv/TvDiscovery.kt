@@ -32,7 +32,8 @@ import dev.photohouse.home.*
     onClose: () -> Unit, onApply: ((DiscoveryDraft) -> Unit)? = null,
     loading: Boolean = false, problem: HomeError? = null, onRetry: () -> Unit = {},
     more: Set<DiscoveryField> = emptySet(), onMore: (DiscoveryField) -> Unit = {},
-    tagQuery: String? = null, tagMatches: Int = 0, tagTotal: Int = 0, onFindTags: (String, Set<String>) -> Unit = { _, _ -> }
+    tagQuery: String? = null, tagMatches: Int = 0, tagTotal: Int = 0, onFindTags: (String, Set<String>) -> Unit = { _, _ -> },
+    calendarEnabled:Boolean=false,calendar:CalendarState=CalendarState(),onCalendar:(CalendarRequest)->Unit={}
 ) {
     fun t(en: String, cn: String) = if (zh) cn else en
     var tagText by remember { mutableStateOf(tagQuery.orEmpty()) }
@@ -164,6 +165,7 @@ import dev.photohouse.home.*
                                 "搜索说明中的文字。说明中提到姓名，不代表已确认的人物关联。"), color = Muted, style = MaterialTheme.typography.bodySmall)
                         }
                         DiscoveryField.DATES -> {
+                            if(calendarEnabled) TvCalendarPicker(calendar,zh,onCalendar) {from,through -> draft=draft.copy(from=from,through=through)}
                             if (options.years.isNotEmpty()) Row(Modifier.horizontalScroll(rememberScrollState()), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                                 options.years.forEach { year -> TvButton(year.toString(), Modifier.testTag("year-$year")) { draft = draft.year(year) } }
                             } else YearPicker(options, zh) { draft = draft.year(it) }

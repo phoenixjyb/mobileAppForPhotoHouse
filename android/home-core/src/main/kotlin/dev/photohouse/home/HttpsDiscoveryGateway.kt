@@ -16,10 +16,10 @@ import kotlin.coroutines.resume
 import kotlin.coroutines.resumeWithException
 
 /** Same-origin discovery only. Synthetic TLS injection is restricted to the JVM friend test set. */
-class HttpsDiscoveryGateway internal constructor(private val origin: HomeOrigin, client: OkHttpClient, private val discoveryVersion: Int = 1) : DiscoveryGateway {
-    constructor(origin: HomeOrigin, discoveryVersion: Int = 1) : this(origin, OkHttpClient(), discoveryVersion)
-    constructor(origin: HomeOrigin, address: HomeLanAddress, discoveryVersion: Int = 1) : this(origin, homeLanClient(origin, address), discoveryVersion)
-    init { require(discoveryVersion in 1..3) }
+class HttpsDiscoveryGateway internal constructor(private val origin: HomeOrigin, client: OkHttpClient, private val discoveryVersion: Int = 1, override val calendarEnabled:Boolean = false) : DiscoveryGateway {
+    constructor(origin: HomeOrigin, discoveryVersion: Int = 1, calendarEnabled:Boolean=false) : this(origin, OkHttpClient(), discoveryVersion,calendarEnabled)
+    constructor(origin: HomeOrigin, address: HomeLanAddress, discoveryVersion: Int = 1, calendarEnabled:Boolean=false) : this(origin, homeLanClient(origin, address), discoveryVersion,calendarEnabled)
+    init { require(discoveryVersion in 1..3 && (!calendarEnabled || discoveryVersion==3)) }
     private val mediaVersion = if (discoveryVersion >= 2) 3 else 2
     private val prefix = "/home/discovery/v$discoveryVersion/"
     private val client = client.newBuilder().followRedirects(false).followSslRedirects(false)
@@ -83,6 +83,25 @@ class HttpsDiscoveryGateway internal constructor(private val origin: HomeOrigin,
                     }
                 }
             })
+        }
+    }
+    override suspend fun calendar(snapshot:DiscoverySnapshot,request:CalendarRequest):CalendarPage {
+        if(!calendarEnabled || !request.valid() || DiscoveryField.DATES !in snapshot.options.fields) throw HomeFailure(HomeError.INVALID)
+        val path="${prefix}calendar?revision=${snapshot.revision}&page=${request.page}&page_size=12"+(request.year?.let { "&year=$it" } ?: "")+(request.month?.let { "&month=$it" } ?: "")
+        val bytes=json(path)
+        return withContext(Dispatchers.Default) { CalendarWire.parse(bytes,snapshot,request) }
+    }
+    override fun calendarCovers(snapshot:DiscoverySnapshot,page:CalendarPage):HomeApi = object:HomeApi {
+        override val catalogVersion=3
+        override val retryRevisionChanges=false
+        override suspend fun feed(pageNumber:Int):HomeFeed {
+            if(pageNumber!=1) throw HomeFailure(HomeError.INVALID)
+            val covers=page.buckets.mapNotNull { it.cover }
+            return HomeFeed(snapshot.catalogRevision,snapshot.libraryId,snapshot.libraryTitle,1,50,covers.size,false,covers,3)
+        }
+        override suspend fun preview(asset:HomeAsset,variant:Variant,revision:Int):ByteArray? {
+            if(variant!=Variant.GRID || revision!=snapshot.catalogRevision || asset !in page.buckets.mapNotNull { it.cover }) throw HomeFailure(HomeError.INVALID)
+            return media.preview(asset,variant,revision)
         }
     }
     private suspend fun facet(field: DiscoveryField, page: Int, revision: Int?, query: String = ""): DiscoveryWire.Facets {

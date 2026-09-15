@@ -6,6 +6,7 @@ import android.view.KeyEvent
 import androidx.activity.compose.setContent
 import androidx.compose.foundation.layout.*
 import androidx.compose.material3.*
+import androidx.compose.runtime.*
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.semantics.SemanticsActions
 import androidx.compose.ui.test.*
@@ -114,6 +115,30 @@ class TvDiscoveryTest {
         assertEquals(listOf("湖" to setOf("tag-1")),tagQueries)
         capture("discovery-tags-zh")
         click("apply-search");assertEquals(setOf("tag-1"),applied.single().tags)
+    }
+    @Test fun calendarDrillDownUsesRemoteFocusAndAppliesDayWithPeople() {
+        rule.runOnUiThread { rule.activity.setContent {
+            var calendar by remember {mutableStateOf(CalendarState())}
+            MaterialTheme(colorScheme=darkColorScheme(primary=Gold,background=Ink,surface=Ink,onBackground=Cream,onSurface=Cream)) {
+                Surface(color=Ink) {Box(Modifier.fillMaxSize().padding(32.dp)) {
+                    TvDiscovery(options,true,DiscoveryDraft(people=setOf("person-1")),{closed=true},{applied+=it},
+                        calendarEnabled=true,calendar=calendar,onCalendar={ request ->
+                            val key=when(request.level) {"year"->"2026";"month"->"2026-02";else->"2026-02-03"}
+                            val range=if(request.level=="day") key to key else if(request.level=="year") CalendarRequest(2026).range()!! else CalendarRequest(2026,2).range()!!
+                            calendar=CalendarState(request=request,page=CalendarPage(request,1,false,12,2,listOf(CalendarBucket(key,range.first,range.second,12,null))))
+                        })
+                }}
+            }
+        }}
+        rule.waitForIdle();click("explore-dates");click("calendar-open")
+        rule.waitUntil(10000) {rule.onAllNodes(hasTestTag("calendar-2026") and isFocused()).fetchSemanticsNodes().size==1}
+        key(KeyEvent.KEYCODE_DPAD_CENTER)
+        rule.waitUntil(10000) {rule.onAllNodes(hasTestTag("calendar-2026-02") and isFocused()).fetchSemanticsNodes().size==1}
+        key(KeyEvent.KEYCODE_DPAD_CENTER)
+        rule.waitUntil(10000) {rule.onAllNodes(hasTestTag("calendar-2026-02-03") and isFocused()).fetchSemanticsNodes().size==1}
+        capture("calendar-days-zh");key(KeyEvent.KEYCODE_DPAD_CENTER)
+        click("apply-search")
+        assertEquals("2026-02-03",applied.single().from);assertEquals(setOf("person-1"),applied.single().people)
     }
     @Test fun unavailableProductionFeedDoesNotInventSearchOrRetainEditorInBackground() {
         var reads = 0
