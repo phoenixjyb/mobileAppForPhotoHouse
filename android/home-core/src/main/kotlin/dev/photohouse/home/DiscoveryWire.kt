@@ -61,10 +61,13 @@ object DiscoveryWire {
         is JsonArray -> JsonArray(e.map { canonical(it) })
         else -> e
     }
-    internal fun facets(bytes: ByteArray, field: DiscoveryField, page: Int, size: Int = 50): Facets = guarded {
+    internal fun facets(bytes: ByteArray, field: DiscoveryField, page: Int, size: Int = 50, version: Int = 1, query: String = ""): Facets = guarded {
         check(page in 1..5000 && size in 1..100)
-        val o = HomeWire.parse(bytes).obj("version", "revision", "catalog_revision", "library", "capabilities", "pinned_person_ids", "pinned_people", "facet", "page", "page_size", "total", "has_more", "items")
-        check(o.getValue("version").int() == 1 && o.getValue("facet").str(16) == facetName(field))
+        val parsed = HomeWire.parse(bytes)
+        val keys = arrayOf("version", "revision", "catalog_revision", "library", "capabilities", "pinned_person_ids", "pinned_people", "facet", "page", "page_size", "total", "has_more", "items")
+        val o = parsed.obj(*(keys + if (version == 3) arrayOf("query") else emptyArray()))
+        if (version == 3) check(o.getValue("query").str(128) == query && (field == DiscoveryField.TAGS || query.isEmpty()))
+        check(version in 1..3 && o.getValue("version").int() == version && o.getValue("facet").str(16) == facetName(field))
         check(o.getValue("page").int() == page && o.getValue("page_size").int() == size)
         val revision = o.getValue("revision").int(); val catalogRevision = o.getValue("catalog_revision").int()
         val lib = o.getValue("library").obj("id", "title")
@@ -96,7 +99,7 @@ object DiscoveryWire {
         val pins = o.getValue("pinned_person_ids").array(32).map { it.int().toString() }; check(pins.distinct().size == pins.size)
         val pinned = o.getValue("pinned_people").array(32).map { choice(it, DiscoveryField.PEOPLE, assets) }
         check(pinned.map { it.id } == pins && (DiscoveryField.PEOPLE in enabled || pins.isEmpty()))
-        val total = o.getValue("total").int(0, 5000); val more = o.getValue("has_more").bool()
+        val total = o.getValue("total").int(0, if (version == 3 && field == DiscoveryField.TAGS) 10000 else 5000); val more = o.getValue("has_more").bool()
         check(more == (page * size < total) && (field in enabled || total == 0))
         val items = o.getValue("items").array(size).map { choice(it, field, assets) }
         check(items.size == minOf(size, maxOf(0, total - (page - 1) * size)))
@@ -109,22 +112,26 @@ object DiscoveryWire {
         val hash = MessageDigest.getInstance("SHA-256").digest(canonical(binding).toString().toByteArray(Charsets.UTF_8)).joinToString("") { "%02x".format(it) }
         val options = DiscoveryOptions(enabled, people = pinned, peopleAll = true, tagsAll = true,
             partialIndex = !complete, pinnedPeople = pins, coverage = coverage, dateFrom = from, dateThrough = to)
-        Facets(DiscoverySnapshot(revision, catalogRevision, id, title, options, binding = hash), field, page, total, more, items, items.lastOrNull()?.id?.toInt())
+        Facets(DiscoverySnapshot(revision, catalogRevision, id, title, options, binding = hash, tagQuery = if (version == 3) query else null), field, page, total, more, items, items.lastOrNull()?.id?.toInt())
     }
     internal fun merge(snapshot: DiscoverySnapshot?, response: Facets): DiscoverySnapshot = guarded {
         val base = snapshot ?: response.snapshot
         check(base.binding != null && base.binding == response.snapshot.binding)
         check(response.page == (base.nextPages[response.field] ?: 1))
         base.facetTotals[response.field]?.let { check(it == response.total) }
+        val queriedTags = response.field == DiscoveryField.TAGS && response.snapshot.tagQuery != null
+        if (queriedTags) check(base.tagQuery == response.snapshot.tagQuery)
         val previousLast = base.facetLastIds[response.field]
         if (previousLast != null && response.items.isNotEmpty()) check(response.items.first().id.toInt() > previousLast)
         fun combined(old: List<DiscoveryChoice>): List<DiscoveryChoice> {
             val records = old.associateBy { it.id }.toMutableMap()
             for (item in response.items) {
-                records[item.id]?.let { check(response.field == DiscoveryField.PEOPLE && item.id in base.options.pinnedPeople && it == item) }
+                records[item.id]?.let { check(it == item && (response.field == DiscoveryField.PEOPLE && item.id in base.options.pinnedPeople || queriedTags && item.id !in base.tagMatches)) }
                 records[item.id] = item
             }
-            check(records.size <= response.total && (response.more || records.size == response.total))
+            val matched = if (queriedTags) (base.tagMatches + response.items.map { it.id }).size else records.size
+            check(matched <= response.total && (response.more || matched == response.total))
+            check(records.size <= if (queriedTags) 10020 else 5000)
             return records.values.sortedBy { it.id.toInt() }
         }
         val options = when (response.field) {
@@ -135,7 +142,8 @@ object DiscoveryWire {
         }
         base.copy(options = options, nextPages = (base.nextPages - response.field) + if (response.more) mapOf(response.field to response.page + 1) else emptyMap(),
             facetTotals = base.facetTotals + (response.field to response.total),
-            facetLastIds = base.facetLastIds + (response.lastId?.let { mapOf(response.field to it) } ?: emptyMap()))
+            facetLastIds = base.facetLastIds + (response.lastId?.let { mapOf(response.field to it) } ?: emptyMap()),
+            tagMatches = if (queriedTags) base.tagMatches + response.items.map { it.id } else base.tagMatches)
     }
     internal fun request(snapshot: DiscoverySnapshot, draft: DiscoveryDraft, page: Int): ByteArray = guarded {
         check(snapshot.revision > 0 && snapshot.catalogRevision > 0 && page in 1..100000 && draft.issue(snapshot.options) == null)
@@ -154,14 +162,14 @@ object DiscoveryWire {
         }
         buildJsonObject { put("revision", snapshot.revision); put("page", page); put("page_size", 50); put("filters", filters) }.toString().toByteArray(Charsets.UTF_8).also { check(it.size <= 16384) }
     }
-    internal fun search(bytes: ByteArray, snapshot: DiscoverySnapshot, page: Int, fingerprint: String? = null, total: Int? = null): Search = guarded {
+    internal fun search(bytes: ByteArray, snapshot: DiscoverySnapshot, page: Int, fingerprint: String? = null, total: Int? = null, version: Int = 1): Search = guarded {
         val o = HomeWire.parse(bytes).obj("version", "revision", "catalog_revision", "library", "filter_fingerprint", "page", "page_size", "total", "has_more", "items")
-        check(o.getValue("version").int() == 1 && o.getValue("revision").int() == snapshot.revision && o.getValue("catalog_revision").int() == snapshot.catalogRevision)
+        check(version in 1..3 && o.getValue("version").int() == version && o.getValue("revision").int() == snapshot.revision && o.getValue("catalog_revision").int() == snapshot.catalogRevision)
         val lib = o.getValue("library").obj("id", "title")
         check(lib.getValue("id").str(64) == snapshot.libraryId && lib.getValue("title").str(256) == snapshot.libraryTitle)
         val hash = o.getValue("filter_fingerprint").str(64).also { check(it.matches(Regex("[0-9a-f]{64}"))) }
         check(fingerprint == null || hash == fingerprint); check(total == null || o.getValue("total").int(0, 100000) == total)
-        val translated = JsonObject((o - setOf("catalog_revision", "filter_fingerprint")) + mapOf("version" to JsonPrimitive(2), "revision" to JsonPrimitive(snapshot.catalogRevision)))
-        Search(CatalogWire.feed(translated.toString().toByteArray(Charsets.UTF_8), page, snapshot.catalogRevision), hash)
+        val translated = JsonObject((o - setOf("catalog_revision", "filter_fingerprint")) + mapOf("version" to JsonPrimitive(if (version >= 2) 3 else 2), "revision" to JsonPrimitive(snapshot.catalogRevision)))
+        Search(CatalogWire.feed(translated.toString().toByteArray(Charsets.UTF_8), page, snapshot.catalogRevision, version = if (version >= 2) 3 else 2), hash)
     }
 }

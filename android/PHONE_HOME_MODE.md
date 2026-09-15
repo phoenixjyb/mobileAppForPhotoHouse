@@ -1,5 +1,8 @@
 # Phone Home mode
 
+Latest Home rollout: [deployment evidence](../docs/evidence/android/home-search-v16/DEPLOYMENT.md).
+Caption/date/media search is deployed; people/place review and the tag-roster limit remain open.
+
 The owner explicitly requested no-sign-in phone access on the home LAN, matching
 TV. Phone versionCode 6 (`0.7-phone-home`) adds two explicit entry choices:
 **At home** and **Sign in**. The latter retains the existing authenticated phone
@@ -12,7 +15,7 @@ pagination and numeric page jump, literal captions, retryable previews, optimize
 photos and explicit permitted original quality, pinch/zoom/pan/fit/fill/fullscreen,
 current-page slideshow and prepared or admitted direct video streaming/seek.
 
-The Home Activity owns only HomeStore/HttpsCatalogApi. The account Activity owns
+The Home Activity owns only Home media and its optional Home discovery clients. The account Activity owns
 only ConnectedStore/HttpsPhotoHouseApi. The launcher constructs neither client;
 neither transport falls back to the other. The account module's core has no home
 dependency. Only the APK composition layer joins the two destinations. Their shared
@@ -36,7 +39,7 @@ All Activities retain secure-window and no-backup policy. Home background/exit
 cancels readers/requests and clears catalog/media; foreground revalidates through a
 fresh catalog. The account Activity retains its existing independent lifecycle.
 No persistent media/session cache, server auto-discovery, background downloads,
-automatic login, TV discovery, advanced-search enablement or 4K negotiation is added.
+automatic login or 4K negotiation is added. Search is a separate opt-in below.
 
 The shared phone player now distinguishes native failure from expected teardown,
 closes the source before reporting one failure, exposes audio-focus refusal and
@@ -45,3 +48,22 @@ callbacks remain bound to their original reader. Home callbacks also verify read
 identity, so late callbacks cannot fail another media selection.
 
 Validation and artifact evidence: [return](../docs/evidence/android/phone-home/RETURN.md).
+
+## Home search source candidate — 15 September 2026
+
+Phone versionCode 7 (`0.8-phone-home-search`) adds a separate
+`photohousePhoneHomeDiscoveryEnabled` flag, default false. With reviewed Home
+configuration and a matching server it enables server-provided quick-person
+buttons and combined caption text, date, person, tag, recorded-region and media
+filters. Missing metadata is disclosed; unsupported themes/topics are not shown.
+Filters and results stay in memory and clear on background or exit. Search pages
+remain scoped to the applied query; Clear search explicitly returns to the album.
+
+The independently pinned discovery/v2 adapter returns v3 media, so search keeps
+on-demand photos, explicit permitted originals and prepared/admitted direct video.
+Search has no readiness-order/filter contract; browse readiness controls are hidden
+inside search results. Account discovery and authentication remain separate.
+
+This is an undeployed source candidate with synthetic API-36 emulator evidence.
+The family roster/index still needs private review and live qualification before
+server/build enablement. See [v16 return](../docs/evidence/android/home-search-v16/RETURN.md).

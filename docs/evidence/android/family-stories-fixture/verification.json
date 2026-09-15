@@ -1,0 +1,56 @@
+{
+  "base": "1185327f7cfbae13eabfe0781a602b7c5e27a265",
+  "producer_source": "97e9cc4eaa2c0ff34aa60837e84099c017927ef1",
+  "jvm_tests_passed": 16,
+  "opt_in_builds_and_lints": "pass",
+  "ordinary_apk_story_lab_exclusion": "pass",
+  "phone_ui": {
+    "repaired_suite_passed": 5,
+    "repaired_suite_failed": 1,
+    "remaining_case_final_focused": "pass",
+    "focused_seconds": 79.941,
+    "final_combined_run": {
+      "source_commit": "63811ca68047e8a9c67cf6449f65bbe507132252",
+      "run": 6,
+      "passed": 6,
+      "failed": 0,
+      "skipped": 0,
+      "seconds": 18.273,
+      "receipt": "phone-combined-final.json",
+      "log": "phone-combined-final.log"
+    }
+  },
+  "tv_landscape": {
+    "passed": 1,
+    "seconds": 19.709,
+    "pixels": [
+      1920,
+      1080
+    ],
+    "density": 240,
+    "keys": [
+      "DPAD_CENTER",
+      "DPAD_UP",
+      "DPAD_DOWN",
+      "BACK"
+    ]
+  },
+  "emulator": {
+    "serial": "emulator-5554",
+    "avd": "Medium_Phone_API_36.0",
+    "sdk": 36,
+    "qemu": true,
+    "display_restored": true
+  },
+  "debug_signer_sha256": "56d7591b2b6c2538d506d1fe51327444f2307736cb12f5beefa08f1c410d6d28",
+  "story_networking": false,
+  "story_artifacts_distributed": false,
+  "physical_device_tested": false,
+  "log_sha256": {
+    "story-fixture-verified-build.log": "f24021fd3f31d59afa07a8d5ac6e0b91e6f18476601591d893c3bd270acdbcb9",
+    "story-fixture-phone-ui-final.log": "aa59e1d9e1897afcae35944cb5192eb90487c152a03cf310aba44243996e3645",
+    "story-fixture-phone-conflict-final.log": "9b8a1bd58d15048000493796eb53cfc4f03a20f25613f32716763656fb240093",
+    "story-fixture-tv-landscape.log": "fd39bad0faa6c081e9f229ea3e390def7dc1b517497ca2ca8d66834876cb8027",
+    "story-fixture-excluded-build.log": "3408014d1d32e6b66f74a8f5fbcf97bd524ae24da3e57cb20327641a68e42db9"
+  }
+}

@@ -97,4 +97,51 @@ class DiscoveryControllerTest {
         binding = "b".repeat(64); controller.open(); runCurrent()
         assertEquals(DraftIssue.UNKNOWN_CHOICE, query.issue(controller.state.value.snapshot!!.options))
     }
+    @Test fun lateTagQueryAfterBackgroundCannotRestoreLabels() = runTest {
+        val browse=HomeStore(Api(),backgroundScope)
+        val controller=DiscoveryController(object:DiscoveryGateway {
+            override suspend fun load()=snapshot.copy(tagQuery="")
+            override suspend fun more(snapshot:DiscoverySnapshot,field:DiscoveryField)=snapshot
+            override suspend fun findTags(snapshot:DiscoverySnapshot,query:String,selected:Set<String>):DiscoverySnapshot {
+                withContext(NonCancellable) { delay(100) }
+                return snapshot.copy(tagQuery=query)
+            }
+            override fun results(snapshot:DiscoverySnapshot,draft:DiscoveryDraft):HomeApi=error("No search")
+        },browse,backgroundScope)
+        controller.open();runCurrent();controller.findTags("湖",emptySet());runCurrent()
+        controller.background();advanceTimeBy(101);runCurrent()
+        assertEquals(DiscoveryState(),controller.state.value)
+    }
+
+    @Test fun lateCalendarAfterBackgroundCannotRestoreCovers() = runTest {
+        val browse=HomeStore(Api(),backgroundScope)
+        val controller=DiscoveryController(object:DiscoveryGateway {
+            override val calendarEnabled=true
+            override suspend fun load()=snapshot
+            override suspend fun more(snapshot:DiscoverySnapshot,field:DiscoveryField)=snapshot
+            override suspend fun calendar(snapshot:DiscoverySnapshot,request:CalendarRequest):CalendarPage {
+                withContext(NonCancellable) {delay(100)}
+                return CalendarPage(request,0,false,0,0,emptyList())
+            }
+            override fun calendarCovers(snapshot:DiscoverySnapshot,page:CalendarPage):HomeApi=error("No late cover store")
+            override fun results(snapshot:DiscoverySnapshot,draft:DiscoveryDraft):HomeApi=error("No search")
+        },browse,backgroundScope)
+        controller.open();runCurrent();controller.calendar();runCurrent();controller.background()
+        advanceTimeBy(101);runCurrent();assertEquals(DiscoveryState(),controller.state.value)
+    }
+    @Test fun calendarCoverDenialClearsMetadataAndBrowse() = runTest {
+        val browse=HomeStore(Api(),backgroundScope);browse.foreground();runCurrent()
+        val controller=DiscoveryController(object:DiscoveryGateway {
+            override val calendarEnabled=true
+            override suspend fun load()=snapshot
+            override suspend fun more(snapshot:DiscoverySnapshot,field:DiscoveryField)=snapshot
+            override suspend fun calendar(snapshot:DiscoverySnapshot,request:CalendarRequest)=CalendarPage(request,0,false,0,0,emptyList())
+            override fun calendarCovers(snapshot:DiscoverySnapshot,page:CalendarPage)=Api(HomeError.DENIED)
+            override fun results(snapshot:DiscoverySnapshot,draft:DiscoveryDraft):HomeApi=error("No search")
+        },browse,backgroundScope)
+        controller.open();runCurrent();controller.calendar();runCurrent()
+        assertNull(controller.state.value.snapshot);assertEquals(HomeError.DENIED,controller.state.value.problem)
+        assertNull(browse.state.value.feed)
+    }
+
 }

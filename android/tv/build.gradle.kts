@@ -10,7 +10,7 @@ val configuredCatalogVersion = providers.gradleProperty("photohouseTvCatalogVers
 require(configuredCatalogVersion in listOf("1", "2", "3")) { "Unsupported TV catalog version" }
 val configuredDiscovery = providers.gradleProperty("photohouseTvDiscoveryEnabled").orElse(localConfig.getProperty("photohouseTvDiscoveryEnabled", "false")).get()
 require(configuredDiscovery in listOf("true", "false")) { "Invalid discovery switch" }
-require(configuredDiscovery != "true" || configuredCatalogVersion == "2") { "Discovery requires catalog v2" }
+require(configuredDiscovery != "true" || configuredCatalogVersion in listOf("2", "3")) { "Discovery requires catalog v2 or v3" }
 val configuredBrowse = providers.gradleProperty("photohouseTvBrowseEnabled").orElse(localConfig.getProperty("photohouseTvBrowseEnabled", "false")).get()
 require(configuredBrowse in listOf("true", "false"))
 require(configuredBrowse != "true" || configuredCatalogVersion == "3") { "Readiness browsing requires catalog v3" }
@@ -18,18 +18,33 @@ require(configuredBrowse != "true" || configuredCatalogVersion == "3") { "Readin
 require(configuredLanAddress.isEmpty() || configuredOrigin.isNotEmpty()) { "LAN address requires an HTTPS origin" }
 require(configuredLanAddress.isEmpty() || configuredLanAddress.matches(Regex("[0-9.]{7,15}"))) { "Invalid LAN address" }
 require(configuredOrigin.none { it == '\n' || it == '\r' || it == '"' || it == '\\' }) { "Invalid configured origin" }
+val tagLookupEnabled = providers.gradleProperty("photohouseHomeTagLookupEnabled").orElse("false").get()
+require(tagLookupEnabled in listOf("true", "false"))
+val calendarEnabled = providers.gradleProperty("photohouseHomeCalendarEnabled").orElse("false").get()
+require(calendarEnabled in listOf("true", "false"))
+require(calendarEnabled != "true" || tagLookupEnabled == "true")
+val storyFixtureFlag = providers.gradleProperty("photohouseStoryFixtureEnabled").orElse("false").get()
+require(storyFixtureFlag in listOf("true", "false"))
+val storyFixtureEnabled = storyFixtureFlag == "true"
 android {
+    if (storyFixtureEnabled) {
+        sourceSets.getByName("debug").java.srcDir("../story-fixture-ui/src/main/java")
+        sourceSets.getByName("debug").manifest.srcFile("../story-fixture-ui/src/main/AndroidManifest.xml")
+        sourceSets.getByName("androidTest").java.srcDir("../story-fixture-ui/src/androidTest/java")
+    }
     sourceSets.getByName("main").res.srcDir("../branding/res")
     namespace = "dev.photohouse.tv"
     compileSdk = 34
     buildToolsVersion = "34.0.0"
     defaultConfig {
+        buildConfigField("boolean", "PHOTOHOUSE_HOME_CALENDAR_ENABLED", calendarEnabled)
+        buildConfigField("boolean", "PHOTOHOUSE_HOME_TAG_LOOKUP_ENABLED", tagLookupEnabled)
         applicationId = "dev.photohouse.tv"
         minSdk = 26
         targetSdk = 34
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
-        versionCode = 15
-        versionName = "0.15-tv-read-recovery"
+        versionCode = 18
+        versionName = "0.18-home-calendar"
         buildConfigField("int", "PHOTOHOUSE_CATALOG_VERSION", configuredCatalogVersion)
         buildConfigField("boolean", "PHOTOHOUSE_BROWSE_ENABLED", configuredBrowse)
         buildConfigField("boolean", "PHOTOHOUSE_DISCOVERY_ENABLED", configuredDiscovery)
@@ -45,6 +60,7 @@ android {
     packaging { resources.excludes += "/META-INF/{AL2.0,LGPL2.1}" }
 }
 dependencies {
+    if (storyFixtureEnabled) debugImplementation(project(":story-fixture-core"))
     testImplementation("junit:junit:4.13.2")
     implementation(project(":home-core"))
     androidTestImplementation(platform("androidx.compose:compose-bom:2024.06.00"))

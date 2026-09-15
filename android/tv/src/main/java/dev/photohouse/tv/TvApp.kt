@@ -208,7 +208,9 @@ internal val Edge = Color(0xFF496258)
                         } else null,
                         loading = discoveryState.loading, problem = discoveryState.problem,
                         onRetry = { discovery?.open() }, more = discoveryState.snapshot?.nextPages?.keys.orEmpty(),
-                        onMore = { discovery?.more(it) })
+                        onMore = { discovery?.more(it) }, tagQuery=discoveryState.snapshot?.tagQuery,
+                        tagMatches=discoveryState.snapshot?.tagMatches?.size ?: 0, tagTotal=discoveryState.snapshot?.facetTotals?.get(DiscoveryField.TAGS) ?: 0,
+                        onFindTags={ text, selected -> discovery?.findTags(text,selected) },calendarEnabled=discovery?.calendarEnabled==true,calendar=discoveryState.calendar,onCalendar={discovery?.calendar(it)})
                     state.feed == null -> Column(Modifier.weight(1f).verticalScroll(rememberScrollState()), verticalArrangement = Arrangement.Center) {
                         Text(if (state.disconnected) t("Display disconnected", "屏幕已断开") else if (state.problem != null) t("Home photos unavailable", "暂时无法查看家庭照片") else t("Connecting to your home photos…", "正在连接家庭照片…"),
                             style = MaterialTheme.typography.headlineLarge, modifier = Modifier.testTag("home-access-needed"))

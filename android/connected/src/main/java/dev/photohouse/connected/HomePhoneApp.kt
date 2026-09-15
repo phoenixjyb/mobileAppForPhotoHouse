@@ -23,10 +23,13 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 
 @OptIn(ExperimentalLayoutApi::class)
-@Composable internal fun HomePhoneApp(store: HomeStore?, exit: () -> Unit) {
+@Composable internal fun HomePhoneApp(browseStore: HomeStore?, discovery: DiscoveryController? = null, exit: () -> Unit) {
     val systemZh = LocalConfiguration.current.locales[0].language == "zh"
     var zh by remember { mutableStateOf(systemZh) }
     fun t(en: String, cn: String) = if (zh) cn else en
+    val discoveryState = discovery?.state?.collectAsState()?.value ?: DiscoveryState()
+    val store = discoveryState.results ?: browseStore
+    var exploring by remember(discovery) { mutableStateOf(false) }
     val state = store?.state?.collectAsState()?.value ?: HomeState()
     val feed = state.feed
     val asset = state.asset
@@ -39,14 +42,20 @@ import kotlinx.coroutines.withContext
     LaunchedEffect(state.covered, state.problem, state.mediaProblem, asset?.kind) {
         if (state.covered || state.problem != null || state.mediaProblem != null || asset?.kind != AssetKind.PHOTO) slideshow = false
     }
-    fun leave() { slideshow = false; store?.disconnect(); exit() }
-    fun back() { slideshow = false; when { state.video != null -> store?.closeVideo(); asset != null -> store?.backToPhotos(); else -> leave() } }
+    LaunchedEffect(state.covered, state.problem) {
+        if (state.covered) exploring = false
+        state.problem?.let { discovery?.invalidateResults(it) }
+    }
+    fun leave() { slideshow = false; discovery?.background(); browseStore?.disconnect(); exit() }
+    fun back() { slideshow = false; when { exploring -> { exploring = false; discovery?.close() }; state.video != null -> store?.closeVideo(); asset != null -> store?.backToPhotos(); discoveryState.results != null -> discovery?.clearResults(); else -> leave() } }
     BackHandler { back() }
     PhotoHouseTheme { Surface(Modifier.fillMaxSize()) {
         when {
             state.covered && store != null -> Box(Modifier.fillMaxSize().testTag("home-covered"), contentAlignment = Alignment.Center) {
                 Text(t("Your album is covered.", "相册内容已隐藏。"))
             }
+            exploring -> HomeDiscoveryEditor(discoveryState, zh, { exploring = false; discovery?.close() },
+                { discovery?.open() }, { discovery?.more(it) }, { discovery?.search(it); exploring = false }, { text, selected -> discovery?.findTags(text,selected) }, calendarEnabled=discovery?.calendarEnabled==true, onCalendar={discovery?.calendar(it)})
             state.video != null -> {
                 val video = requireNotNull(state.video)
                 val source = remember(video) { HomePlaybackSource(video) }
@@ -90,13 +99,18 @@ import kotlinx.coroutines.withContext
                         TextButton(onClick = ::leave, modifier = Modifier.testTag("home-exit")) { Text(t("Access modes", "访问方式")) }
                         TextButton(onClick = { zh = !zh }, modifier = Modifier.testTag("home-language")) { Text(if (zh) "English" else "简体中文") }
                     }
-                    Text(t("At home", "家的相册"), style = MaterialTheme.typography.headlineLarge, fontFamily = FontFamily.Serif)
+                    Text(if (discoveryState.query != null) t("Search results", "搜索结果") else t("At home", "家的相册"), style = MaterialTheme.typography.headlineLarge, fontFamily = FontFamily.Serif)
                     Text(t("A little closer to your memories.", "让回忆，离我们再近一点。"), style = MaterialTheme.typography.bodyMedium)
                     if (state.busy) LinearProgressIndicator(Modifier.fillMaxWidth())
                     if (store == null) Text(t("This build needs your home server configuration.", "此版本需要配置家庭服务器。"), Modifier.testTag("home-setup"))
                     state.problem?.let { Text(homeProblem(it, zh), Modifier.testTag("home-error")) }
                     if (store != null) OutlinedButton(onClick = { if (state.disconnected) store.reconnect() else store.loadPage() }, enabled = !state.busy,
                         modifier = Modifier.testTag("home-refresh")) { Text(t("Refresh album", "刷新相册")) }
+                    if (discovery != null && feed != null && !state.disconnected) FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                        OutlinedButton(onClick = { discovery.open(); exploring = true }, enabled = !state.busy, modifier = Modifier.testTag("home-explore")) { Text(if (discoveryState.query == null) t("Find memories", "查找回忆") else t("Edit filters", "修改条件")) }
+                        if (discoveryState.query != null) TextButton(onClick = { discovery.clearResults() }, modifier = Modifier.testTag("home-clear-search")) { Text(t("Clear search", "清除搜索")) }
+                    }
+                    discoveryState.query?.let { Text(t("${it.count} filters applied", "已应用 ${it.count} 类条件"), modifier = Modifier.testTag("home-search-summary")) }
                     if (store?.browseEnabled == true) {
                         fun choose(value: BrowseSelection) { selection = value; store.selectBrowse(value) }
                         FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
@@ -141,7 +155,7 @@ import kotlinx.coroutines.withContext
     } }
 }
 
-@Composable private fun HomeThumbnail(bytes: ByteArray?, caption: String, unavailable: String) {
+@Composable internal fun HomeThumbnail(bytes: ByteArray?, caption: String, unavailable: String) {
     val photo by produceState<DecodedPhoto?>(null, bytes) {
         value = if (bytes == null) null else withContext(Dispatchers.Default) { decodeOriginalPhoto(bytes) }
     }
@@ -151,7 +165,7 @@ import kotlinx.coroutines.withContext
     }
 }
 
-private fun homeProblem(error: HomeError, zh: Boolean): String = if (zh) when (error) {
+internal fun homeProblem(error: HomeError, zh: Boolean): String = if (zh) when (error) {
     HomeError.DENIED -> "服务器未允许此设备。请连接家庭网络，并请家庭管理员授权此手机。"
     HomeError.TLS -> "无法验证家庭服务器的安全连接，请检查服务器证书。"
     HomeError.OFFLINE -> "无法连接家庭服务器。请检查家庭网络；离家后请返回账号登录。"

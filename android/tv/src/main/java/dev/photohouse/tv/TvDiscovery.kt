@@ -31,9 +31,12 @@ import dev.photohouse.home.*
     options: DiscoveryOptions?, zh: Boolean, applied: DiscoveryDraft = DiscoveryDraft(),
     onClose: () -> Unit, onApply: ((DiscoveryDraft) -> Unit)? = null,
     loading: Boolean = false, problem: HomeError? = null, onRetry: () -> Unit = {},
-    more: Set<DiscoveryField> = emptySet(), onMore: (DiscoveryField) -> Unit = {}
+    more: Set<DiscoveryField> = emptySet(), onMore: (DiscoveryField) -> Unit = {},
+    tagQuery: String? = null, tagMatches: Int = 0, tagTotal: Int = 0, onFindTags: (String, Set<String>) -> Unit = { _, _ -> },
+    calendarEnabled:Boolean=false,calendar:CalendarState=CalendarState(),onCalendar:(CalendarRequest)->Unit={}
 ) {
     fun t(en: String, cn: String) = if (zh) cn else en
+    var tagText by remember { mutableStateOf(tagQuery.orEmpty()) }
     var editing by remember { mutableStateOf(false) }
     var section by remember { mutableStateOf<DiscoveryField?>(null) }
     var draft by remember(applied) { mutableStateOf(applied) }
@@ -162,6 +165,7 @@ import dev.photohouse.home.*
                                 "搜索说明中的文字。说明中提到姓名，不代表已确认的人物关联。"), color = Muted, style = MaterialTheme.typography.bodySmall)
                         }
                         DiscoveryField.DATES -> {
+                            if(calendarEnabled) TvCalendarPicker(calendar,zh,onCalendar) {from,through -> draft=draft.copy(from=from,through=through)}
                             if (options.years.isNotEmpty()) Row(Modifier.horizontalScroll(rememberScrollState()), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                                 options.years.forEach { year -> TvButton(year.toString(), Modifier.testTag("year-$year")) { draft = draft.year(year) } }
                             } else YearPicker(options, zh) { draft = draft.year(it) }
@@ -177,6 +181,11 @@ import dev.photohouse.home.*
                         DiscoveryField.THEMES -> ChoiceRow(options.themes, draft.themes, "theme", zh) { draft = draft.copy(themes = toggle(draft.themes, it)) }
                         DiscoveryField.TOPICS -> ChoiceRow(options.topics, draft.topics, "topic", zh) { draft = draft.copy(topics = toggle(draft.topics, it)) }
                         DiscoveryField.TAGS -> {
+                            if (tagQuery != null) {
+                                DraftText(tagText,t("Find a tag", "查找标签"),"tag-query",128) { tagText=it }
+                                TvButton(t("Search tags", "搜索标签"),Modifier.testTag("find-tags"),enabled=!loading && tagText.trim().toByteArray(Charsets.UTF_8).size <= 128) { onFindTags(tagText,draft.tags) }
+                                Text(t("$tagMatches of $tagTotal matches loaded. Selected tags stay available.", "已加载 $tagMatches / $tagTotal 个匹配标签，保留已选标签。"),color=Muted)
+                            }
                             ChoiceRow(options.tags, draft.tags, "tag", zh) { draft = draft.copy(tags = toggle(draft.tags, it)) }
                             if (options.tagsAll) MatchRow(draft.tagsMatch, zh, "tags-match") { draft = draft.copy(tagsMatch = it) }
                             Text(t("Existing tags do not mean tagging is complete. Caption-derived tags and reviewed people remain separate.",

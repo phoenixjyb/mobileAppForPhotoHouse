@@ -15,18 +15,36 @@ require(photoDeliveryEnabled in listOf("true", "false"))
 val homeOrigin = providers.gradleProperty("photohousePhoneHomeOrigin").orElse(localConfig.getProperty("photohousePhoneHomeOrigin", "")).get()
 val homeAddress = providers.gradleProperty("photohousePhoneHomeLanAddress").orElse(localConfig.getProperty("photohousePhoneHomeLanAddress", "")).get()
 for (value in listOf(homeOrigin, homeAddress)) require(value.none { it == '\n' || it == '\r' || it == '"' || it == '\\' })
+val homeDiscoveryEnabled = providers.gradleProperty("photohousePhoneHomeDiscoveryEnabled").orElse("false").get()
+require(homeDiscoveryEnabled in listOf("true", "false"))
+val tagLookupEnabled = providers.gradleProperty("photohouseHomeTagLookupEnabled").orElse("false").get()
+require(tagLookupEnabled in listOf("true", "false"))
+val calendarEnabled = providers.gradleProperty("photohouseHomeCalendarEnabled").orElse("false").get()
+require(calendarEnabled in listOf("true", "false"))
+require(calendarEnabled != "true" || tagLookupEnabled == "true")
+val storyFixtureFlag = providers.gradleProperty("photohouseStoryFixtureEnabled").orElse("false").get()
+require(storyFixtureFlag in listOf("true", "false"))
+val storyFixtureEnabled = storyFixtureFlag == "true"
 android {
+    if (storyFixtureEnabled) {
+        sourceSets.getByName("debug").java.srcDir("../story-fixture-ui/src/main/java")
+        sourceSets.getByName("debug").manifest.srcFile("../story-fixture-ui/src/main/AndroidManifest.xml")
+        sourceSets.getByName("androidTest").java.srcDir("../story-fixture-ui/src/androidTest/java")
+    }
     sourceSets.getByName("main").res.srcDir("../branding/res")
     namespace = "dev.photohouse.connected"
     compileSdk = 34
     buildToolsVersion = "34.0.0"
     defaultConfig {
+        buildConfigField("boolean", "PHOTOHOUSE_HOME_CALENDAR_ENABLED", calendarEnabled)
+        buildConfigField("boolean", "PHOTOHOUSE_HOME_TAG_LOOKUP_ENABLED", tagLookupEnabled)
         applicationId = "dev.photohouse.connected"
         minSdk = 26
         targetSdk = 34
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
-        versionCode = 6
-        versionName = "0.7-phone-home"
+        versionCode = 9
+        versionName = "0.10-phone-home-calendar"
+        buildConfigField("boolean", "PHOTOHOUSE_HOME_DISCOVERY_ENABLED", homeDiscoveryEnabled)
         buildConfigField("String", "PHOTOHOUSE_HOME_ORIGIN", "\"$homeOrigin\"")
         buildConfigField("String", "PHOTOHOUSE_HOME_LAN_ADDRESS", "\"$homeAddress\"")
         buildConfigField("boolean", "PHOTOHOUSE_DISCOVERY_ENABLED", discoveryEnabled)
@@ -42,6 +60,7 @@ android {
     packaging { resources.excludes += "/META-INF/{AL2.0,LGPL2.1}" }
 }
 dependencies {
+    if (storyFixtureEnabled) debugImplementation(project(":story-fixture-core"))
     implementation(project(":live-core"))
     implementation(project(":home-core"))
     androidTestImplementation(platform("androidx.compose:compose-bom:2024.06.00"))

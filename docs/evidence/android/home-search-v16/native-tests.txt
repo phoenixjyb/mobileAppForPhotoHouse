@@ -1,0 +1,6 @@
+dev.photohouse.connected.HomeDiscoveryTest:...
+dev.photohouse.connected.HomePhoneTest:...
+
+Time: 33.279
+
+OK (6 tests)

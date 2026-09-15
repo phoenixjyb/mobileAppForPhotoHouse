@@ -1,9 +1,32 @@
 # Phone and TV feature parity
 
+Latest Home rollout: [deployment evidence](../docs/evidence/android/home-search-v16/DEPLOYMENT.md).
+Caption/date/media search is deployed; people/place review and the tag-roster limit remain open.
+
 The family experience should offer equivalent capabilities with touch/portrait
 phone screens and remote/landscape TV screens. They are separate APKs; a TV
 change is not automatically a phone change. Keep the existing warm neutral,
 green and cream phone design. UI language does not rewrite caption content.
+
+## Home search parity candidate — 15 September 2026
+
+TV v16 and phone versionCode 7 now consume an independently pinned discovery/v2
+candidate with current v3 media. Phone Home gains a touch search editor and
+server-provided quick-person shortcuts; TV reuses its existing remote editor.
+Both retain v3 photo/video behavior in search. Search remains opt-in; this source
+and emulator work does not enable the feature on the installed projector.
+
+| Capability | Phone Home | Home TV |
+| --- | --- | --- |
+| Caption, dates, reviewed people/aliases, tags, recorded regions, combined filters | New source and emulator checks | Existing remote UI, updated v3 result adapter |
+| On-demand photos, permitted originals, prepared/direct video in search | Shared strict discovery/v2 adapter | Same adapter |
+| Ready-only and ready-first in album browsing | Existing | Existing |
+| Ready-only or ready-first within search | Not in current contract | Not in current contract |
+| Themes/topics, named albums, GPS radius, protected prepared video | Remaining | Relevant Home discovery features remaining |
+
+[Source return and validation](../docs/evidence/android/home-search-v16/RETURN.md)
+records the independent backend pin and rollout gates. The protected account
+comparison below remains separate from anonymous Home parity.
 
 ## Phone Home mode continuation — 14 September 2026
 
