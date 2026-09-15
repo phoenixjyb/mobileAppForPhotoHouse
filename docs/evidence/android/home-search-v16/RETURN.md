@@ -1,5 +1,8 @@
 # Home search parity source return
 
+Deployment continuation: [qualified backend and configured APKs](DEPLOYMENT.md).
+The source-only gates below describe the original local-development checkpoint.
+
 Date: 15 September 2026. Android branch: `codex/home-search-parity-v16`.
 Android base: `5bde252d9bfa74e4574942769190c4afd41a6a77`.
 Backend candidate: `98b92702b4bf687f8bb0ed745a0dfe235a15b98e`, branch

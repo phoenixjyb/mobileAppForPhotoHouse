@@ -40,3 +40,14 @@ certificate; no private configuration was committed:
 Phone Home uses the same explicit LAN access policy. This Home test APK has no WAN
 sign-in origin configured. The source still keeps account and Home transport separate.
 Neither APK is a production/store-signed release or proof of installation.
+
+Both configured APKs were delivered to the existing SMB APK folder at 10:46 on
+15 September. Operator SMB readback matched both SHA-256 values; the existing
+reader group retained ReadAndExecute permissions. TV v15 was preserved for rollback.
+No physical-device installation was performed. Copy the apk1 file locally and
+rename it to apk if the installer does not recognize the transport suffix.
+
+Next product gaps: scalable tag discovery beyond the current roster cap; reviewed
+family-person shortcuts and assignments; measured location coverage; metadata
+refresh bound to each later media publication. Test the deployed caption/date/media
+search and longer-video playback on both devices before claiming family acceptance.

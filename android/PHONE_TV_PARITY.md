@@ -1,5 +1,8 @@
 # Phone and TV feature parity
 
+Latest Home rollout: [deployment evidence](../docs/evidence/android/home-search-v16/DEPLOYMENT.md).
+Caption/date/media search is deployed; people/place review and the tag-roster limit remain open.
+
 The family experience should offer equivalent capabilities with touch/portrait
 phone screens and remote/landscape TV screens. They are separate APKs; a TV
 change is not automatically a phone change. Keep the existing warm neutral,

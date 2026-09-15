@@ -1,5 +1,8 @@
 # Phone Home mode
 
+Latest Home rollout: [deployment evidence](../docs/evidence/android/home-search-v16/DEPLOYMENT.md).
+Caption/date/media search is deployed; people/place review and the tag-roster limit remain open.
+
 The owner explicitly requested no-sign-in phone access on the home LAN, matching
 TV. Phone versionCode 6 (`0.7-phone-home`) adds two explicit entry choices:
 **At home** and **Sign in**. The latter retains the existing authenticated phone
