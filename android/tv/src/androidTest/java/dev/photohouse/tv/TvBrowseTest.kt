@@ -46,9 +46,16 @@ class TvBrowseTest {
         rule.onNodeWithTag("ready-only").assertIsSelected()
         rule.onNodeWithTag("asset-300").assertDoesNotExist()
         rule.onNodeWithTag("asset-102").assertExists()
+        val toolbarBounds = rule.onNodeWithTag("gallery-toolbar").getUnclippedBoundsInRoot()
+        assertTrue((toolbarBounds.bottom - toolbarBounds.top).value <= 56f)
+        val rowTop = rule.onNodeWithTag("browse-all").getUnclippedBoundsInRoot().top.value
+        for (tag in listOf("browse-photo", "browse-video", "ready-only", "ready-first", "gallery-more")) {
+            assertEquals(rowTop, rule.onNodeWithTag(tag).getUnclippedBoundsInRoot().top.value, 1f)
+        }
         snapshot("ready-browse-en.png")
+        rule.showAction("language")
         rule.onNodeWithTag("language").performClick()
-        rule.onNodeWithTag("ready-only").assertTextContains("仅显示已就绪",substring=true)
+        rule.onNodeWithTag("ready-only").assertTextContains("仅已就绪",substring=true)
         snapshot("ready-browse-zh.png")
         rule.onNodeWithTag("browse-video").performScrollTo().performClick()
         rule.waitUntil { store.state.value.feed?.total==0 }

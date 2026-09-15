@@ -10,6 +10,26 @@ import java.util.concurrent.TimeUnit
 import java.util.concurrent.atomic.AtomicInteger
 
 class HomeVideoReaderTest {
+    @Test fun tinyHeaderProbesReuseOneBoundedWindowAndCloseInvalidatesIt() {
+        var requests = 0
+        val reader = HomeVideoReader(1000000, 65536, { start, count ->
+            requests++; assertTrue(count <= 65536)
+            ByteArray(count) { ((start + it) % 251).toByte() }
+        }, { fail("Unexpected failure") })
+        val buffer = ByteArray(8)
+        repeat(1000) { position ->
+            assertEquals(8, reader.readAt(position.toLong(), buffer, 0, 8))
+            assertEquals((position % 251).toByte(), buffer[0])
+        }
+        assertEquals(1, requests)
+        reader.readAt(900000, buffer, 0, 8)
+        assertEquals(2, requests)
+        reader.readAt(0, buffer, 0, 8)
+        assertEquals(3, requests) // Only one window is retained after a seek.
+        reader.close()
+        assertThrows(IOException::class.java) { reader.readAt(0, buffer, 0, 8) }
+        assertEquals(3, requests)
+    }
     @Test fun multiGigabyteMovieSupportsTailAndBackwardReadsWithSmallBuffers() {
         val total = 8193114694L
         val requests = mutableListOf<Pair<Long, Int>>()
@@ -26,7 +46,7 @@ class HomeVideoReaderTest {
             assertEquals(((total - 4) % 251).toByte(), buffer[2])
             assertEquals(16, it.readAt(0, buffer, 0, 16))
             assertEquals(-1, it.readAt(total, buffer, 0, 1))
-            assertEquals(listOf(4294967296L to 32, total - 4 to 4, 0L to 16), requests)
+            assertEquals(listOf(4294967296L to CatalogWire.READ_BYTES, total - 4 to 4, 0L to CatalogWire.READ_BYTES), requests)
         }
     }
     @Test fun boundedRandomReadsPreserveOffsetsAndReturnEofWithoutFetching() {

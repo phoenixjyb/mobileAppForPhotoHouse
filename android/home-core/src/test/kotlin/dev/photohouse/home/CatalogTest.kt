@@ -99,21 +99,26 @@ class CatalogHttpTest {
     }
     @After fun close() { server.shutdown() }
     private fun response(bytes: ByteArray, type: String) = MockResponse().setHeader("Content-Type", type).setHeader("Cache-Control", "no-store").setBody(Buffer().write(bytes))
-    private fun range(bytes: ByteArray = byteArrayOf(1, 2, 3, 4)) = response(bytes, "video/mp4").setResponseCode(206).setHeader("Content-Range", "bytes 12-15/24336")
+    private fun range(bytes: ByteArray = ByteArray(24324) { (it % 251).toByte() }) = response(bytes, "video/mp4").setResponseCode(206).setHeader("Content-Range", "bytes 12-24335/24336")
     @Test fun exactCatalogPreviewAndVideoRequestsHaveNoCredentialsOrFallback() = runBlocking {
         server.enqueue(response(catalogResource("catalog-v2.json"), "application/json")); val feed = api.feed(1)
         assertNull(api.preview(feed.items[0], Variant.GRID, 1)); assertEquals(1, server.requestCount)
         server.enqueue(response(catalogResource("home-8x8.jpg"), "image/jpeg"))
         assertEquals(632, api.preview(feed.items[1], Variant.DISPLAY, 1)!!.size)
-        val bytes = catalogResource("catalog-video.mp4").copyOfRange(12, 16)
+        val bytes = catalogResource("catalog-video.mp4").copyOfRange(12, 24336)
         server.enqueue(range(bytes))
         val reader = api.video(feed.items[0], 1) { fail("Unexpected transport error") }
-        val buffer = ByteArray(4); assertEquals(4, reader.readAt(12, buffer, 0, 4)); assertArrayEquals(bytes, buffer); reader.close()
+        val buffer = ByteArray(4); assertEquals(4, reader.readAt(12, buffer, 0, 4)); assertArrayEquals(bytes.copyOfRange(0, 4), buffer)
+        repeat(20) { position ->
+            assertEquals(4, reader.readAt(12L + position, buffer, 0, 4))
+            assertArrayEquals(bytes.copyOfRange(position, position + 4), buffer)
+        }
+        reader.close()
         val requests = (1..3).map { server.takeRequest() }
         assertEquals("/home/v2/catalog?page=1&page_size=50", requests[0].path)
         assertEquals("/home/v2/assets/101/preview?variant=display&revision=1", requests[1].path)
         assertEquals("/home/v2/assets/102/video?revision=1", requests[2].path)
-        assertEquals("bytes=12-15", requests[2].getHeader("Range"))
+        assertEquals("bytes=12-24335", requests[2].getHeader("Range"))
         for (r in requests) for (h in listOf("Authorization", "Cookie", "If-Range")) assertNull(r.getHeader(h))
     }
     @Test fun laterPageIncludesRevisionAndDoesNotFallBackToV1() = runBlocking {
@@ -164,13 +169,37 @@ class CatalogHttpTest {
         try { untrusted.feed(1); fail("Untrusted TLS accepted") }
         catch (e: HomeFailure) { assertEquals(HomeError.TLS, e.kind) }
     }
+    @Test fun interruptedHttpsRangeRecoversSameBytesWithoutClosingPlayerSource() {
+        val bytes = catalogResource("catalog-video.mp4").copyOfRange(12, 24336)
+        server.enqueue(range(bytes).setSocketPolicy(SocketPolicy.DISCONNECT_DURING_RESPONSE_BODY))
+        server.enqueue(range(bytes))
+        var failures = 0
+        val source = api.video(catalogFixture().items[0], 1) { failures++ }
+        source.use {
+            val buffer = ByteArray(4) { 99 }
+            assertEquals(4, it.readAt(12, buffer, 0, 4))
+            assertArrayEquals(bytes.copyOfRange(0, 4), buffer)
+            assertEquals(0, failures)
+            assertEquals(24336L, it.size())
+            assertEquals(4, it.readAt(16, buffer, 0, 4)) // recovered window is reusable
+            assertArrayEquals(bytes.copyOfRange(4, 8), buffer)
+            assertEquals(2, server.requestCount)
+            val first = server.takeRequest(); val retry = server.takeRequest()
+            assertEquals(first.path, retry.path)
+            assertEquals("bytes=12-24335", retry.getHeader("Range"))
+            assertEquals(first.getHeader("Range"), retry.getHeader("Range"))
+            assertNull(retry.getHeader("Authorization")); assertNull(retry.getHeader("Cookie"))
+        }
+    }
     @Test fun truncatedHttpsRangeCannotReturnPartOfTheRequestedBuffer() {
-        server.enqueue(range().setSocketPolicy(SocketPolicy.DISCONNECT_DURING_RESPONSE_BODY))
+        val before = server.requestCount
+        repeat(3) { server.enqueue(range().setSocketPolicy(SocketPolicy.DISCONNECT_DURING_RESPONSE_BODY)) }
         var failure: Exception? = null
         val source = api.video(catalogFixture().items[0], 1) { failure = it }
         val buffer = ByteArray(4) { 99 }
         assertThrows(IOException::class.java) { source.readAt(12, buffer, 0, 4) }
         assertEquals(HomeError.OFFLINE, (failure as HomeFailure).kind)
+        assertEquals(3, server.requestCount - before)
         assertArrayEquals(ByteArray(4) { 99 }, buffer)
     }
     @Test fun unavailableAndChangedUrlsNeverRequestUnapprovedMedia() = runBlocking {

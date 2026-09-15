@@ -32,6 +32,10 @@ class HomeVideoReader(
     private val scope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
     private val closed = AtomicBoolean(false)
     private val notified = AtomicBoolean(false)
+    // Native extractors probe MP4 headers in tiny reads. Keep one bounded,
+    // generation-owned window instead of an HTTP request per probe.
+    private var windowStart = 0L
+    private var window: ByteArray? = null
     private val listeners = CopyOnWriteArrayList<() -> Unit>()
     val isClosed get() = closed.get()
     override fun toString() = "HomeVideoReader([private])"
@@ -42,7 +46,7 @@ class HomeVideoReader(
     override fun close() {
         val first = synchronized(lifetimeLock) {
             if (!closed.compareAndSet(false, true)) false
-            else { loader = null; failureCallback = null; true }
+            else { loader = null; failureCallback = null; window = null; true }
         }
         if (first) {
             scope.cancel()
@@ -66,11 +70,24 @@ class HomeVideoReader(
         if (size == 0) return@read 0
         if (position >= totalBytes) return@read -1
         val length = minOf(size.toLong(), chunkBytes.toLong(), totalBytes - position).toInt()
-        val task = scope.async { (loader ?: throw CancellationException())(position, length) }
+        val cached = synchronized(lifetimeLock) {
+            checkOpen()
+            window?.takeIf { position >= windowStart && position - windowStart <= it.size - length }?.let {
+                val start = (position - windowStart).toInt()
+                it.copyInto(buffer, offset, start, start + length)
+                true
+            } ?: false
+        }
+        if (cached) return@read length
+        val fetchLength = minOf(chunkBytes.toLong(), totalBytes - position).toInt()
+        val task = scope.async { (loader ?: throw CancellationException())(position, fetchLength) }
         val bytes = runBlocking { task.await() }
         checkOpen()
-        if (bytes.size != length) throw IOException("Invalid video chunk")
-        synchronized(lifetimeLock) { checkOpen(); bytes.copyInto(buffer, offset) }
-        bytes.size
+        if (bytes.size != fetchLength) throw IOException("Invalid video chunk")
+        synchronized(lifetimeLock) {
+            checkOpen(); windowStart = position; window = bytes
+            bytes.copyInto(buffer, offset, 0, length)
+        }
+        length
     }
 }

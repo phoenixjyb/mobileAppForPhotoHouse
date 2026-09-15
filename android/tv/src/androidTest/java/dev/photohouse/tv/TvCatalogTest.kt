@@ -97,6 +97,7 @@ class TvCatalogTest {
         assertTrue(api.sources.single().isClosed)
         assertNotNull(store.state.value.feed)
         capture("video-error")
+        rule.showAction("language")
         rule.onNodeWithTag("language").performClick()
         rule.onNodeWithTag("video-error").assertTextContains("TV-", substring = true).assertIsDisplayed()
         capture("video-error-zh")
@@ -130,6 +131,7 @@ class TvCatalogTest {
         rule.onNodeWithText("Page 557 · 27842 assets").assertExists()
         assertEquals(listOf(1, 557), api.pages)
         rule.onNodeWithTag("asset-42").assertIsFocused()
+        rule.showAction("language")
         rule.onNodeWithTag("language").performClick()
         rule.onNodeWithTag("page-jump").performClick()
         rule.waitUntil(10000) { rule.onAllNodes(hasTestTag("page-step-2") and isFocused()).fetchSemanticsNodes().size == 1 }
@@ -146,15 +148,16 @@ class TvCatalogTest {
     }
     @Test fun unpreparedPageKeepsNavigationFocusedAndDoesNotOpenBlankViewer() {
         val api = CatalogApi(total = 51, missingAll = true); install(api)
-        rule.onNodeWithText("Refresh", substring = false).assertIsFocused()
+        rule.onNodeWithTag("gallery-more").assertIsFocused()
         rule.onNodeWithTag("asset-51").assertIsNotEnabled().performClick()
         rule.onNodeWithTag("viewer").assertDoesNotExist()
         rule.onNodeWithTag("page-availability").assertTextContains("0 of 50 ready on this page", substring = true)
-        key(KeyEvent.KEYCODE_DPAD_RIGHT)
+        key(KeyEvent.KEYCODE_DPAD_LEFT)
+        key(KeyEvent.KEYCODE_DPAD_LEFT)
         rule.onNodeWithText("Next page", substring = false).assertIsFocused()
         key(KeyEvent.KEYCODE_DPAD_CENTER)
         rule.onNodeWithText("Page 2 · 51 assets").assertExists()
-        rule.onNodeWithText("Refresh", substring = false).assertIsFocused()
+        rule.onNodeWithTag("gallery-more").assertIsFocused()
         assertEquals(listOf(1, 2), api.pages)
     }
     @Test fun unpreparedVideoHasAnHonestStateAndNoPlayableSource() {

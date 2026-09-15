@@ -94,6 +94,7 @@ class TvUiTest {
         capture("detail-en")
         key(KeyEvent.KEYCODE_BACK)
         rule.onNodeWithTag("asset-2").assertIsFocused()
+        rule.showAction("language")
         rule.onNodeWithTag("language").performClick(); capture("grid-zh")
     }
     @Test fun fullScreenRemoteNavigationAndPrivacyClearImages() {
@@ -148,6 +149,7 @@ class TvUiTest {
         rule.onNodeWithTag("quality").assertDoesNotExist()
         rule.waitUntil(10000) { rule.onAllNodesWithTag("tv-image").fetchSemanticsNodes().size == 1 }
         rule.onNodeWithTag("tv-image").assertIsDisplayed()
+        rule.showAction("disconnect")
         rule.onNodeWithTag("disconnect").assertIsDisplayed()
         val imageBounds = rule.onNodeWithTag("tv-image").fetchSemanticsNode().boundsInRoot
         val viewerBounds = rule.onNodeWithTag("viewer").fetchSemanticsNode().boundsInRoot
@@ -157,6 +159,7 @@ class TvUiTest {
         rule.waitUntil(10000) { rule.onAllNodes(hasText("Close") and isFocused()).fetchSemanticsNodes().size == 1 }
         InstrumentationRegistry.getInstrumentation().sendKeyDownUpSync(KeyEvent.KEYCODE_DPAD_CENTER)
         rule.waitForIdle()
+        rule.showAction("disconnect")
         rule.onNodeWithTag("disconnect").performClick(); rule.waitForIdle()
         assertNull(store.state.value.feed); assertNull(store.state.value.display)
         assertTrue(store.state.value.grids.isEmpty())

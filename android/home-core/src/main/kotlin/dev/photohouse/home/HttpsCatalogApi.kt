@@ -136,8 +136,10 @@ class HttpsCatalogApi internal constructor(private val origin: HomeOrigin, clien
         if (asset.kind != AssetKind.VIDEO || asset.id <= 0 || revision <= 0 || v.url != path || v.bytes !in 1..CatalogWire.VIDEO_MAX_BYTES) throw HomeFailure(HomeError.INVALID)
         return HomeVideoReader(v.bytes, CatalogWire.READ_BYTES, { start, count ->
             if (start < 0 || count !in 1..CatalogWire.READ_BYTES || start >= v.bytes || count > v.bytes - start) throw HomeFailure(HomeError.INVALID)
-            get(path, count, "video/mp4", missing = true, range = start..(start + count - 1), total = v.bytes)
-                ?: throw IOException("Video unavailable")
+            readVideoRangeWithRecovery {
+                get(path, count, "video/mp4", missing = true, range = start..(start + count - 1), total = v.bytes)
+                    ?: throw IOException("Video unavailable")
+            }
         }, failed)
     }
 }
