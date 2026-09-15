@@ -10,7 +10,7 @@ val configuredCatalogVersion = providers.gradleProperty("photohouseTvCatalogVers
 require(configuredCatalogVersion in listOf("1", "2", "3")) { "Unsupported TV catalog version" }
 val configuredDiscovery = providers.gradleProperty("photohouseTvDiscoveryEnabled").orElse(localConfig.getProperty("photohouseTvDiscoveryEnabled", "false")).get()
 require(configuredDiscovery in listOf("true", "false")) { "Invalid discovery switch" }
-require(configuredDiscovery != "true" || configuredCatalogVersion == "2") { "Discovery requires catalog v2" }
+require(configuredDiscovery != "true" || configuredCatalogVersion in listOf("2", "3")) { "Discovery requires catalog v2 or v3" }
 val configuredBrowse = providers.gradleProperty("photohouseTvBrowseEnabled").orElse(localConfig.getProperty("photohouseTvBrowseEnabled", "false")).get()
 require(configuredBrowse in listOf("true", "false"))
 require(configuredBrowse != "true" || configuredCatalogVersion == "3") { "Readiness browsing requires catalog v3" }
@@ -28,8 +28,8 @@ android {
         minSdk = 26
         targetSdk = 34
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
-        versionCode = 15
-        versionName = "0.15-tv-read-recovery"
+        versionCode = 16
+        versionName = "0.16-home-search"
         buildConfigField("int", "PHOTOHOUSE_CATALOG_VERSION", configuredCatalogVersion)
         buildConfigField("boolean", "PHOTOHOUSE_BROWSE_ENABLED", configuredBrowse)
         buildConfigField("boolean", "PHOTOHOUSE_DISCOVERY_ENABLED", configuredDiscovery)

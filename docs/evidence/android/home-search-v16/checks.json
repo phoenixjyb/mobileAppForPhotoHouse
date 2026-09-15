@@ -1,0 +1,103 @@
+{
+  "backend_commit": "98b92702b4bf687f8bb0ed745a0dfe235a15b98e",
+  "backend_tests": {
+    "discovery_export_delivery": 46,
+    "on_demand_media": 15
+  },
+  "jvm": {
+    "home-core": {
+      "tests": 106,
+      "failures": 0,
+      "errors": 0,
+      "skipped": 0
+    },
+    "live-core": {
+      "tests": 103,
+      "failures": 0,
+      "errors": 0,
+      "skipped": 0
+    },
+    "tv": {
+      "tests": 2,
+      "failures": 0,
+      "errors": 0,
+      "skipped": 0
+    }
+  },
+  "emulator": {
+    "api": 36,
+    "synthetic_tests": 6,
+    "failures": 0,
+    "physical_device": false
+  },
+  "builds": [
+    "default phone and TV debug",
+    "phone instrumentation APK",
+    "opt-in phone and TV debug"
+  ],
+  "lint": [
+    "phone debug",
+    "TV debug"
+  ],
+  "verifiers": [
+    {
+      "script": "scripts/verify-contracts.py",
+      "result": "PASS frozen contract: 12 operations, 38 ASGI cases, 8 checksummed files"
+    },
+    {
+      "script": "android/verify-fixture-boundaries.py",
+      "result": "PASS wrapper SHA-256, no permissions/transport/storage/player, lifecycle/backup source guards"
+    },
+    {
+      "script": "android/verify-connected-boundaries.py",
+      "result": "PASS connected app system TLS trust, no fixture dependencies, no credential/media persistence or logging\nPASS explicit phone Home mode, private LAN routing, separate protected transport"
+    },
+    {
+      "script": "android/verify-home-contract.py",
+      "result": "PASS independent home-feed pin, exact contract and synthetic fixtures; protected phone pin unchanged"
+    },
+    {
+      "script": "android/verify-catalog-contract.py",
+      "result": "PASS v2 pin, 16-input manifest, contract/example and test-only video; explicit version selection"
+    },
+    {
+      "script": "android/verify-discovery-contract.py",
+      "result": "PASS independent discovery pin, contract/schema/examples and 19-input manifest; v2 pin unchanged"
+    },
+    {
+      "script": "android/verify-phone-discovery-contract.py",
+      "result": "PASS separate opt-in phone discovery pin: 4 files, 14 producer examples"
+    },
+    {
+      "script": "android/verify-tv-boundaries.py",
+      "result": "PASS TV launcher/no-touch, system TLS, privacy lifecycle, no fixture or persistent storage, separate origin and debug-only build"
+    },
+    {
+      "script": "android/verify-on-demand-contract.py",
+      "result": "PASS on-demand producer pin, strict v3 synthetic example and independent phone display contract"
+    },
+    {
+      "script": "android/verify-readiness-browse-contract.py",
+      "result": "PASS readiness browsing source pin, checksums and six synthetic producer pages"
+    },
+    {
+      "script": "android/verify-discovery-delivery-contract.py",
+      "result": "PASS discovery/v2 independent pin, 37 producer inputs and exact synthetic replay resources"
+    }
+  ],
+  "artifacts": {
+    "connected": {
+      "sha256": "0184916597a54504f8a080cf4641d10e8432b09958a877b62ecb1af7c6791c8e",
+      "bytes": 10690066,
+      "origins": "empty; no live configuration",
+      "search_enabled": true
+    },
+    "tv": {
+      "sha256": "59bc4f5ec29477c01d412b168b7ff02c2cc20e9675f41d724847020229176889",
+      "bytes": 10461205,
+      "origins": "empty; no live configuration",
+      "search_enabled": true
+    }
+  },
+  "runtime_changed": false
+}

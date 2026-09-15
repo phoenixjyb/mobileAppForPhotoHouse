@@ -61,10 +61,10 @@ object DiscoveryWire {
         is JsonArray -> JsonArray(e.map { canonical(it) })
         else -> e
     }
-    internal fun facets(bytes: ByteArray, field: DiscoveryField, page: Int, size: Int = 50): Facets = guarded {
+    internal fun facets(bytes: ByteArray, field: DiscoveryField, page: Int, size: Int = 50, version: Int = 1): Facets = guarded {
         check(page in 1..5000 && size in 1..100)
         val o = HomeWire.parse(bytes).obj("version", "revision", "catalog_revision", "library", "capabilities", "pinned_person_ids", "pinned_people", "facet", "page", "page_size", "total", "has_more", "items")
-        check(o.getValue("version").int() == 1 && o.getValue("facet").str(16) == facetName(field))
+        check(version in 1..2 && o.getValue("version").int() == version && o.getValue("facet").str(16) == facetName(field))
         check(o.getValue("page").int() == page && o.getValue("page_size").int() == size)
         val revision = o.getValue("revision").int(); val catalogRevision = o.getValue("catalog_revision").int()
         val lib = o.getValue("library").obj("id", "title")
@@ -154,14 +154,14 @@ object DiscoveryWire {
         }
         buildJsonObject { put("revision", snapshot.revision); put("page", page); put("page_size", 50); put("filters", filters) }.toString().toByteArray(Charsets.UTF_8).also { check(it.size <= 16384) }
     }
-    internal fun search(bytes: ByteArray, snapshot: DiscoverySnapshot, page: Int, fingerprint: String? = null, total: Int? = null): Search = guarded {
+    internal fun search(bytes: ByteArray, snapshot: DiscoverySnapshot, page: Int, fingerprint: String? = null, total: Int? = null, version: Int = 1): Search = guarded {
         val o = HomeWire.parse(bytes).obj("version", "revision", "catalog_revision", "library", "filter_fingerprint", "page", "page_size", "total", "has_more", "items")
-        check(o.getValue("version").int() == 1 && o.getValue("revision").int() == snapshot.revision && o.getValue("catalog_revision").int() == snapshot.catalogRevision)
+        check(version in 1..2 && o.getValue("version").int() == version && o.getValue("revision").int() == snapshot.revision && o.getValue("catalog_revision").int() == snapshot.catalogRevision)
         val lib = o.getValue("library").obj("id", "title")
         check(lib.getValue("id").str(64) == snapshot.libraryId && lib.getValue("title").str(256) == snapshot.libraryTitle)
         val hash = o.getValue("filter_fingerprint").str(64).also { check(it.matches(Regex("[0-9a-f]{64}"))) }
         check(fingerprint == null || hash == fingerprint); check(total == null || o.getValue("total").int(0, 100000) == total)
-        val translated = JsonObject((o - setOf("catalog_revision", "filter_fingerprint")) + mapOf("version" to JsonPrimitive(2), "revision" to JsonPrimitive(snapshot.catalogRevision)))
-        Search(CatalogWire.feed(translated.toString().toByteArray(Charsets.UTF_8), page, snapshot.catalogRevision), hash)
+        val translated = JsonObject((o - setOf("catalog_revision", "filter_fingerprint")) + mapOf("version" to JsonPrimitive(if (version == 2) 3 else 2), "revision" to JsonPrimitive(snapshot.catalogRevision)))
+        Search(CatalogWire.feed(translated.toString().toByteArray(Charsets.UTF_8), page, snapshot.catalogRevision, version = if (version == 2) 3 else 2), hash)
     }
 }

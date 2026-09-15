@@ -12,9 +12,10 @@ import androidx.lifecycle.viewModelScope
 import dev.photohouse.home.*
 
 /** No account, bearer, cookie or protected-library adapter is reachable here. */
-class HomePhoneViewModel(api: HomeApi?) : ViewModel() {
+class HomePhoneViewModel(api: HomeApi?, gateway: DiscoveryGateway? = null) : ViewModel() {
     val store = api?.let { HomeStore(it, viewModelScope) }
-    override fun onCleared() { store?.background() }
+    val discovery = if (store != null && gateway != null) DiscoveryController(gateway, store, viewModelScope) else null
+    override fun onCleared() { discovery?.background(); store?.background() }
 }
 class HomeActivity : ComponentActivity() {
     private val model by viewModels<HomePhoneViewModel> {
@@ -26,7 +27,11 @@ class HomeActivity : ComponentActivity() {
                     HttpsCatalogApi(HomeOrigin.parse(BuildConfig.PHOTOHOUSE_HOME_ORIGIN),
                         HomeLanAddress.parse(BuildConfig.PHOTOHOUSE_HOME_LAN_ADDRESS), version = 3, browseEnabled = true)
                 }.getOrNull()
-                return HomePhoneViewModel(api) as T
+                val gateway = if (api != null && BuildConfig.PHOTOHOUSE_HOME_DISCOVERY_ENABLED) runCatching {
+                    HttpsDiscoveryGateway(HomeOrigin.parse(BuildConfig.PHOTOHOUSE_HOME_ORIGIN),
+                        HomeLanAddress.parse(BuildConfig.PHOTOHOUSE_HOME_LAN_ADDRESS), discoveryVersion = 2)
+                }.getOrNull() else null
+                return HomePhoneViewModel(api, gateway) as T
             }
         }
     }
@@ -34,8 +39,8 @@ class HomeActivity : ComponentActivity() {
         super.onCreate(null)
         window.addFlags(WindowManager.LayoutParams.FLAG_SECURE)
         window.decorView.importantForAutofill = View.IMPORTANT_FOR_AUTOFILL_NO_EXCLUDE_DESCENDANTS
-        setContent { HomePhoneApp(model.store) { finish() } }
+        setContent { HomePhoneApp(model.store, model.discovery) { finish() } }
     }
-    override fun onPause() { model.store?.background(); super.onPause() }
+    override fun onPause() { model.discovery?.background(); model.store?.background(); super.onPause() }
     override fun onResume() { super.onResume(); model.store?.foreground() }
 }

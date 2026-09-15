@@ -32,8 +32,8 @@ class MainActivity : ComponentActivity() {
                 }.getOrNull()
                 val gateway = if (api != null && BuildConfig.PHOTOHOUSE_DISCOVERY_ENABLED) runCatching {
                     val origin = HomeOrigin.parse(BuildConfig.PHOTOHOUSE_ORIGIN)
-                    if (BuildConfig.PHOTOHOUSE_LAN_ADDRESS.isEmpty()) HttpsDiscoveryGateway(origin)
-                    else HttpsDiscoveryGateway(origin, HomeLanAddress.parse(BuildConfig.PHOTOHOUSE_LAN_ADDRESS))
+                    if (BuildConfig.PHOTOHOUSE_LAN_ADDRESS.isEmpty()) HttpsDiscoveryGateway(origin, discoveryVersion = if (BuildConfig.PHOTOHOUSE_CATALOG_VERSION == 3) 2 else 1)
+                    else HttpsDiscoveryGateway(origin, HomeLanAddress.parse(BuildConfig.PHOTOHOUSE_LAN_ADDRESS), if (BuildConfig.PHOTOHOUSE_CATALOG_VERSION == 3) 2 else 1)
                 }.getOrNull() else null
                 return TvViewModel(api, gateway) as T
             }
