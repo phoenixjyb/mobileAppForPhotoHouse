@@ -14,10 +14,12 @@ import dev.photohouse.home.*
 /** Memory-only touch editor; identity labels and choices come from the reviewed server index. */
 @OptIn(ExperimentalLayoutApi::class)
 @Composable internal fun HomeDiscoveryEditor(state: DiscoveryState, zh: Boolean, close: () -> Unit,
-    retry: () -> Unit, more: (DiscoveryField) -> Unit, apply: (DiscoveryDraft) -> Unit) {
+    retry: () -> Unit, more: (DiscoveryField) -> Unit, apply: (DiscoveryDraft) -> Unit, findTags: (String, Set<String>) -> Unit = { _, _ -> }) {
     fun t(en: String, cn: String) = if (zh) cn else en
-    val options = state.snapshot?.options
+    val snapshot = state.snapshot
+    val options = snapshot?.options
     var draft by remember { mutableStateOf(state.query ?: DiscoveryDraft()) }
+    var tagText by remember { mutableStateOf(snapshot?.tagQuery.orEmpty()) }
     val ready = options != null && !state.loading && state.problem == null
     fun toggle(values: Set<String>, id: String) = if (id in values) values - id else values + id
     LazyColumn(Modifier.fillMaxSize().safeDrawingPadding().testTag("home-search-editor"), contentPadding = PaddingValues(20.dp), verticalArrangement = Arrangement.spacedBy(16.dp)) {
@@ -51,6 +53,13 @@ import dev.photohouse.home.*
             for ((field, choices) in listOf(DiscoveryField.PEOPLE to options.people, DiscoveryField.TAGS to options.tags, DiscoveryField.PLACES to options.places)) {
                 if (field !in options.fields) continue
                 item { Text(when(field) { DiscoveryField.PEOPLE -> t("People", "人物"); DiscoveryField.TAGS -> t("Tags", "标签"); else -> t("Places", "地点") }, style = MaterialTheme.typography.titleMedium) }
+                if (field == DiscoveryField.TAGS && snapshot?.tagQuery != null) item {
+                    OutlinedTextField(tagText, { if (it.toByteArray(Charsets.UTF_8).size <= 128 && it.none { c -> c < ' ' }) tagText = it },
+                        enabled=ready, singleLine=true, label={ Text(t("Find a tag", "查找标签")) }, modifier=Modifier.fillMaxWidth().testTag("home-tag-query"))
+                    OutlinedButton(onClick={ findTags(tagText,draft.tags) },enabled=ready,modifier=Modifier.testTag("home-find-tags")) { Text(t("Search tags", "搜索标签")) }
+                    Text(t("${snapshot.tagMatches.size} of ${snapshot.facetTotals[DiscoveryField.TAGS] ?: 0} matches loaded. Selected tags stay available.",
+                        "已加载 ${snapshot.tagMatches.size} / ${snapshot.facetTotals[DiscoveryField.TAGS] ?: 0} 个匹配标签，保留已选标签。"),style=MaterialTheme.typography.bodySmall)
+                }
                 items(choices.size, key = { "${field.name}-${choices[it].id}" }) { i ->
                     val p = choices[i]
                     val selected = when(field) { DiscoveryField.PEOPLE -> p.id in draft.people; DiscoveryField.TAGS -> p.id in draft.tags; else -> p.id == draft.place }
@@ -71,7 +80,7 @@ import dev.photohouse.home.*
                         FilterChip(mode == m, { draft = if (field == DiscoveryField.PEOPLE) draft.copy(peopleMatch = m) else draft.copy(tagsMatch = m) }, enabled = ready, label = { Text(if (m == MatchMode.ANY) t("Match any", "符合任一") else t("Match all", "全部符合")) })
                     } }
                 }
-                if (field in state.snapshot!!.nextPages) item { TextButton(onClick = { more(field) }, enabled = ready) { Text(t("More choices", "更多选项")) } }
+                if (field in snapshot!!.nextPages) item { TextButton(onClick = { more(field) }, enabled = ready) { Text(t("More choices", "更多选项")) } }
             }
             if (DiscoveryField.MEDIA in options.fields) item {
                 FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {

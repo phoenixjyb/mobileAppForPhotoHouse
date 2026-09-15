@@ -9,6 +9,7 @@ python3 android/verify-home-contract.py
 python3 android/verify-catalog-contract.py
 python3 android/verify-discovery-contract.py
 python3 android/verify-discovery-delivery-contract.py
+python3 android/verify-tag-discovery-contract.py
 python3 android/verify-phone-discovery-contract.py
 python3 android/verify-tv-boundaries.py
 python3 android/verify-on-demand-contract.py
@@ -34,7 +35,7 @@ android/gradlew -p android :core:test :live-core:test :home-core:test :tv:testDe
   :app:lintDebug :app:assembleDebug :connected:lintDebug :connected:assembleDebug \
   :tv:lintDebug :tv:assembleDebug --console=plain "$@" \
   -PphotohouseOrigin= -PphotohousePhoneHomeOrigin= -PphotohousePhoneHomeLanAddress= -PphotohouseTvOrigin= -PphotohouseTvLanAddress= \
-  -PphotohouseTvCatalogVersion=2 -PphotohouseTvBrowseEnabled=false -PphotohouseTvDiscoveryEnabled=false -PphotohousePhoneDiscoveryEnabled=false -PphotohousePhoneHomeDiscoveryEnabled=false
+  -PphotohouseHomeTagLookupEnabled=false -PphotohouseTvCatalogVersion=2 -PphotohouseTvBrowseEnabled=false -PphotohouseTvDiscoveryEnabled=false -PphotohousePhoneDiscoveryEnabled=false -PphotohousePhoneHomeDiscoveryEnabled=false
 python3 - <<'PY'
 import hashlib, pathlib, zipfile, xml.etree.ElementTree as ET
 root = pathlib.Path('.')

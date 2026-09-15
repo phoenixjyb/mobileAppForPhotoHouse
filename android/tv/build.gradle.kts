@@ -18,18 +18,21 @@ require(configuredBrowse != "true" || configuredCatalogVersion == "3") { "Readin
 require(configuredLanAddress.isEmpty() || configuredOrigin.isNotEmpty()) { "LAN address requires an HTTPS origin" }
 require(configuredLanAddress.isEmpty() || configuredLanAddress.matches(Regex("[0-9.]{7,15}"))) { "Invalid LAN address" }
 require(configuredOrigin.none { it == '\n' || it == '\r' || it == '"' || it == '\\' }) { "Invalid configured origin" }
+val tagLookupEnabled = providers.gradleProperty("photohouseHomeTagLookupEnabled").orElse("false").get()
+require(tagLookupEnabled in listOf("true", "false"))
 android {
     sourceSets.getByName("main").res.srcDir("../branding/res")
     namespace = "dev.photohouse.tv"
     compileSdk = 34
     buildToolsVersion = "34.0.0"
     defaultConfig {
+        buildConfigField("boolean", "PHOTOHOUSE_HOME_TAG_LOOKUP_ENABLED", tagLookupEnabled)
         applicationId = "dev.photohouse.tv"
         minSdk = 26
         targetSdk = 34
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
-        versionCode = 16
-        versionName = "0.16-home-search"
+        versionCode = 17
+        versionName = "0.17-home-tags"
         buildConfigField("int", "PHOTOHOUSE_CATALOG_VERSION", configuredCatalogVersion)
         buildConfigField("boolean", "PHOTOHOUSE_BROWSE_ENABLED", configuredBrowse)
         buildConfigField("boolean", "PHOTOHOUSE_DISCOVERY_ENABLED", configuredDiscovery)

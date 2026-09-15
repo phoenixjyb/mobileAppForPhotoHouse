@@ -19,8 +19,8 @@ import kotlin.coroutines.resumeWithException
 class HttpsDiscoveryGateway internal constructor(private val origin: HomeOrigin, client: OkHttpClient, private val discoveryVersion: Int = 1) : DiscoveryGateway {
     constructor(origin: HomeOrigin, discoveryVersion: Int = 1) : this(origin, OkHttpClient(), discoveryVersion)
     constructor(origin: HomeOrigin, address: HomeLanAddress, discoveryVersion: Int = 1) : this(origin, homeLanClient(origin, address), discoveryVersion)
-    init { require(discoveryVersion in 1..2) }
-    private val mediaVersion = if (discoveryVersion == 2) 3 else 2
+    init { require(discoveryVersion in 1..3) }
+    private val mediaVersion = if (discoveryVersion >= 2) 3 else 2
     private val prefix = "/home/discovery/v$discoveryVersion/"
     private val client = client.newBuilder().followRedirects(false).followSslRedirects(false)
         .retryOnConnectionFailure(false).cookieJar(CookieJar.NO_COOKIES).cache(null)
@@ -85,11 +85,14 @@ class HttpsDiscoveryGateway internal constructor(private val origin: HomeOrigin,
             })
         }
     }
-    private suspend fun facet(field: DiscoveryField, page: Int, revision: Int?): DiscoveryWire.Facets {
+    private suspend fun facet(field: DiscoveryField, page: Int, revision: Int?, query: String = ""): DiscoveryWire.Facets {
         if (page !in 1..5000 || revision != null && revision <= 0 || page > 1 && revision == null) throw HomeFailure(HomeError.INVALID)
         val path = "${prefix}facets?facet=${DiscoveryWire.facetName(field)}&page=$page&page_size=50" + (revision?.let { "&revision=$it" } ?: "")
-        val bytes = json(path)
-        return withContext(Dispatchers.Default) { DiscoveryWire.facets(bytes, field, page, version = discoveryVersion).also {
+        val requestPath = if (discoveryVersion == 3) {
+            origin.url.resolve(path)!!.newBuilder().addQueryParameter("q",query).build().let { it.encodedPath + "?" + it.encodedQuery }
+        } else path
+        val bytes = json(requestPath)
+        return withContext(Dispatchers.Default) { DiscoveryWire.facets(bytes, field, page, version = discoveryVersion, query = query).also {
             if (revision != null && it.snapshot.revision != revision) throw HomeFailure(HomeError.INVALID)
         } }
     }
@@ -104,7 +107,14 @@ class HttpsDiscoveryGateway internal constructor(private val origin: HomeOrigin,
     override suspend fun more(snapshot: DiscoverySnapshot, field: DiscoveryField): DiscoverySnapshot {
         val page = snapshot.nextPages[field] ?: throw HomeFailure(HomeError.INVALID)
         if (snapshot.binding == null || page <= 1 || field !in snapshot.facetTotals) throw HomeFailure(HomeError.INVALID)
-        return DiscoveryWire.merge(snapshot, facet(field, page, snapshot.revision))
+        return DiscoveryWire.merge(snapshot, facet(field, page, snapshot.revision, if (field == DiscoveryField.TAGS) snapshot.tagQuery.orEmpty() else ""))
+    }
+    override suspend fun findTags(snapshot: DiscoverySnapshot, query: String, selected: Set<String>): DiscoverySnapshot {
+        if (discoveryVersion != 3 || query != query.trim() || query.toByteArray(Charsets.UTF_8).size > 128 || query.any { it < ' ' } || selected.size > 20 || !snapshot.options.tags.map { it.id }.containsAll(selected)) throw HomeFailure(HomeError.INVALID)
+        val base=snapshot.copy(options=snapshot.options.copy(tags=snapshot.options.tags.filter { it.id in selected }),
+            nextPages=snapshot.nextPages - DiscoveryField.TAGS, facetTotals=snapshot.facetTotals - DiscoveryField.TAGS,
+            facetLastIds=snapshot.facetLastIds - DiscoveryField.TAGS, tagQuery=query, tagMatches=emptySet())
+        return DiscoveryWire.merge(base,facet(DiscoveryField.TAGS,1,snapshot.revision,query))
     }
     override fun results(snapshot: DiscoverySnapshot, draft: DiscoveryDraft): HomeApi {
         // Validate before constructing a result store, and copy the exact immutable request selection.

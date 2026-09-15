@@ -29,7 +29,7 @@ class HomeActivity : ComponentActivity() {
                 }.getOrNull()
                 val gateway = if (api != null && BuildConfig.PHOTOHOUSE_HOME_DISCOVERY_ENABLED) runCatching {
                     HttpsDiscoveryGateway(HomeOrigin.parse(BuildConfig.PHOTOHOUSE_HOME_ORIGIN),
-                        HomeLanAddress.parse(BuildConfig.PHOTOHOUSE_HOME_LAN_ADDRESS), discoveryVersion = 2)
+                        HomeLanAddress.parse(BuildConfig.PHOTOHOUSE_HOME_LAN_ADDRESS), discoveryVersion = if (BuildConfig.PHOTOHOUSE_HOME_TAG_LOOKUP_ENABLED) 3 else 2)
                 }.getOrNull() else null
                 return HomePhoneViewModel(api, gateway) as T
             }

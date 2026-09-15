@@ -55,7 +55,7 @@ import kotlinx.coroutines.withContext
                 Text(t("Your album is covered.", "相册内容已隐藏。"))
             }
             exploring -> HomeDiscoveryEditor(discoveryState, zh, { exploring = false; discovery?.close() },
-                { discovery?.open() }, { discovery?.more(it) }, { discovery?.search(it); exploring = false })
+                { discovery?.open() }, { discovery?.more(it) }, { discovery?.search(it); exploring = false }, { text, selected -> discovery?.findTags(text,selected) })
             state.video != null -> {
                 val video = requireNotNull(state.video)
                 val source = remember(video) { HomePlaybackSource(video) }

@@ -97,4 +97,20 @@ class DiscoveryControllerTest {
         binding = "b".repeat(64); controller.open(); runCurrent()
         assertEquals(DraftIssue.UNKNOWN_CHOICE, query.issue(controller.state.value.snapshot!!.options))
     }
+    @Test fun lateTagQueryAfterBackgroundCannotRestoreLabels() = runTest {
+        val browse=HomeStore(Api(),backgroundScope)
+        val controller=DiscoveryController(object:DiscoveryGateway {
+            override suspend fun load()=snapshot.copy(tagQuery="")
+            override suspend fun more(snapshot:DiscoverySnapshot,field:DiscoveryField)=snapshot
+            override suspend fun findTags(snapshot:DiscoverySnapshot,query:String,selected:Set<String>):DiscoverySnapshot {
+                withContext(NonCancellable) { delay(100) }
+                return snapshot.copy(tagQuery=query)
+            }
+            override fun results(snapshot:DiscoverySnapshot,draft:DiscoveryDraft):HomeApi=error("No search")
+        },browse,backgroundScope)
+        controller.open();runCurrent();controller.findTags("湖",emptySet());runCurrent()
+        controller.background();advanceTimeBy(101);runCurrent()
+        assertEquals(DiscoveryState(),controller.state.value)
+    }
+
 }

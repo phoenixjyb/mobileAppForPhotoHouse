@@ -8,10 +8,12 @@ import kotlinx.coroutines.flow.asStateFlow
 data class DiscoverySnapshot(val revision: Int, val catalogRevision: Int, val libraryId: String,
     val libraryTitle: String, val options: DiscoveryOptions, val nextPages: Map<DiscoveryField, Int> = emptyMap(),
     val binding: String? = null, val facetTotals: Map<DiscoveryField, Int> = emptyMap(),
-    val facetLastIds: Map<DiscoveryField, Int> = emptyMap())
+    val facetLastIds: Map<DiscoveryField, Int> = emptyMap(),
+    val tagQuery: String? = null, val tagMatches: Set<String> = emptySet())
 interface DiscoveryGateway {
     suspend fun load(): DiscoverySnapshot
     suspend fun more(snapshot: DiscoverySnapshot, field: DiscoveryField): DiscoverySnapshot
+    suspend fun findTags(snapshot: DiscoverySnapshot, query: String, selected: Set<String>): DiscoverySnapshot = throw HomeFailure(HomeError.INVALID)
     fun results(snapshot: DiscoverySnapshot, draft: DiscoveryDraft): HomeApi
 }
 data class DiscoveryState(val snapshot: DiscoverySnapshot? = null, val loading: Boolean = false,
@@ -34,16 +36,25 @@ class DiscoveryController(private val gateway: DiscoveryGateway, private val bro
             // Revalidate first; retain later pages only under the identical server metadata binding.
             if (previous?.binding != null && previous.binding == fresh.binding &&
                 previous.revision == fresh.revision && previous.catalogRevision == fresh.catalogRevision &&
-                previous.libraryId == fresh.libraryId && previous.facetTotals == fresh.facetTotals)
+                previous.libraryId == fresh.libraryId && previous.facetTotals == fresh.facetTotals && previous.tagQuery == fresh.tagQuery)
                 fresh.copy(options = fresh.options.copy(people = previous.options.people, tags = previous.options.tags,
-                    places = previous.options.places), nextPages = previous.nextPages, facetLastIds = previous.facetLastIds)
-            else fresh
+                    places = previous.options.places), nextPages = previous.nextPages, facetLastIds = previous.facetLastIds, tagMatches = previous.tagMatches)
+            else if (previous?.binding != null && previous.binding == fresh.binding && fresh.tagQuery != null) {
+                val selected=state.value.query?.tags.orEmpty()
+                fresh.copy(options=fresh.options.copy(tags=(fresh.options.tags + previous.options.tags.filter { it.id in selected }).distinctBy { it.id }))
+            } else fresh
         }
     }
     fun more(field: DiscoveryField) {
         val snapshot = state.value.snapshot ?: return
         if (!active || state.value.loading || field !in snapshot.nextPages) return
         load(keepSnapshot = true) { gateway.more(snapshot, field) }
+    }
+    fun findTags(query: String, selected: Set<String>) {
+        val snapshot=state.value.snapshot ?: return
+        val text=query.trim()
+        if (!active || state.value.loading || snapshot.tagQuery == null || text.toByteArray(Charsets.UTF_8).size > 128 || text.any { it < ' ' } || selected.size > 20) return
+        load(keepSnapshot=true) { gateway.findTags(snapshot,text,selected.toSet()) }
     }
     private fun load(keepSnapshot: Boolean = false, request: suspend () -> DiscoverySnapshot) {
         job?.cancel(); val g = ++generation

@@ -32,11 +32,12 @@ class TvDiscoveryTest {
         places = listOf(DiscoveryChoice("place-1", "Sample garden", listOf("示例花园"))), peopleAll = true, tagsAll = true)
     private val applied = mutableListOf<DiscoveryDraft>()
     private var closed = false
+    private val tagQueries=mutableListOf<Pair<String,Set<String>>>()
     private fun install(info: DiscoveryOptions? = options, zh: Boolean = false, initial: DiscoveryDraft = DiscoveryDraft()) {
         rule.runOnUiThread { rule.activity.setContent {
             MaterialTheme(colorScheme = darkColorScheme(primary = Gold, background = Ink, surface = Ink, onBackground = Cream, onSurface = Cream)) {
                 Surface(color = Ink) { Box(Modifier.fillMaxSize().padding(32.dp)) {
-                    TvDiscovery(info, zh, initial, { closed = true }, { applied += it })
+                    TvDiscovery(info, zh, initial, { closed = true }, { applied += it }, tagQuery="",tagMatches=1,tagTotal=6002,onFindTags={ q,selected -> tagQueries += q to selected })
                 } }
             }
         } }; rule.waitForIdle()
@@ -104,6 +105,15 @@ class TvDiscoveryTest {
         reveal("date-through").assertTextContains("2024-12-31")
         capture("discovery-dates")
         click("apply-search"); assertEquals(DiscoveryDraft().year(2024), applied.single())
+    }
+    @Test fun tagQueryUsesExplicitRemoteActionAndKeepsDraftSelection() {
+        install(zh=true);click("advanced-search");click("tag-tag-1")
+        reveal("tag-query").performTextInput("湖")
+        reveal("find-tags").performSemanticsAction(SemanticsActions.RequestFocus)
+        key(KeyEvent.KEYCODE_DPAD_CENTER)
+        assertEquals(listOf("湖" to setOf("tag-1")),tagQueries)
+        capture("discovery-tags-zh")
+        click("apply-search");assertEquals(setOf("tag-1"),applied.single().tags)
     }
     @Test fun unavailableProductionFeedDoesNotInventSearchOrRetainEditorInBackground() {
         var reads = 0

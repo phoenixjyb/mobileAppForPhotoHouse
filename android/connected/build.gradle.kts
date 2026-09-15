@@ -17,18 +17,21 @@ val homeAddress = providers.gradleProperty("photohousePhoneHomeLanAddress").orEl
 for (value in listOf(homeOrigin, homeAddress)) require(value.none { it == '\n' || it == '\r' || it == '"' || it == '\\' })
 val homeDiscoveryEnabled = providers.gradleProperty("photohousePhoneHomeDiscoveryEnabled").orElse("false").get()
 require(homeDiscoveryEnabled in listOf("true", "false"))
+val tagLookupEnabled = providers.gradleProperty("photohouseHomeTagLookupEnabled").orElse("false").get()
+require(tagLookupEnabled in listOf("true", "false"))
 android {
     sourceSets.getByName("main").res.srcDir("../branding/res")
     namespace = "dev.photohouse.connected"
     compileSdk = 34
     buildToolsVersion = "34.0.0"
     defaultConfig {
+        buildConfigField("boolean", "PHOTOHOUSE_HOME_TAG_LOOKUP_ENABLED", tagLookupEnabled)
         applicationId = "dev.photohouse.connected"
         minSdk = 26
         targetSdk = 34
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
-        versionCode = 7
-        versionName = "0.8-phone-home-search"
+        versionCode = 8
+        versionName = "0.9-phone-home-tags"
         buildConfigField("boolean", "PHOTOHOUSE_HOME_DISCOVERY_ENABLED", homeDiscoveryEnabled)
         buildConfigField("String", "PHOTOHOUSE_HOME_ORIGIN", "\"$homeOrigin\"")
         buildConfigField("String", "PHOTOHOUSE_HOME_LAN_ADDRESS", "\"$homeAddress\"")

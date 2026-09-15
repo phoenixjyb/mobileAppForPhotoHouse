@@ -36,7 +36,12 @@ class HomeDiscoveryTest {
                 return DiscoverySnapshot(9,8,"synthetic","Our home",DiscoveryOptions(
                     setOf(DiscoveryField.PEOPLE,DiscoveryField.TEXT,DiscoveryField.DATES,DiscoveryField.TAGS,DiscoveryField.MEDIA),
                     people=listOf(DiscoveryChoice("201","Sample Adult / 示例成人"),DiscoveryChoice("202","Sample Child / 示例儿童",listOf("Sample Child","示例儿童"))),
-                    tags=listOf(DiscoveryChoice("301","Park / 公园")),peopleAll=true,tagsAll=true,pinnedPeople=listOf("202","201"),partialIndex=true))
+                    tags=listOf(DiscoveryChoice("301","Park / 公园")),peopleAll=true,tagsAll=true,pinnedPeople=listOf("202","201"),partialIndex=true),tagQuery="",tagMatches=setOf("301"),facetTotals=mapOf(DiscoveryField.TAGS to 6002))
+            }
+            override suspend fun findTags(snapshot:DiscoverySnapshot,query:String,selected:Set<String>):DiscoverySnapshot {
+                val matches=if(query=="湖") listOf(DiscoveryChoice("8999","Lake / 湖")) else listOf(DiscoveryChoice("301","Park / 公园"))
+                return snapshot.copy(tagQuery=query,tagMatches=matches.map { it.id }.toSet(),facetTotals=mapOf(DiscoveryField.TAGS to matches.size),
+                    options=snapshot.options.copy(tags=(snapshot.options.tags.filter { it.id in selected }+matches).distinctBy { it.id }))
             }
             override suspend fun more(snapshot:DiscoverySnapshot,field:DiscoveryField)=snapshot
             override fun results(snapshot:DiscoverySnapshot,draft:DiscoveryDraft):HomeApi { queries+=draft;return api(true) }
@@ -84,6 +89,17 @@ class HomeDiscoveryTest {
         rule.onNodeWithText("Password").assertDoesNotExist()
         rule.runOnUiThread { discovery.background();browse.background() }
         rule.onNodeWithTag("home-covered").assertExists()
+    }
+    @Test fun tagLookupRetainsSelectionAcrossQueriesAndAppliesBoth() {
+        start();tag("home-language");tag("home-explore");rule.waitUntil { discovery.state.value.snapshot!=null }
+        tag("home-choice-tags-301");input("home-tag-query","湖");tag("home-find-tags")
+        rule.waitUntil { discovery.state.value.snapshot?.tagQuery=="湖" }
+        tag("home-choice-tags-8999")
+        input("home-tag-query","");tag("home-find-tags")
+        rule.waitUntil { discovery.state.value.snapshot?.tagQuery=="" }
+        rule.onNodeWithTag("home-search-editor").performScrollToNode(hasTestTag("home-tag-query"));snapshot("home-tags-zh.png")
+        tag("home-search-apply");rule.waitUntil { queries.size==1 }
+        assertEquals(setOf("301","8999"),queries.single().tags)
     }
     private fun snapshot(name:String) { rule.runOnUiThread {
         val view=rule.activity.window.decorView;val b=Bitmap.createBitmap(view.width,view.height,Bitmap.Config.ARGB_8888)
