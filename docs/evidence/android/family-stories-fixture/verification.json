@@ -8,7 +8,17 @@
     "repaired_suite_passed": 5,
     "repaired_suite_failed": 1,
     "remaining_case_final_focused": "pass",
-    "focused_seconds": 79.941
+    "focused_seconds": 79.941,
+    "final_combined_run": {
+      "source_commit": "63811ca68047e8a9c67cf6449f65bbe507132252",
+      "run": 6,
+      "passed": 6,
+      "failed": 0,
+      "skipped": 0,
+      "seconds": 18.273,
+      "receipt": "phone-combined-final.json",
+      "log": "phone-combined-final.log"
+    }
   },
   "tv_landscape": {
     "passed": 1,

@@ -1,0 +1,51 @@
+{
+  "source_commit": "63811ca68047e8a9c67cf6449f65bbe507132252",
+  "artifacts": [
+    {
+      "file": "connected-debug.apk",
+      "sha256": "50a79d0ef3d1b560615d2d33d4e3ddb0a24dea60b9a9e5021493c6891c1b5114",
+      "package": "dev.photohouse.connected",
+      "signer_sha256": "56d7591b2b6c2538d506d1fe51327444f2307736cb12f5beefa08f1c410d6d28"
+    },
+    {
+      "file": "connected-debug-androidTest.apk",
+      "sha256": "9f5a1276df46c7a8c90844fb17e5823a0d166412392984bd6ccb81ab9820c807",
+      "package": "dev.photohouse.connected.test",
+      "signer_sha256": "56d7591b2b6c2538d506d1fe51327444f2307736cb12f5beefa08f1c410d6d28"
+    }
+  ],
+  "emulator": {
+    "serial": "emulator-5554",
+    "avd": "Medium_Phone_API_36.0",
+    "sdk": 36,
+    "qemu": true,
+    "pixels": [
+      1080,
+      2400
+    ],
+    "density": 420
+  },
+  "started_utc": "2026-09-15T05:00:46.631473+00:00",
+  "network_origins_empty": true,
+  "finished_utc": "2026-09-15T05:01:07.020668+00:00",
+  "passed": true,
+  "log_sha256": "deb59e7e97de6a32cd32e03d42decc39e440031e1708ee3e3ed548e0c79a2684",
+  "tests_run": 6,
+  "failures": 0,
+  "skipped": 0,
+  "seconds": 18.273,
+  "test_class": "dev.photohouse.stories.fixture.StoryFixtureUiTest",
+  "cases": [
+    "tvShowsPublishedOnlyAndRemoteReadsScrollsAndReturns",
+    "accessLossAndBackgroundRemovePrivateTextAndDrafts",
+    "phoneSearchFiltersSourcesMediaAndEmptyResults",
+    "phoneViewerReadsLongLiteralTextAndCannotEdit",
+    "conflictComparisonRequiresExplicitRebaseAndBackConfirmsDiscard",
+    "contributorKeepsDraftAcrossLostReplyAndRetriesSameSave"
+  ],
+  "extracted_apk_entries_match_prior_artifacts": true,
+  "no_existing_emulator_at_start": true,
+  "emulator_stopped": true,
+  "display_overrides_changed": false,
+  "build_log_sha256": "0d5094d8cfb2ed4112784274883f10f3494bc54486c9ff6b32c7ec9da3bc0107"
+}

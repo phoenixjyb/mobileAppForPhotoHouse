@@ -16,11 +16,25 @@ This is an opt-in local prototype, separate from the previously delivered calend
 
 - 16 JVM cases passed; both opt-in debug/instrumentation builds and phone/TV lint passed. Frozen verifier: 12 operations, 38 retained ASGI cases and eight checksummed files passed. This invocation validates the shared stored contract; it does not replay the new story API.
 - Existing `Medium_Phone_API_36.0`, serial `emulator-5554`, qemu=1, Android API 36. Standard development/debug signing only, expressly clarified by the coordinator for this local test slice. No production signing assets used.
-- Phone at 1080×2400 / density 420: five scenarios passed in the repaired six-case run; its remaining discard regression then passed in a focused final run (79.941 s). Coverage includes source/media search, long literal text, uncertain retry, conflict/discard, access loss and background clearing; the common TV-style read/focus test also passed in the phone run. Do not describe that intermediate six-case run as wholly green.
+- Phone at 1080×2400 / density 420: the complete final six-case suite passed together on source `63811ca68047e8a9c67cf6449f65bbe507132252` in **18.273 s**, zero failures or skips. Coverage includes source/media search, long literal text, uncertain retry, conflict/discard, access loss/background clearing and the common TV-style read/focus scenario. No implementation changes were needed for this final rerun. The earlier five-pass/one-failure run and focused discard repair remain historical evidence, superseded by this complete run.
 - The first UI run exposed a clipped horizontal test-control row, a clipped-bounds scroll assertion, and keyboard/window-focus assumptions in native Back injection. Controls now stack on phone; the test checks actual scroll offset and waits for IME dismissal/activity focus. A further core regression ensures typing after a conflict cannot skip revision review. Relevant checks were rerun after repair.
 - Chinese long-reading and conflict comparison screenshots were inspected. Screenshot/test artifacts contain synthetic text only. Landscape TV at 1920×1080 / density 240 passed its native Center/Up/Down/Back and publication-withdrawal scenario in 19.709 s. The screenshot was inspected. Both ordinary-build APKs rebuilt successfully and their DEX content contained no story-lab classes. Display overrides were restored to 1080×2400 / density 420 before stopping the emulator.
 
 Raw local logs: `/tmp/story-fixture-verified-build.log`, `/tmp/story-fixture-phone-ui-final.log`, `/tmp/story-fixture-phone-conflict-final.log`, `/tmp/story-fixture-tv-landscape.log`, `/tmp/story-fixture-excluded-build.log`. Debug test APKs were retained temporarily under `/tmp/photohouse-story-fixture-artifacts/`; the checked hashes are in `artifacts.json`. Build-output APKs may later be replaced by the ordinary-build exclusion check; they are not the delivered Home release files.
+
+## Complete final phone run — 2026-09-15
+
+The final committed implementation was rebuilt with `photohouseStoryFixtureEnabled=true`, all server origins/addresses empty and discovery/calendar switches disabled. Before starting the designated AVD, no emulator was listed by ADB and no emulator/QEMU process was running. The test verified qemu=1, AVD, API, display and both package identities before installation. The emulator retained its original 1080×2400 / density 420 configuration throughout; it was stopped after the run without clearing unrelated apps or data.
+
+- Tested source: `63811ca68047e8a9c67cf6449f65bbe507132252` (clean before build/run).
+- App `dev.photohouse.connected`: SHA-256 `50a79d0ef3d1b560615d2d33d4e3ddb0a24dea60b9a9e5021493c6891c1b5114`.
+- Test `dev.photohouse.connected.test`: SHA-256 `9f5a1276df46c7a8c90844fb17e5823a0d166412392984bd6ccb81ab9820c807`.
+- Both verified as Android Debug, certificate SHA-256 `56d7591b2b6c2538d506d1fe51327444f2307736cb12f5beefa08f1c410d6d28`.
+- The rebuilt app archive hash differs from the earlier artifact; every extracted ZIP entry was compared and was identical. The hashes above identify the actual final tested archives; the earlier `artifacts.json` remains the previous-run receipt.
+- Full class invocation: `adb -s emulator-5554 shell am instrument -w -r -e class dev.photohouse.stories.fixture.StoryFixtureUiTest dev.photohouse.connected.test/androidx.test.runner.AndroidJUnitRunner`.
+- Result: **OK (6 tests)**, 18.273 seconds, zero failed/ignored cases. All six completed in one invocation, including the conflict/discard test in suite order.
+
+[Exact final-run receipt](phone-combined-final.json) and [retained instrumentation output](phone-combined-final.log) record identities, case names, timestamps and hashes. This closes the combined phone-suite acceptance gap only; it does not enable networking, distribution or physical-device acceptance.
 
 ## Next gates
 
