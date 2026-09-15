@@ -13,7 +13,7 @@ args = parser.parse_args()
 pack = ROOT / 'android/discovery-delivery-contract'
 manifest = json.loads((pack / 'manifest.json').read_text())
 assert manifest['contract'] == 'photohouse-discovery-delivery-2'
-assert manifest['backend_commit'] == '98b92702b4bf687f8bb0ed745a0dfe235a15b98e'
+assert manifest['backend_commit'] == '590cc52ceeb7cdef1d2cae0bbc6aa36c16d75cd6'
 assert set(manifest['files']) == {'CONTRACT.md', 'examples-v2.json'}
 for name, digest in manifest['files'].items():
     assert hashlib.sha256((pack / name).read_bytes()).hexdigest() == digest, name
