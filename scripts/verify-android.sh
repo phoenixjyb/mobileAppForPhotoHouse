@@ -32,11 +32,11 @@ fi
 printf '%s\n' "$java_version"
 android/gradlew -p android --version
 # This verification lane always produces unconfigured, synthetic-test artifacts.
-android/gradlew -p android :core:test :live-core:test :home-core:test :tv:testDebugUnitTest \
+android/gradlew -p android :core:test :story-fixture-core:test :live-core:test :home-core:test :tv:testDebugUnitTest \
   :app:lintDebug :app:assembleDebug :connected:lintDebug :connected:assembleDebug \
   :tv:lintDebug :tv:assembleDebug --console=plain "$@" \
   -PphotohouseOrigin= -PphotohousePhoneHomeOrigin= -PphotohousePhoneHomeLanAddress= -PphotohouseTvOrigin= -PphotohouseTvLanAddress= \
-  -PphotohouseHomeCalendarEnabled=false -PphotohouseHomeTagLookupEnabled=false -PphotohouseTvCatalogVersion=2 -PphotohouseTvBrowseEnabled=false -PphotohouseTvDiscoveryEnabled=false -PphotohousePhoneDiscoveryEnabled=false -PphotohousePhoneHomeDiscoveryEnabled=false
+  -PphotohouseStoryFixtureEnabled=false -PphotohouseHomeCalendarEnabled=false -PphotohouseHomeTagLookupEnabled=false -PphotohouseTvCatalogVersion=2 -PphotohouseTvBrowseEnabled=false -PphotohouseTvDiscoveryEnabled=false -PphotohousePhoneDiscoveryEnabled=false -PphotohousePhoneHomeDiscoveryEnabled=false
 python3 - <<'PY'
 import hashlib, pathlib, zipfile, xml.etree.ElementTree as ET
 root = pathlib.Path('.')
@@ -48,7 +48,7 @@ with zipfile.ZipFile(apk) as z:
             assert z.read(name) == p.read_bytes(), f'Bundled fixture drift: {name}'
 print('PASS APK bundles the shared contract and media byte-for-byte')
 print('APK SHA-256:', hashlib.sha256(apk.read_bytes()).hexdigest())
-reports = [p for folder in ['core/build/test-results/test', 'live-core/build/test-results/test', 'home-core/build/test-results/test', 'tv/build/test-results/testDebugUnitTest'] for p in sorted((root/'android'/folder).glob('TEST-*.xml'))]
+reports = [p for folder in ['core/build/test-results/test', 'story-fixture-core/build/test-results/test', 'live-core/build/test-results/test', 'home-core/build/test-results/test', 'tv/build/test-results/testDebugUnitTest'] for p in sorted((root/'android'/folder).glob('TEST-*.xml'))]
 assert reports, 'No JVM test reports'
 for p in reports:
     s = ET.parse(p).getroot()
@@ -57,6 +57,7 @@ for p in reports:
 connected = root / 'android/connected/build/outputs/apk/debug/connected-debug.apk'
 with zipfile.ZipFile(connected) as z:
     assert not any(n.startswith('assets/') for n in z.namelist()), 'Connected app must not bundle fixtures'
+    assert not any(b'dev/photohouse/stories/' in z.read(n) for n in z.namelist() if n.endswith('.dex')), 'Story lab must be excluded from ordinary builds'
 print('Connected APK SHA-256:', hashlib.sha256(connected.read_bytes()).hexdigest())
 for module, package in [('connected', 'connected'), ('tv', 'tv')]:
     config = (root/f'android/{module}/build/generated/source/buildConfig/debug/dev/photohouse/{package}/BuildConfig.java').read_text()
@@ -69,6 +70,7 @@ for module, package in [('connected', 'connected'), ('tv', 'tv')]:
         tv = root/'android/tv/build/outputs/apk/debug/tv-debug.apk'
         with zipfile.ZipFile(tv) as z:
             assert not any(n.startswith('assets/') for n in z.namelist()), 'TV app must not bundle fixtures'
+            assert not any(b'dev/photohouse/stories/' in z.read(n) for n in z.namelist() if n.endswith('.dex')), 'Story lab must be excluded from ordinary builds'
         print('TV APK SHA-256:', hashlib.sha256(tv.read_bytes()).hexdigest())
 PY
 "$sdk_dir/build-tools/34.0.0/aapt" dump permissions android/app/build/outputs/apk/debug/app-debug.apk > android/app/build/outputs/apk/debug/permissions.txt

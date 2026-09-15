@@ -23,7 +23,15 @@ require(tagLookupEnabled in listOf("true", "false"))
 val calendarEnabled = providers.gradleProperty("photohouseHomeCalendarEnabled").orElse("false").get()
 require(calendarEnabled in listOf("true", "false"))
 require(calendarEnabled != "true" || tagLookupEnabled == "true")
+val storyFixtureFlag = providers.gradleProperty("photohouseStoryFixtureEnabled").orElse("false").get()
+require(storyFixtureFlag in listOf("true", "false"))
+val storyFixtureEnabled = storyFixtureFlag == "true"
 android {
+    if (storyFixtureEnabled) {
+        sourceSets.getByName("debug").java.srcDir("../story-fixture-ui/src/main/java")
+        sourceSets.getByName("debug").manifest.srcFile("../story-fixture-ui/src/main/AndroidManifest.xml")
+        sourceSets.getByName("androidTest").java.srcDir("../story-fixture-ui/src/androidTest/java")
+    }
     sourceSets.getByName("main").res.srcDir("../branding/res")
     namespace = "dev.photohouse.tv"
     compileSdk = 34
@@ -52,6 +60,7 @@ android {
     packaging { resources.excludes += "/META-INF/{AL2.0,LGPL2.1}" }
 }
 dependencies {
+    if (storyFixtureEnabled) debugImplementation(project(":story-fixture-core"))
     testImplementation("junit:junit:4.13.2")
     implementation(project(":home-core"))
     androidTestImplementation(platform("androidx.compose:compose-bom:2024.06.00"))

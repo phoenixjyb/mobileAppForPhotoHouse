@@ -1,0 +1,22 @@
+[
+  {
+    "file": "connected-debug.apk",
+    "bytes": 10869013,
+    "sha256": "1dadae78a7478d537f64f2b3edf3481ffa2eff101d3a7e92fe73723eec0e525c"
+  },
+  {
+    "file": "connected-debug-androidTest.apk",
+    "bytes": 4950532,
+    "sha256": "9f5a1276df46c7a8c90844fb17e5823a0d166412392984bd6ccb81ab9820c807"
+  },
+  {
+    "file": "tv-debug.apk",
+    "bytes": 10541463,
+    "sha256": "2141433bcf2d020f9717dde25d1e3d11210cff0352db4b04ad8a2bb4d13487c4"
+  },
+  {
+    "file": "tv-debug-androidTest.apk",
+    "bytes": 2258684,
+    "sha256": "02182f477555c65b6a21bd0ae8f6f240e9d6caceede61e93a61976c7b8d99bff"
+  }
+]
