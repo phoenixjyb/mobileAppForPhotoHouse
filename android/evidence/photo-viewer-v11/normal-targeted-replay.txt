@@ -1,0 +1,8 @@
+
+dev.photohouse.connected.ProtectedJourneyTest:.
+
+Time: 8.386
+
+OK (1 test)
+
+

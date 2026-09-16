@@ -1,0 +1,42 @@
+
+dev.photohouse.connected.ProtectedJourneyTest:..
+Error in previewOnlyProfileOpensViewerModesWithoutOriginalOrDisplayRequests(dev.photohouse.connected.ProtectedJourneyTest):
+java.lang.AssertionError: No node found that matches (Text + EditableText contains '简体中文' (ignoreCase: false)) && (OnClick is defined) in scrollable container
+Semantics of the node:
+Node #925 at (l=0.0, t=126.0, r=1080.0, b=2274.0)px, Tag: 'connected-screen'
+IsTraversalGroup = 'true'
+VerticalScrollAxisRange = 'ScrollAxisRange(value=1242.0, maxValue=1242.0, reverseScrolling=false)'
+CollectionInfo = 'androidx.compose.ui.semantics.CollectionInfo@a5d1a5c'
+Actions = [IndexForKey, ScrollBy, ScrollToIndex]
+Has 17 children
+Selector used: (TestTag = 'connected-screen')
+
+	at androidx.compose.ui.test.ActionsKt.performScrollToNode(Actions.kt:257)
+	at dev.photohouse.connected.ProtectedJourneyTest.clickText(ProtectedJourneyTest.kt:95)
+	at dev.photohouse.connected.ProtectedJourneyTest.previewOnlyProfileOpensViewerModesWithoutOriginalOrDisplayRequests(ProtectedJourneyTest.kt:200)
+
+dev.photohouse.connected.ConnectedUiTest:..
+dev.photohouse.connected.OnDemandPhotoTest:.
+dev.photohouse.connected.HomePhoneTest:.
+
+Time: 120.222
+There was 1 failure:
+1) previewOnlyProfileOpensViewerModesWithoutOriginalOrDisplayRequests(dev.photohouse.connected.ProtectedJourneyTest)
+java.lang.AssertionError: No node found that matches (Text + EditableText contains '简体中文' (ignoreCase: false)) && (OnClick is defined) in scrollable container
+Semantics of the node:
+Node #925 at (l=0.0, t=126.0, r=1080.0, b=2274.0)px, Tag: 'connected-screen'
+IsTraversalGroup = 'true'
+VerticalScrollAxisRange = 'ScrollAxisRange(value=1242.0, maxValue=1242.0, reverseScrolling=false)'
+CollectionInfo = 'androidx.compose.ui.semantics.CollectionInfo@a5d1a5c'
+Actions = [IndexForKey, ScrollBy, ScrollToIndex]
+Has 17 children
+Selector used: (TestTag = 'connected-screen')
+
+	at androidx.compose.ui.test.ActionsKt.performScrollToNode(Actions.kt:257)
+	at dev.photohouse.connected.ProtectedJourneyTest.clickText(ProtectedJourneyTest.kt:95)
+	at dev.photohouse.connected.ProtectedJourneyTest.previewOnlyProfileOpensViewerModesWithoutOriginalOrDisplayRequests(ProtectedJourneyTest.kt:200)
+
+FAILURES!!!
+Tests run: 7,  Failures: 1
+
+

@@ -11,6 +11,7 @@ class ConnectedStoreTest {
     private val asset = Asset("1", "image", 256, 256, null, null, "/assets/1/thumbnail?library=family")
     private fun membership(id: String, available: Boolean = true) = Membership(id, "approved", "viewer", 1, null, 0, available)
     private inner class FakeApi : PhotoHouseApi {
+        override var protectedNativeV2Enabled = false
         override var photoDeliveryEnabled = false
         var displayReads = 0
         var displayError: Exception? = null
@@ -79,6 +80,72 @@ class ConnectedStoreTest {
     }
     private fun TestScope.store(api: FakeApi) = ConnectedStore(api, backgroundScope) { testScheduler.currentTime }
     private fun TestScope.signIn(store: ConnectedStore) { store.authenticate("+12025550123", "synthetic-password-only"); runCurrent(); assertNotNull(store.state.value.session) }
+
+    @Test fun protectedThumbnailViewerDoesNotNeedOriginalPermissionOrDisplayService() = runTest {
+        val api = FakeApi().apply { protectedNativeV2Enabled = true }
+        val store = store(api); signIn(store); store.selectLibrary("family"); runCurrent()
+        store.openMedia(asset); runCurrent()
+        assertTrue(store.state.value.viewingOriginal); assertTrue(store.state.value.photoPreviewOnly)
+        assertFalse(store.state.value.photoOriginalQuality); assertArrayEquals(api.images, store.state.value.originalPhoto)
+        assertEquals(0, api.displayReads); assertEquals(0, api.originalReads)
+        store.openOriginalPhoto(); runCurrent(); assertEquals(0, api.originalReads)
+        store.closeOriginalPhoto(); runCurrent(); assertNull(store.state.value.originalPhoto)
+        store.openPreviewPhoto(); runCurrent(); assertTrue(store.state.value.photoPreviewOnly)
+        store.background(); runCurrent(); assertNull(store.state.value.originalPhoto); assertFalse(store.state.value.photoPreviewOnly)
+    }
+
+    @Test fun protectedPreviewNeverSilentlyUpgradesEvenWhenOriginalsAreAllowed() = runTest {
+        val api = FakeApi().apply { protectedNativeV2Enabled = true; originalsAllowed = true }
+        val store = store(api); signIn(store); store.selectLibrary("family"); runCurrent()
+        store.openMedia(asset); runCurrent(); assertTrue(store.state.value.photoPreviewOnly); assertEquals(0, api.originalReads)
+        store.openOriginalPhoto(); runCurrent(); assertEquals(1, api.originalReads)
+        assertTrue(store.state.value.photoOriginalQuality); assertFalse(store.state.value.photoPreviewOnly)
+    }
+
+    @Test fun missingProtectedPreviewIsUnavailableWithoutOriginalOrDisplayFallback() = runTest {
+        for (bytes in listOf(null, byteArrayOf())) {
+            val api = FakeApi().apply { protectedNativeV2Enabled = true; originalsAllowed = true; images = bytes }
+            val store = store(api); signIn(store); store.selectLibrary("family"); runCurrent()
+            store.openMedia(asset); runCurrent()
+            assertFalse(store.state.value.viewingOriginal); assertFalse(store.state.value.busy)
+            assertNull(store.state.value.originalPhoto); assertEquals(Message.MEDIA_UNAVAILABLE, store.state.value.problem?.message)
+            assertEquals(0, api.originalReads); assertEquals(0, api.displayReads)
+        }
+    }
+
+    @Test fun protectedPreviewPagingAndSlideshowStayWithinAuthorizedCurrentPage() = runTest {
+        val api = FakeApi().apply { protectedNativeV2Enabled = true; assets = listOf(asset, asset.copy(id = "2"), asset.copy(id = "3", kind = "video")) }
+        val store = store(api); signIn(store); store.selectLibrary("family"); runCurrent()
+        store.openMedia(asset); runCurrent(); store.adjacentOriginalPhoto(1); runCurrent()
+        assertEquals("2", store.state.value.detail?.asset?.id); assertTrue(store.state.value.photoPreviewOnly)
+        store.togglePhotoSlideshow(); store.advancePhotoSlideshow(); runCurrent()
+        assertEquals("3", store.state.value.detail?.asset?.id); assertFalse(store.state.value.photoSlideshow)
+        assertFalse(store.state.value.viewingOriginal); assertNull(store.state.value.video)
+        assertEquals(0, api.originalReads); assertEquals(0, api.displayReads)
+    }
+
+    @Test fun lateProtectedPreviewCannotReturnAfterPrivacyBoundaries() = runTest {
+        for (action in listOf("background", "logout", "library")) {
+            val api = FakeApi().apply { protectedNativeV2Enabled = true }
+            val store = store(api); signIn(store); store.selectLibrary("family"); runCurrent()
+            api.thumbnailGate = CompletableDeferred(); store.openMedia(asset); runCurrent()
+            when (action) { "background" -> store.background(); "logout" -> store.logout(); else -> store.libraries() }
+            runCurrent(); api.thumbnailGate!!.complete(Unit); runCurrent()
+            assertNull(store.state.value.originalPhoto); assertFalse(store.state.value.viewingOriginal)
+            assertFalse(store.state.value.photoPreviewOnly)
+        }
+    }
+
+    @Test fun protectedPreviewRechecksAuthorizationBeforeDisplayingBytes() = runTest {
+        for (status in listOf(401, 403)) {
+            val api = FakeApi().apply { protectedNativeV2Enabled = true }
+            val store = store(api); signIn(store); store.selectLibrary("family"); runCurrent()
+            store.openAsset(asset); runCurrent(); api.detailError = ApiFailure(FailureKind.HTTP, status)
+            store.openPreviewPhoto(); runCurrent()
+            assertNull(store.state.value.originalPhoto); assertFalse(store.state.value.viewingOriginal)
+            assertTrue(store.state.value.previews.isEmpty()); assertEquals(0, api.originalReads)
+        }
+    }
 
     @Test fun onDemandViewerWorksWithoutOriginalPermissionAndDoesNotUpgradeIt() = runTest {
         val api = FakeApi().apply { photoDeliveryEnabled = true }

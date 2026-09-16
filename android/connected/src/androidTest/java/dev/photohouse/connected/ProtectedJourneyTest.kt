@@ -25,7 +25,8 @@ class ProtectedJourneyTest {
 
     private class SyntheticApi : PhotoHouseApi {
         override val protectedNativeV2Enabled = true
-        override val photoDeliveryEnabled = true
+        override var photoDeliveryEnabled = true
+        var previewAvailable = false
         var loginPhone: String? = null
         var loginPassword: String? = null
         var displayCalls = 0
@@ -53,7 +54,7 @@ class ProtectedJourneyTest {
             Detail(library, false, asset)
         override suspend fun captions(token: Bearer, library: String, assetId: String) =
             Captions(library, assetId, false, emptyList())
-        override suspend fun thumbnail(token: Bearer, library: String, asset: Asset): ByteArray? = null
+        override suspend fun thumbnail(token: Bearer, library: String, asset: Asset): ByteArray? = if (previewAvailable) display else null
         override suspend fun displayPhoto(token: Bearer, library: String, assetId: String): ByteArray {
             displayCalls++; return display
         }
@@ -74,7 +75,7 @@ class ProtectedJourneyTest {
         }
 
         private fun png(): ByteArray {
-            val bitmap = Bitmap.createBitmap(1, 1, Bitmap.Config.ARGB_8888)
+            val bitmap = Bitmap.createBitmap(900, 1200, Bitmap.Config.ARGB_8888).apply { eraseColor(0xff607b66.toInt()) }
             return ByteArrayOutputStream().use { out ->
                 bitmap.compress(Bitmap.CompressFormat.PNG, 100, out)
                 bitmap.recycle(); out.toByteArray()
@@ -164,6 +165,54 @@ class ProtectedJourneyTest {
         rule.runOnIdle { store.background() };rule.waitForIdle()
         rule.onNodeWithTag("story-reader").assertDoesNotExist()
         assertTrue(store.state.value.stories == null)
+    }
+
+    @Test fun previewOnlyProfileOpensViewerModesWithoutOriginalOrDisplayRequests() {
+        val api = SyntheticApi().apply { photoDeliveryEnabled = false; previewAvailable = true }
+        val store = start(api)
+        rule.runOnIdle { store.authenticate("+8612345678", "eight888") }
+        rule.waitForIdle(); clickText("Open library"); clickTag("media-1")
+        rule.waitUntil(10000) { rule.onAllNodesWithTag("original-image").fetchSemanticsNodes().size == 1 }
+        assertTrue(store.state.value.photoPreviewOnly)
+        fun viewerTag(tag: String) { rule.onNodeWithTag(tag).performScrollTo().performClick(); rule.waitForIdle() }
+        viewerTag("photo-fit-width")
+        rule.onNodeWithTag("photo-fit-mode").assertTextContains("width", substring = true)
+        viewerTag("photo-fit-height")
+        rule.onNodeWithTag("photo-fit-mode").assertTextContains("height", substring = true)
+        viewerTag("photo-actual-size")
+        rule.onNodeWithTag("photo-fit-mode").assertTextContains("Actual", substring = true)
+        val pixels = rule.onNodeWithTag("photo-viewport").captureToImage().asAndroidBitmap()
+        val greenWidth = (0 until pixels.width).count { pixels.getPixel(it, pixels.height / 2) == 0xff607b66.toInt() }
+        assertTrue("Actual size must use physical pixels, not dp: $greenWidth", kotlin.math.abs(greenWidth - minOf(900, pixels.width)) <= 2)
+        pixels.recycle()
+        rule.onNodeWithTag("photo-quality").assertTextEquals("Preview quality")
+        rule.onNode(hasText("Zoom in") and hasClickAction()).performScrollTo().performClick()
+        rule.onNode(hasText("Zoom out") and hasClickAction()).performScrollTo().performClick()
+        rule.onNode(hasText("Full screen") and hasClickAction()).performScrollTo().performClick()
+        rule.onNodeWithTag("photo-controls").assertDoesNotExist()
+        rule.onNodeWithTag("photo-exit-fullscreen").assertIsDisplayed().performClick()
+        viewerTag("photo-fit-width")
+        val bitmap = rule.onRoot().captureToImage().asAndroidBitmap()
+        File(InstrumentationRegistry.getInstrumentation().targetContext.filesDir, "protected-preview-viewer.png")
+            .outputStream().use { bitmap.compress(Bitmap.CompressFormat.PNG, 100, it) }
+        assertEquals(0, api.originalCalls); assertEquals(0, api.displayCalls)
+        rule.onNode(hasText("Close photo") and hasClickAction()).performScrollTo().performClick()
+        rule.waitForIdle(); clickTag("app-settings")
+        rule.onNodeWithText("简体中文").performClick(); rule.waitForIdle()
+        clickTag("view-protected-preview")
+        rule.waitUntil(10000) { rule.onAllNodesWithTag("original-image").fetchSemanticsNodes().size == 1 }
+        viewerTag("photo-fit-width")
+        rule.onNodeWithTag("photo-fit-mode").assertTextEquals("适合宽度")
+        viewerTag("photo-fit-height")
+        rule.onNodeWithTag("photo-fit-mode").assertTextEquals("适合高度")
+        viewerTag("photo-actual-size")
+        rule.onNodeWithTag("photo-quality").assertTextEquals("预览画质")
+        val chinese = rule.onRoot().captureToImage().asAndroidBitmap()
+        File(InstrumentationRegistry.getInstrumentation().targetContext.filesDir, "protected-preview-viewer-zh.png")
+            .outputStream().use { chinese.compress(Bitmap.CompressFormat.PNG, 100, it) }
+        rule.runOnIdle { store.background() }; rule.waitForIdle()
+        rule.onNodeWithTag("original-viewer").assertDoesNotExist()
+        assertTrue(store.state.value.originalPhoto == null)
     }
 
 }

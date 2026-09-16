@@ -108,6 +108,7 @@ private class Words(val zh: Boolean) {
                     state.photoNavigation, state.photoSlideshow, { store.adjacentOriginalPhoto(it) },
                     store::togglePhotoSlideshow, store::stopPhotoSlideshow, store::advancePhotoSlideshow,
                     originalQuality = state.photoOriginalQuality,
+                    previewOnly = state.photoPreviewOnly,
                     onOriginal = if (state.detail?.originals_allowed == true) store::openOriginalPhoto else null)
                 return@Surface
             }
@@ -185,6 +186,12 @@ private class Words(val zh: Boolean) {
                                     state.detail?.let { detail ->
                                     if (detail.asset.kind == "image" && store.photoDeliveryEnabled) item {
                                         Button(onClick = store::openDisplayPhoto, enabled = !state.busy) { Text(t("View photo", "查看照片")) }
+                                    }
+                                    if (detail.asset.kind == "image" && store.protectedNativeV2Enabled && !store.photoDeliveryEnabled) item {
+                                        Button(onClick = store::openPreviewPhoto, enabled = !state.busy,
+                                            modifier = Modifier.testTag("view-protected-preview")) { Text(t("View preview", "查看预览")) }
+                                        Text(t("Preview quality. Full screen and zoom do not download the original.",
+                                            "预览画质。全屏与缩放不会下载原始文件。"), style = MaterialTheme.typography.bodySmall)
                                     }
                                     if (detail.asset.kind == "image" && detail.originals_allowed) item {
                                         Button(onClick = store::openOriginalPhoto, enabled = !state.busy) { Text(t("Open original photo", "打开原始照片")) }

@@ -19,6 +19,7 @@ data class LiveState(
     val video: VideoReader? = null,
     val viewingOriginal: Boolean = false, val originalPhoto: ByteArray? = null,
     val photoSlideshow: Boolean = false, val photoOriginalQuality: Boolean = false,
+    val photoPreviewOnly: Boolean = false,
     val discovery: PhoneDiscoveryState? = null,
     val stories: StoryReading? = null,
 )
@@ -298,6 +299,12 @@ class ConnectedStore(private val api: PhotoHouseApi, private val scope: Coroutin
         if (!api.photoDeliveryEnabled || detail.asset.kind != "image") return
         openPhoto(detail.asset.id, state.value.photoNavigation, mediaAfterLoad = true)
     }
+    /** Open only the already-authorized preview route; never infer original access. */
+    fun openPreviewPhoto() {
+        val detail = state.value.detail ?: return
+        if (!api.protectedNativeV2Enabled || api.photoDeliveryEnabled || detail.asset.kind != "image") return
+        openPhoto(detail.asset.id, state.value.photoNavigation, mediaAfterLoad = true)
+    }
     fun openOriginalPhoto() {
         if (!allowed() || state.value.busy || (state.value.viewingOriginal && state.value.photoOriginalQuality) || coolingDown()) return
         val detail = state.value.detail ?: return
@@ -311,7 +318,7 @@ class ConnectedStore(private val api: PhotoHouseApi, private val scope: Coroutin
                 if (!active(generation)) return@launch
                 if (bytes.size > HttpsPhotoHouseApi.ORIGINAL_LIMIT) throw ApiFailure(FailureKind.TOO_LARGE)
                 validResponse(bytes.isNotEmpty())
-                mutable.value = state.value.copy(originalPhoto = bytes, busy = false, photoOriginalQuality = true)
+                mutable.value = state.value.copy(originalPhoto = bytes, busy = false, photoOriginalQuality = true, photoPreviewOnly = false)
             } catch (e: CancellationException) { throw e }
             catch (e: Exception) {
                 // Retry reloads metadata/permission first; original access remains explicit.
@@ -370,13 +377,22 @@ class ConnectedStore(private val api: PhotoHouseApi, private val scope: Coroutin
                 val bytes = api.detailPreview(credential, library, detail.asset)
                 if (!active(generation)) return@launch
                 validResponse(bytes == null || bytes.size <= HttpsPhotoHouseApi.IMAGE_LIMIT)
-                val useOriginal = !api.photoDeliveryEnabled || originalQuality
-                val openOriginal = (originalAfterLoad || mediaAfterLoad) && (!useOriginal || detail.originals_allowed) && detail.asset.kind == "image"
+                val usePreview = api.protectedNativeV2Enabled && !api.photoDeliveryEnabled && !originalQuality
+                val useOriginal = originalQuality || (!api.photoDeliveryEnabled && !usePreview)
+                val requestedPhoto = (originalAfterLoad || mediaAfterLoad) && detail.asset.kind == "image"
+                val openOriginal = requestedPhoto && (!useOriginal || detail.originals_allowed) &&
+                    (!usePreview || bytes?.isNotEmpty() == true)
                 mutable.value = state.value.copy(detail = detail, captions = captions, busy = openOriginal,
                     viewingOriginal = openOriginal, photoOriginalQuality = useOriginal, photoSlideshow = state.value.photoSlideshow && openOriginal,
+                    photoPreviewOnly = usePreview && openOriginal,
+                    problem = if (requestedPhoto && usePreview && !openOriginal) LiveProblem(Message.MEDIA_UNAVAILABLE) else null,
                     previews = if (bytes == null) emptyMap() else mapOf(assetId to bytes))
                 if (openOriginal) {
-                    val original = if (useOriginal) api.originalPhoto(credential, library, assetId) else api.displayPhoto(credential, library, assetId)
+                    val original = when {
+                        usePreview -> bytes!!
+                        useOriginal -> api.originalPhoto(credential, library, assetId)
+                        else -> api.displayPhoto(credential, library, assetId)
+                    }
                     if (!active(generation)) return@launch
                     if (original.size > HttpsPhotoHouseApi.ORIGINAL_LIMIT) throw ApiFailure(FailureKind.TOO_LARGE)
                     validResponse(original.isNotEmpty())
@@ -393,7 +409,7 @@ class ConnectedStore(private val api: PhotoHouseApi, private val scope: Coroutin
     private suspend fun readFailure(error: Exception, generation: Long, credential: Bearer, retryRead: () -> Unit) {
         if (!active(generation)) return
         state.value.video?.close()
-        mutable.value = state.value.copy(video = null, gallery = null, detail = null, captions = null, previews = emptyMap(), photoNavigation = null, originalPhoto = null, viewingOriginal = false, photoSlideshow = false, discovery = null, stories = null, busy = false, problem = problem(error))
+        mutable.value = state.value.copy(video = null, gallery = null, detail = null, captions = null, previews = emptyMap(), photoNavigation = null, originalPhoto = null, viewingOriginal = false, photoSlideshow = false, photoPreviewOnly = false, photoOriginalQuality = false, discovery = null, stories = null, busy = false, problem = problem(error))
         if (error is ApiFailure && error.status == 401) {
             mutable.value = state.value.copy(busy = true)
             try {
