@@ -7,6 +7,8 @@ val localConfig = Properties().apply {
 val configuredOrigin = providers.gradleProperty("photohouseOrigin").orElse(localConfig.getProperty("photohouseOrigin", "")).get()
 // Only an origin is configurable; no credentials or trust overrides are build inputs.
 require(configuredOrigin.none { it == '\n' || it == '\r' || it == '"' || it == '\\' }) { "Invalid configured origin" }
+val protectedNativeV2Enabled = providers.gradleProperty("photohouseProtectedNativeV2Enabled").orElse("false").get()
+require(protectedNativeV2Enabled in listOf("true", "false"))
 val discoveryEnabled = providers.gradleProperty("photohousePhoneDiscoveryEnabled").orElse("false").get()
 require(discoveryEnabled in listOf("true", "false")) { "Invalid phone discovery switch" }
 val photoDeliveryEnabled = providers.gradleProperty("photohousePhonePhotoDeliveryEnabled").orElse("false").get()
@@ -42,11 +44,12 @@ android {
         minSdk = 26
         targetSdk = 34
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
-        versionCode = 9
-        versionName = "0.10-phone-home-calendar"
+        versionCode = 10
+        versionName = "0.11-protected-stories"
         buildConfigField("boolean", "PHOTOHOUSE_HOME_DISCOVERY_ENABLED", homeDiscoveryEnabled)
         buildConfigField("String", "PHOTOHOUSE_HOME_ORIGIN", "\"$homeOrigin\"")
         buildConfigField("String", "PHOTOHOUSE_HOME_LAN_ADDRESS", "\"$homeAddress\"")
+        buildConfigField("boolean", "PHOTOHOUSE_PROTECTED_NATIVE_V2_ENABLED", protectedNativeV2Enabled)
         buildConfigField("boolean", "PHOTOHOUSE_DISCOVERY_ENABLED", discoveryEnabled)
         buildConfigField("boolean", "PHOTOHOUSE_PHOTO_DELIVERY_ENABLED", photoDeliveryEnabled)
         buildConfigField("String", "PHOTOHOUSE_ORIGIN", "\"$configuredOrigin\"")

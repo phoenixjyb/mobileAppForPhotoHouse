@@ -1,0 +1,30 @@
+/**
+ * Automatically generated file. DO NOT MODIFY
+ */
+package dev.photohouse.connected;
+
+public final class BuildConfig {
+  public static final boolean DEBUG = Boolean.parseBoolean("true");
+  public static final String APPLICATION_ID = "dev.photohouse.connected";
+  public static final String BUILD_TYPE = "debug";
+  public static final int VERSION_CODE = 10;
+  public static final String VERSION_NAME = "0.11-protected-stories";
+  // Field from default config.
+  public static final boolean PHOTOHOUSE_DISCOVERY_ENABLED = false;
+  // Field from default config.
+  public static final boolean PHOTOHOUSE_HOME_CALENDAR_ENABLED = false;
+  // Field from default config.
+  public static final boolean PHOTOHOUSE_HOME_DISCOVERY_ENABLED = false;
+  // Field from default config.
+  public static final String PHOTOHOUSE_HOME_LAN_ADDRESS = "";
+  // Field from default config.
+  public static final String PHOTOHOUSE_HOME_ORIGIN = "";
+  // Field from default config.
+  public static final boolean PHOTOHOUSE_HOME_TAG_LOOKUP_ENABLED = false;
+  // Field from default config.
+  public static final String PHOTOHOUSE_ORIGIN = "";
+  // Field from default config.
+  public static final boolean PHOTOHOUSE_PHOTO_DELIVERY_ENABLED = false;
+  // Field from default config.
+  public static final boolean PHOTOHOUSE_PROTECTED_NATIVE_V2_ENABLED = false;
+}

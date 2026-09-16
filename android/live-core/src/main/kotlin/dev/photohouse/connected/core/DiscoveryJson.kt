@@ -9,8 +9,8 @@ internal object DiscoveryJson {
     private fun bad(): Nothing = throw ApiFailure(FailureKind.INVALID_RESPONSE)
     private fun check(ok: Boolean) { if (!ok) bad() }
     /** Small bounded JSON reader: rejects duplicate keys, deep nesting and invalid UTF-8. */
-    internal fun parse(bytes: ByteArray): JsonElement {
-        check(bytes.size in 1..HttpsPhotoHouseApi.JSON_LIMIT)
+    internal fun parse(bytes: ByteArray, limit: Int = HttpsPhotoHouseApi.JSON_LIMIT): JsonElement {
+        check(bytes.size in 1..limit)
         val s = Charsets.UTF_8.newDecoder().onMalformedInput(CodingErrorAction.REPORT)
             .onUnmappableCharacter(CodingErrorAction.REPORT).decode(ByteBuffer.wrap(bytes)).toString()
         var i = 0; var nodes = 0

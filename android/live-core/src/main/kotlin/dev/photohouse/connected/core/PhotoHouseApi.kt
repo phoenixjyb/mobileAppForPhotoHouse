@@ -22,6 +22,8 @@ enum class FailureKind { HTTP, OFFLINE, TLS, INVALID_RESPONSE, INVALID_INPUT, TO
 class ApiFailure(val kind: FailureKind, val status: Int? = null, val retryAfterMillis: Long = 0) : Exception("PhotoHouse request failed")
 
 interface PhotoHouseApi {
+    /** Protected family stories are opt-in until the integration owner enables the route. */
+    val protectedNativeV2Enabled: Boolean get() = false
     val photoDeliveryEnabled: Boolean get() = false
     suspend fun displayPhoto(token: Bearer, library: String, assetId: String): ByteArray = throw ApiFailure(FailureKind.INVALID_INPUT)
     val discoveryEnabled: Boolean get() = false
@@ -40,6 +42,7 @@ interface PhotoHouseApi {
     suspend fun detailPreview(token: Bearer, library: String, asset: Asset): ByteArray? = thumbnail(token, library, asset)
     suspend fun videoRange(token: Bearer, library: String, assetId: String, start: Long, length: Int): VideoChunk
     suspend fun originalPhoto(token: Bearer, library: String, assetId: String): ByteArray
+    suspend fun stories(token: Bearer, library: String, assetId: String, page: Int): ProtectedStoryPage = throw ApiFailure(FailureKind.INVALID_INPUT)
 }
 
 object Admission {
@@ -48,7 +51,17 @@ object Admission {
         require(result.matches(Regex("\\+[1-9][0-9]{7,14}"))) { "Use an international phone login" }
         return result
     }
-    fun password(value: String) { require(Wire.passwordLengthValid(value)) { "Password length must be 15 to 128 code points" } }
+    fun password(value: String, protectedNativeV2: Boolean = false, registration: Boolean = false) {
+        require(value.toUtf8Strict()) { "Password contains malformed Unicode" }
+        val points = value.codePointCount(0, value.length)
+        val valid = if (!protectedNativeV2) points in 15..128 else points in (if (registration) 8..128 else 1..128)
+        require(valid) { if (protectedNativeV2) "Password length is invalid" else "Password length must be 15 to 128 code points" }
+    }
+
+    private fun String.toUtf8Strict(): Boolean = runCatching {
+        Charsets.UTF_8.newEncoder().onMalformedInput(java.nio.charset.CodingErrorAction.REPORT)
+            .onUnmappableCharacter(java.nio.charset.CodingErrorAction.REPORT).encode(java.nio.CharBuffer.wrap(this))
+    }.isSuccess
 }
 
 fun retryAfterMillis(value: String?, nowMillis: Long = System.currentTimeMillis()): Long {

@@ -9,6 +9,7 @@ enum class Message { SIGNED_OUT_LOCAL, SIGNED_OUT_CONFIRMED, SESSION_ENDED, ACCE
 data class LiveProblem(val message: Message, val retryAtMillis: Long = 0)
 /** Only the current page's IDs, never a persistent or cross-library history. */
 data class PhotoNavigation(val page: Int, val assetIds: List<String>, val index: Int, val discovery: PhoneDiscoveryState? = null)
+data class StoryReading(val page: Int = 1, val result: ProtectedStoryPage? = null, val busy: Boolean = false, val problem: LiveProblem? = null)
 data class LiveState(
     val generation: Long = 0, val session: Session? = null, val library: String? = null,
     val gallery: Gallery? = null, val detail: Detail? = null, val captions: Captions? = null,
@@ -19,6 +20,7 @@ data class LiveState(
     val viewingOriginal: Boolean = false, val originalPhoto: ByteArray? = null,
     val photoSlideshow: Boolean = false, val photoOriginalQuality: Boolean = false,
     val discovery: PhoneDiscoveryState? = null,
+    val stories: StoryReading? = null,
 )
 
 /** UI-dispatcher-confined; only the wire DTO module is shared with fixture code. */
@@ -33,6 +35,7 @@ class ConnectedStore(private val api: PhotoHouseApi, private val scope: Coroutin
     private var expiryJob: Job? = null
     private val requests = mutableSetOf<Job>()
     private var retry: (() -> Unit)? = null
+    val protectedNativeV2Enabled get() = api.protectedNativeV2Enabled
     val photoDeliveryEnabled get() = api.photoDeliveryEnabled
     val discoveryEnabled get() = api.discoveryEnabled
     val hasSession get() = token != null
@@ -69,7 +72,7 @@ class ConnectedStore(private val api: PhotoHouseApi, private val scope: Coroutin
         invalidate(keepIdentity = false)
         mutable.value = state.value.copy(busy = true)
         launch { generation ->
-            Admission.phone(phone); Admission.password(password)
+            Admission.phone(phone); Admission.password(password, protectedNativeV2 = api.protectedNativeV2Enabled, registration = invitation != null)
             val issuedAt = now()
             val response = if (invitation == null) api.login(phone, password) else api.register(phone, password, invitation)
             if (!active(generation)) return@launch
@@ -83,6 +86,31 @@ class ConnectedStore(private val api: PhotoHouseApi, private val scope: Coroutin
                 if (token === credential) expire()
             }
             mutable.value = state.value.copy(session = session, busy = false)
+        }
+    }
+    /** Read-only stories stay scoped to this visible detail and never enter Home/TV state. */
+    fun loadStories(page: Int = 1) {
+        if (!api.protectedNativeV2Enabled || !allowed() || state.value.busy ||
+            state.value.stories?.busy == true || state.value.viewingOriginal || state.value.video != null ||
+            coolingDown() || page !in 1..100000) return
+        val detail = state.value.detail ?: return
+        val library = state.value.library!!; val credential = token!!
+        mutable.value = state.value.copy(stories = StoryReading(page, busy = true))
+        launch { generation ->
+            try {
+                val result = api.stories(credential, library, detail.asset.id, page)
+                if (!active(generation)) return@launch
+                validResponse(result.libraryId == library && result.assetId == detail.asset.id && result.page == page &&
+                    result.items.size <= 5 && result.items.all { it.assetId == detail.asset.id } &&
+                    result.items.map { it.id }.distinct().size == result.items.size)
+                mutable.value = state.value.copy(stories = StoryReading(page, result))
+            } catch (e: CancellationException) { throw e }
+            catch (e: Exception) {
+                if (!active(generation)) return@launch
+                if (e is ApiFailure && e.status in listOf(401, 403)) {
+                    readFailure(e, generation, credential) { openPhoto(detail.asset.id, null) }
+                } else mutable.value = state.value.copy(stories = StoryReading(page, problem = problem(e)))
+            }
         }
     }
     fun libraries() { if (usable()) invalidate(keepIdentity = true) }
@@ -365,7 +393,7 @@ class ConnectedStore(private val api: PhotoHouseApi, private val scope: Coroutin
     private suspend fun readFailure(error: Exception, generation: Long, credential: Bearer, retryRead: () -> Unit) {
         if (!active(generation)) return
         state.value.video?.close()
-        mutable.value = state.value.copy(video = null, gallery = null, detail = null, captions = null, previews = emptyMap(), photoNavigation = null, originalPhoto = null, viewingOriginal = false, photoSlideshow = false, discovery = null, busy = false, problem = problem(error))
+        mutable.value = state.value.copy(video = null, gallery = null, detail = null, captions = null, previews = emptyMap(), photoNavigation = null, originalPhoto = null, viewingOriginal = false, photoSlideshow = false, discovery = null, stories = null, busy = false, problem = problem(error))
         if (error is ApiFailure && error.status == 401) {
             mutable.value = state.value.copy(busy = true)
             try {

@@ -30,8 +30,8 @@ class TrustedOrigin private constructor(internal val url: HttpUrl) {
 /** Application construction always uses platform trust and hostname validation.
  * The internal overload is visible only to this module's JVM test friend source set.
  */
-class HttpsPhotoHouseApi internal constructor(private val origin: TrustedOrigin, client: OkHttpClient, private val detailPreviewSize: Int = 256, override val discoveryEnabled: Boolean = false, override val photoDeliveryEnabled: Boolean = false) : PhotoHouseApi {
-    constructor(origin: TrustedOrigin, detailPreviewSize: Int = 256, discoveryEnabled: Boolean = false, photoDeliveryEnabled: Boolean = false) : this(origin, OkHttpClient(), detailPreviewSize, discoveryEnabled, photoDeliveryEnabled)
+class HttpsPhotoHouseApi internal constructor(private val origin: TrustedOrigin, client: OkHttpClient, private val detailPreviewSize: Int = 256, override val discoveryEnabled: Boolean = false, override val photoDeliveryEnabled: Boolean = false, override val protectedNativeV2Enabled: Boolean = false) : PhotoHouseApi {
+    constructor(origin: TrustedOrigin, detailPreviewSize: Int = 256, discoveryEnabled: Boolean = false, photoDeliveryEnabled: Boolean = false, protectedNativeV2Enabled: Boolean = false) : this(origin, OkHttpClient(), detailPreviewSize, discoveryEnabled, photoDeliveryEnabled, protectedNativeV2Enabled)
     init { require(detailPreviewSize in 64..1024) }
     private val client = client.newBuilder()
         .followRedirects(false).followSslRedirects(false).retryOnConnectionFailure(false)
@@ -48,6 +48,11 @@ class HttpsPhotoHouseApi internal constructor(private val origin: TrustedOrigin,
             library?.let { require(it.isNotBlank() && it.length <= 256); addQueryParameter("library", it) }
             page?.let { require(it in 1..100000); addQueryParameter("page", it.toString()); addQueryParameter("page_size", "50") }
         }.build()
+    }
+    private fun storiesUrl(library: String, assetId: String, page: Int): HttpUrl {
+        require(protectedNativeV2Enabled && PhoneDiscoveryWire.validLibrary(library) && page in 1..100000)
+        return origin.url.newBuilder().addPathSegments("assets/${assetId(assetId)}/stories")
+            .addQueryParameter("library", library).addQueryParameter("page", page.toString()).build()
     }
     private fun assetId(id: String): String {
         require(id.matches(Regex("[1-9][0-9]{0,18}")) && id.toLongOrNull() != null)
@@ -167,11 +172,11 @@ class HttpsPhotoHouseApi internal constructor(private val origin: TrustedOrigin,
         return PhoneDiscoveryWire.search(result.bytes, library, binding, page, fingerprint = fingerprint)
     }
     override suspend fun login(phone: String, password: String): SessionToken {
-        Admission.password(password)
+        Admission.password(password, protectedNativeV2Enabled, registration = false)
         return json(url("/auth/login"), SessionToken.serializer(), body = Wire.json.encodeToString(LoginRequest.serializer(), LoginRequest(Admission.phone(phone), password)))
     }
     override suspend fun register(phone: String, password: String, code: String): SessionToken {
-        Admission.password(password); require(code.isNotBlank())
+        Admission.password(password, protectedNativeV2Enabled, registration = true); require(code.isNotBlank())
         return json(url("/auth/register"), SessionToken.serializer(), body = Wire.json.encodeToString(RegisterRequest.serializer(), RegisterRequest(Admission.phone(phone), password, code)))
     }
     override suspend fun session(token: Bearer) = json(url("/auth/session"), Session.serializer(), token)
@@ -224,8 +229,14 @@ class HttpsPhotoHouseApi internal constructor(private val origin: TrustedOrigin,
             limit = length, accept = "video/mp4, video/webm", rangeStart = start)
         return VideoChunk(start, packet.total, packet.bytes)
     }
+    override suspend fun stories(token: Bearer, library: String, assetId: String, page: Int): ProtectedStoryPage {
+        val result = packet(storiesUrl(library, assetId, page), token, limit = STORIES_LIMIT)
+        if (result.code != 200 || result.contentType?.substringBefore(';')?.trim()?.lowercase() != "application/json")
+            throw ApiFailure(FailureKind.INVALID_RESPONSE)
+        return ProtectedStoriesWire.parse(result.bytes, library, assetId, page)
+    }
     companion object {
         const val VIDEO_CHUNK_LIMIT = 256 * 1024
         const val VIDEO_FILE_LIMIT = 32L * 1024 * 1024 * 1024
-        const val JSON_LIMIT = 524288; const val IMAGE_LIMIT = 1048576; const val DISPLAY_LIMIT = 12 * 1024 * 1024; const val ORIGINAL_LIMIT = 64 * 1024 * 1024 }
+        const val JSON_LIMIT = 524288; const val STORIES_LIMIT = 3 * 1024 * 1024; const val IMAGE_LIMIT = 1048576; const val DISPLAY_LIMIT = 12 * 1024 * 1024; const val ORIGINAL_LIMIT = 64 * 1024 * 1024 }
 }

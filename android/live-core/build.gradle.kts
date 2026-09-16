@@ -11,6 +11,7 @@ dependencies {
 }
 sourceSets.test { resources.srcDir("../../contracts/v1") }
 tasks.processTestResources { from("../phone-discovery-contract") { include("examples.json") } }
+tasks.processTestResources { from("../protected-native-contract") { into("protected-native-contract") } }
 
 // Explicit opt-in: a real pinned backend and existing Python runtime are required.
 // The ordinary test task continues to run without a backend checkout.
