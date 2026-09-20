@@ -62,4 +62,18 @@ class UploadTransportTest {
         } finally { server.shutdown() }
         }
     }
+
+    @Test fun duplicateReceiptKeysAreRejected() = runBlocking {
+        val cert = HeldCertificate.Builder().addSubjectAlternativeName("localhost").build()
+        val server = MockWebServer().apply { useHttps(HandshakeCertificates.Builder().heldCertificate(cert).build().sslSocketFactory(), false) }
+        server.enqueue(MockResponse().setResponseCode(201).setHeader("Content-Type", "application/json")
+            .setBody("{\"asset_id\":\"1\",\"asset_id\":\"2\"}"))
+        server.start(java.net.InetAddress.getByName("127.0.0.1"), 0)
+        try {
+            val trust = HandshakeCertificates.Builder().addTrustedCertificate(cert.certificate).build()
+            val client = OkHttpClient.Builder().protocols(listOf(okhttp3.Protocol.HTTP_1_1)).sslSocketFactory(trust.sslSocketFactory(), trust.trustManager).build()
+            val api = HttpsPhotoHouseApi(TrustedOrigin.parse("https://localhost:${server.port}"), client, protectedNativeV2Enabled = true, uploadEnabled = true)
+            assertThrows(ApiFailure::class.java) { runBlocking { api.uploadPhoto(token, UploadSource("x.jpg", 1) { ByteArrayInputStream(byteArrayOf(1)) }, batch) } }
+        } finally { server.shutdown() }
+    }
 }

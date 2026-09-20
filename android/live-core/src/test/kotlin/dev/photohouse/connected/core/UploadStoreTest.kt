@@ -53,11 +53,13 @@ class UploadStoreTest {
 
     @Test fun accessDeniedDoesNotOfferRetry() = runTest {
         val api = Api().apply { failure = ApiFailure(FailureKind.HTTP, 403) }
-        val store = UploadStore(api, token, this, { true }, { UploadNetwork.UNMETERED })
+        var denied = 0
+        val store = UploadStore(api, token, this, { true }, { UploadNetwork.UNMETERED }, onDenied = { denied++ })
         assertTrue(store.start(UploadSource("photo.jpg", 1) { ByteArrayInputStream(byteArrayOf(1)) }, batch, UploadNetwork.UNMETERED))
         advanceUntilIdle()
         val failed = store.state.value as UploadState.Failed
         assertFalse(failed.retryAvailable)
         assertFalse(store.retry())
+        assertEquals(1, denied)
     }
 }

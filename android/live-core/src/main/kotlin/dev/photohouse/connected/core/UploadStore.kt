@@ -6,6 +6,7 @@ import kotlinx.coroutines.Job
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.isActive
 import java.util.UUID
 import java.util.concurrent.atomic.AtomicLong
 
@@ -28,6 +29,7 @@ class UploadStore(
     private val valid: () -> Boolean,
     private val network: () -> UploadNetwork = { UploadNetwork.UNKNOWN },
     private val now: () -> Long = System::currentTimeMillis,
+    private val onDenied: () -> Unit = {},
 ) {
     private val mutable = MutableStateFlow<UploadState>(UploadState.Idle)
     val state = mutable.asStateFlow()
@@ -92,30 +94,41 @@ class UploadStore(
             try {
                 if (!valid()) throw ApiFailure(FailureKind.HTTP, 401)
                 val receipt = api.uploadPhoto(token, request.source, request.batch) { sent ->
-                    scope.launch { if (attempt == epoch.get() && valid()) mutable.value = UploadState.Uploading(sent, request.source.bytes) }
+                    scope.launch { if (isActive && attempt == epoch.get() && valid()) mutable.value = UploadState.Uploading(sent, request.source.bytes) }
                 }
                 if (attempt == epoch.get() && valid()) { epoch.incrementAndGet(); mutable.value = UploadState.Succeeded(receipt) }
             } catch (cancelled: CancellationException) {
                 throw cancelled
             } catch (error: Exception) {
-                    if (attempt == epoch.get() && valid()) { epoch.incrementAndGet(); mutable.value = UploadState.Failed(problem(error), retryAvailable = retryable(error)) }
+                    if (attempt == epoch.get() && valid()) {
+                        epoch.incrementAndGet(); mutable.value = UploadState.Failed(problem(error), retryAvailable = retryable(error))
+                        if (error is ApiFailure && error.status in setOf(401, 403)) onDenied()
+                    }
                 } finally {
                 if (attempt == epoch.get()) job = null
             }
         }
     }
 
-    private fun retryable(error: Exception) = error is ApiFailure &&
-        error.kind in setOf(FailureKind.OFFLINE, FailureKind.HTTP) && error.status !in setOf(401, 403)
+    private fun retryable(error: Exception) = error is ApiFailure && when (error.kind) {
+        FailureKind.OFFLINE -> true
+        FailureKind.HTTP -> error.status in setOf(408, 429, 500, 502, 503, 504)
+        else -> false
+    }
 
     private fun problem(error: Exception): LiveProblem = when (error) {
         is ApiFailure -> when (error.kind) {
-            FailureKind.HTTP -> LiveProblem(if (error.status == 401 || error.status == 403) Message.ACCESS_DENIED else Message.UNAVAILABLE, error.retryAfterMillis)
+            FailureKind.HTTP -> LiveProblem(if (error.status == 401 || error.status == 403) Message.ACCESS_DENIED else Message.UNAVAILABLE, retryAt(error.retryAfterMillis))
             FailureKind.OFFLINE -> LiveProblem(Message.UNAVAILABLE)
             FailureKind.TLS -> LiveProblem(Message.TLS_ERROR)
             FailureKind.TOO_LARGE -> LiveProblem(Message.TOO_LARGE)
             else -> LiveProblem(Message.INVALID_RESPONSE)
         }
         else -> LiveProblem(Message.UNAVAILABLE)
+    }
+
+    private fun retryAt(delay: Long): Long {
+        val current = now()
+        return current + delay.coerceIn(0, Long.MAX_VALUE - current)
     }
 }
