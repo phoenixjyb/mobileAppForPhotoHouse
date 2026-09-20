@@ -172,7 +172,7 @@ private class Words(val zh: Boolean) {
                                     if (state.session!!.memberships.isEmpty()) item { Text(t("You have no library memberships.", "尚未加入任何资料库。")) }
                                     items(state.session!!.memberships, key = { it.library_id }) { membership ->
                                         Card(Modifier.fillMaxWidth()) { Column(Modifier.padding(20.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
-                                            Text(t("Photo library", "照片资料库"), style = MaterialTheme.typography.titleLarge)
+                                            Text(t("Photo and video library", "照片与视频资料库"), style = MaterialTheme.typography.titleLarge)
                                             Text(membership.library_id, style = MaterialTheme.typography.bodyMedium,
                                                 color = MaterialTheme.colorScheme.onSurfaceVariant)
                                             Text(words.membership(membership), color = MaterialTheme.colorScheme.primary)
