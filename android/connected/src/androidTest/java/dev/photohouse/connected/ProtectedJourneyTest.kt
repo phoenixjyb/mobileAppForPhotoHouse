@@ -19,6 +19,7 @@ import java.io.ByteArrayOutputStream
 /** Synthetic protected-native journey. No configured origin, credentials or live data. */
 class ProtectedJourneyTest {
     @get:Rule val rule = createComposeRule()
+    private var rootView: android.view.View? = null
     private val scope = CoroutineScope(SupervisorJob() + Dispatchers.Main.immediate)
 
     @After fun stop() { scope.cancel() }
@@ -29,6 +30,8 @@ class ProtectedJourneyTest {
         var previewAvailable = false
         var loginPhone: String? = null
         var loginPassword: String? = null
+        var registeredName: String? = null
+        var registrationCode: String? = null
         var displayCalls = 0
         var originalCalls = 0
         var failNextStories = false
@@ -43,9 +46,13 @@ class ProtectedJourneyTest {
             return SessionToken(86400, "T".repeat(43), "Bearer")
         }
         override suspend fun register(phone: String, password: String, code: String) = login(phone, password)
+        override suspend fun registerNamed(phone: String, password: String, code: String, name: String): SessionToken {
+            registeredName = name; registrationCode = code
+            return login(phone, password)
+        }
         override suspend fun session(token: Bearer) = Session(
             "synthetic-account", "+8612345678",
-            listOf(Membership("synthetic-library", "approved", "viewer", 1, null, 0, true)))
+            listOf(Membership("synthetic-library", "approved", "viewer", 1, null, 0, true)), displayName = registeredName)
         override suspend fun logout(token: Bearer) = Unit
         override suspend fun acceptInvitation(token: Bearer, code: String) = Unit
         override suspend fun gallery(token: Bearer, library: String, page: Int) =
@@ -85,7 +92,7 @@ class ProtectedJourneyTest {
 
     private fun start(api: SyntheticApi): ConnectedStore {
         val store = ConnectedStore(api, scope)
-        rule.setContent { ConnectedApp(store) }
+        rule.setContent { rootView = androidx.compose.ui.platform.LocalView.current; ConnectedApp(store) }
         return store
     }
     private fun scroll(tag: String) { rule.onNodeWithTag("connected-screen").performScrollToNode(hasTestTag(tag)) }
@@ -99,6 +106,56 @@ class ProtectedJourneyTest {
         val matcher = hasText(label) and hasSetTextAction()
         rule.onNodeWithTag("connected-screen").performScrollToNode(matcher)
         rule.onNode(matcher).performTextInput(text)
+    }
+
+    @Test fun namedInvitedRegistrationValidationAndPreviewJourneyInBothLanguages() {
+        val api = SyntheticApi().apply { photoDeliveryEnabled = false; previewAvailable = true }
+        val store = start(api)
+        for (zh in listOf(false, true)) {
+            if (zh) {
+                clickTag("app-settings")
+                rule.onNodeWithText("简体中文").performClick()
+            }
+            clickText(if (zh) "收到邀请？注册" else "Have an invitation? Register")
+            val phoneField = hasText(if (zh) "含国家码的手机号" else "Phone with country code") and hasSetTextAction()
+            rule.onNodeWithTag("connected-screen").performScrollToNode(phoneField)
+            rule.onNode(phoneField).performTextReplacement("+8612345678")
+            input(if (zh) "密码（8–128 个字符）" else "Password (8–128 characters)", "12345678")
+            input(if (zh) "邀请码" else "Invitation code", "synthetic-invitation")
+            val submit = if (zh) "使用邀请注册" else "Register with invitation"
+            rule.onNodeWithText(submit).assertIsNotEnabled()
+            input(if (zh) "你的名字" else "Your name", "😀".repeat(65))
+            rule.onNodeWithText(submit).assertIsNotEnabled()
+            rule.onNodeWithTag("registration-name").performScrollTo().performTextReplacement("  小溪   Jane  ")
+            rule.onNodeWithText(submit).assertIsEnabled()
+            val screenshot = rule.onRoot().captureToImage().asAndroidBitmap()
+            File(InstrumentationRegistry.getInstrumentation().targetContext.filesDir, "registration-v12-${if (zh) "zh" else "en"}.png")
+                .outputStream().use { screenshot.compress(Bitmap.CompressFormat.PNG, 100, it) }
+            screenshot.recycle()
+            clickText(submit)
+            rule.waitUntil(10000) {
+                rootView?.let { androidx.core.view.ViewCompat.getRootWindowInsets(it)?.isVisible(androidx.core.view.WindowInsetsCompat.Type.ime()) } == false
+            }
+            assertEquals("小溪 Jane", api.registeredName)
+            assertEquals("synthetic-invitation", api.registrationCode)
+            scroll("account-name")
+            rule.onNodeWithTag("account-name").assertTextContains(if (zh) "欢迎，小溪 Jane" else "Welcome, 小溪 Jane")
+            clickText(if (zh) "打开资料库" else "Open library")
+            clickTag("media-1")
+            assertTrue("Preview entry: ${store.state.value.problem}", store.state.value.viewingOriginal)
+            rule.waitUntil(10000) { rule.onAllNodesWithTag("original-image").fetchSemanticsNodes().size == 1 }
+            rule.onNodeWithTag("photo-fit-width").performScrollTo().performClick()
+            rule.onNodeWithTag("photo-actual-size").performScrollTo().performClick()
+            assertEquals(0, api.originalCalls); assertEquals(0, api.displayCalls)
+            rule.runOnIdle { store.background() }
+            rule.onNodeWithTag("original-image").assertDoesNotExist()
+            rule.runOnIdle { store.foreground() }; rule.waitForIdle()
+            rule.runOnIdle { store.logout() }; rule.waitForIdle()
+            rule.onNodeWithTag("account-name").assertDoesNotExist()
+            clickText(if (zh) "收到邀请？注册" else "Have an invitation? Register")
+            rule.onNodeWithTag("registration-name").assert(hasText("", substring = false))
+            clickText(if (zh) "已有账号？登录" else "Already registered? Sign in")
+        }
     }
 
     @Test fun protectedLoginStoriesMediaPagingRetryRefreshAndLogout() {

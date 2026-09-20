@@ -74,11 +74,15 @@ class ProtectedNativeApiTest {
             for ((password, register) in listOf("a" to false, " 123456 " to true)) {
                 f.server.enqueue(MockResponse().setHeader("Content-Type", "application/json").setBody(
                     """{"expires_in":86400,"access_token":"${"T".repeat(43)}","token_type":"Bearer"}"""))
-                if (register) f.api(true).register("+86 12345678", password, "synthetic-invitation")
+                if (register) f.api(true).registerNamed("+86 12345678", password, "synthetic-invitation", "  示例\u00a0 Member  ")
                 else f.api(true).login("+86 12345678", password)
                 val request = f.server.takeRequest()
                 val payload = Json.parseToJsonElement(request.body.readUtf8()).jsonObject
                 assertEquals(password, payload["password"]!!.jsonPrimitive.content)
+                if (register) {
+                    assertEquals("示例 Member", payload["name"]!!.jsonPrimitive.content)
+                    assertEquals(setOf("phone", "password", "code", "name", "transport"), payload.keys)
+                } else assertFalse(payload.containsKey("name"))
                 assertEquals("native", payload["transport"]!!.jsonPrimitive.content)
                 assertEquals("+8612345678", payload["phone"]!!.jsonPrimitive.content)
                 assertEquals(if(register) "/auth/register" else "/auth/login",request.path)

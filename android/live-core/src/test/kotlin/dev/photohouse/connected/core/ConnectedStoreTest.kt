@@ -43,11 +43,17 @@ class ConnectedStoreTest {
         var images: ByteArray? = byteArrayOf(1, 2, 3)
         var assets = listOf(asset)
         var lastRegistration: String? = null
+        var registrationName: String? = null
         override suspend fun login(phone: String, password: String): SessionToken {
             logins++; admissionError?.let { throw it }; loginGate?.let { withContext(NonCancellable) { it.await() } }
             return SessionToken(86400, "T".repeat(43), "Bearer")
         }
         override suspend fun register(phone: String, password: String, code: String): SessionToken { lastRegistration = code; return login(phone, password) }
+        override suspend fun registerNamed(phone: String, password: String, code: String, name: String): SessionToken {
+            registrationName = name
+            currentSession = currentSession.copy(displayName = name)
+            return register(phone, password, code)
+        }
         override suspend fun session(token: Bearer): Session {
             sessionReads++; val response = currentSession
             sessionGate?.let { withContext(NonCancellable) { it.await() } }
@@ -80,6 +86,22 @@ class ConnectedStoreTest {
     }
     private fun TestScope.store(api: FakeApi) = ConnectedStore(api, backgroundScope) { testScheduler.currentTime }
     private fun TestScope.signIn(store: ConnectedStore) { store.authenticate("+12025550123", "synthetic-password-only"); runCurrent(); assertNotNull(store.state.value.session) }
+
+    @Test fun protectedRegistrationRequiresNameBeforeSendingAndKeepsViewerMembership() = runTest {
+        val api = FakeApi().apply { protectedNativeV2Enabled = true }
+        val store = store(api)
+        store.authenticate("+12025550123", "12345678", "synthetic-invite"); runCurrent()
+        assertEquals(0, api.logins); assertNull(store.state.value.session)
+        assertEquals(Message.INVALID_INPUT, store.state.value.problem?.message)
+        store.authenticate("+12025550123", "12345678", "synthetic-invite", "  小溪\u00a0 Jane "); runCurrent()
+        assertEquals("小溪 Jane", api.registrationName)
+        assertEquals("小溪 Jane", store.state.value.session?.displayName)
+        assertEquals(0, store.state.value.session!!.memberships.first().originals)
+        store.background(); assertNull(store.state.value.session)
+        store.foreground(); runCurrent()
+        assertEquals("小溪 Jane", store.state.value.session?.displayName)
+        store.logout(); runCurrent(); assertNull(store.state.value.session)
+    }
 
     @Test fun protectedThumbnailViewerDoesNotNeedOriginalPermissionOrDisplayService() = runTest {
         val api = FakeApi().apply { protectedNativeV2Enabled = true }

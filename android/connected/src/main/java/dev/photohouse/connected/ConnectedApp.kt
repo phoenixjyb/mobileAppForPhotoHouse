@@ -18,6 +18,8 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.asImageBitmap
 import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.platform.LocalFocusManager
+import androidx.compose.ui.platform.LocalSoftwareKeyboardController
 import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.text.font.FontFamily
@@ -156,6 +158,7 @@ private class Words(val zh: Boolean) {
                             when {
                                 state.library == null -> {
                                     item { Text(t("Your libraries", "你的资料库"), style = MaterialTheme.typography.headlineSmall) }
+                                    state.session?.displayName?.let { name -> item { Text(t("Welcome, $name", "欢迎，$name"), modifier = Modifier.testTag("account-name")) } }
                                     if (state.session!!.memberships.isEmpty()) item { Text(t("You have no library memberships.", "尚未加入任何资料库。")) }
                                     items(state.session!!.memberships, key = { it.library_id }) { membership ->
                                         Card(Modifier.fillMaxWidth()) { Column(Modifier.padding(20.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
@@ -275,11 +278,14 @@ private class Words(val zh: Boolean) {
 }
 
 @Composable private fun AdmissionForm(store: ConnectedStore, state: LiveState, words: Words) {
+    val focus = LocalFocusManager.current
+    val keyboard = LocalSoftwareKeyboardController.current
     var register by remember { mutableStateOf(false) }
     val defaultPhone = if (store.protectedNativeV2Enabled) "+86" else ""
     var phone by remember { mutableStateOf(defaultPhone) }
     var password by remember { mutableStateOf("") }
     var code by remember { mutableStateOf("") }
+    var name by remember { mutableStateOf("") }
     var now by remember(state.problem) { mutableLongStateOf(System.currentTimeMillis()) }
     LaunchedEffect(state.problem) { while (now < (state.problem?.retryAtMillis ?: 0)) { delay(500); now = System.currentTimeMillis() } }
     Card(Modifier.fillMaxWidth()) {
@@ -287,12 +293,16 @@ private class Words(val zh: Boolean) {
             Text(words.t(if (register) "Invited registration" else "Sign in", if (register) "受邀注册" else "登录"), style = MaterialTheme.typography.headlineSmall)
             Text(words.t(if (register) "Join your photo library with an invitation from its owner." else "Welcome back to your photo library.",
                 if (register) "使用所有者发出的邀请，加入你的照片资料库。" else "欢迎回到你的照片资料库。"), color = MaterialTheme.colorScheme.onSurfaceVariant)
+            if (register && store.protectedNativeV2Enabled) OutlinedTextField(name,
+                { if (it.length <= 512) name = it }, label = { Text(words.t("Your name", "你的名字")) },
+                supportingText = { Text(words.t("How your family will see you · 1–64 characters", "家人看到的名字 · 1–64 个字符")) },
+                singleLine = true, enabled = !state.busy, modifier = Modifier.fillMaxWidth().testTag("registration-name"))
             OutlinedTextField(phone, { if (it.length <= 32) phone = it }, label = { Text(words.t("Phone with country code", "含国家码的手机号")) }, keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Phone), singleLine = true, enabled = !state.busy, modifier = Modifier.fillMaxWidth())
             OutlinedTextField(password, { if (it.codePointCount(0, it.length) <= 128) password = it }, label = { Text(if (store.protectedNativeV2Enabled) { if (register) words.t("Password (8–128 characters)", "密码（8–128 个字符）") else words.t("Password", "密码") } else words.t("Password (15–128 characters)", "密码（15–128 个字符）")) }, keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Password, autoCorrect = false), visualTransformation = PasswordVisualTransformation(), singleLine = true, enabled = !state.busy, modifier = Modifier.fillMaxWidth())
             if (register) OutlinedTextField(code, { if (it.length <= 512) code = it }, label = { Text(words.t("Invitation code", "邀请码")) }, keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Password, autoCorrect = false), visualTransformation = PasswordVisualTransformation(), singleLine = true, enabled = !state.busy, modifier = Modifier.fillMaxWidth())
-            val valid = runCatching { Admission.phone(phone); Admission.password(password, protectedNativeV2 = store.protectedNativeV2Enabled, registration = register); !register || code.isNotBlank() }.getOrDefault(false)
-            Button(onClick = { store.authenticate(phone, password, if (register) code else null); phone = defaultPhone; password = ""; code = "" }, enabled = valid && !state.busy && now >= (state.problem?.retryAtMillis ?: 0), modifier = Modifier.fillMaxWidth()) { Text(words.t(if (register) "Register with invitation" else "Sign in", if (register) "使用邀请注册" else "登录")) }
-            TextButton(onClick = { register = !register; phone = defaultPhone; password = ""; code = "" }, enabled = !state.busy) { Text(words.t(if (register) "Already registered? Sign in" else "Have an invitation? Register", if (register) "已有账号？登录" else "收到邀请？注册")) }
+            val valid = runCatching { Admission.phone(phone); Admission.password(password, protectedNativeV2 = store.protectedNativeV2Enabled, registration = register); if (register && store.protectedNativeV2Enabled) { Admission.displayName(name); Admission.invitationCode(code) }; !register || code.isNotBlank() }.getOrDefault(false)
+            Button(onClick = { focus.clearFocus(); keyboard?.hide(); store.authenticate(phone, password, if (register) code else null, if (register) name else null); phone = defaultPhone; password = ""; code = ""; name = "" }, enabled = valid && !state.busy && now >= (state.problem?.retryAtMillis ?: 0), modifier = Modifier.fillMaxWidth()) { Text(words.t(if (register) "Register with invitation" else "Sign in", if (register) "使用邀请注册" else "登录")) }
+            TextButton(onClick = { focus.clearFocus(); keyboard?.hide(); register = !register; phone = defaultPhone; password = ""; code = ""; name = "" }, enabled = !state.busy) { Text(words.t(if (register) "Already registered? Sign in" else "Have an invitation? Register", if (register) "已有账号？登录" else "收到邀请？注册")) }
             Text(words.t("Phone is an unverified login label. Include your country code.", "手机号是未经验证的登录标识，请包含国家码。"),
                 style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
         }

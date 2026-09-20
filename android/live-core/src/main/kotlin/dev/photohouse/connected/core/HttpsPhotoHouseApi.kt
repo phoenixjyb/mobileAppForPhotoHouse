@@ -176,10 +176,21 @@ class HttpsPhotoHouseApi internal constructor(private val origin: TrustedOrigin,
         return json(url("/auth/login"), SessionToken.serializer(), body = Wire.json.encodeToString(LoginRequest.serializer(), LoginRequest(Admission.phone(phone), password)))
     }
     override suspend fun register(phone: String, password: String, code: String): SessionToken {
+        require(!protectedNativeV2Enabled) { "Protected registration requires a name" }
         Admission.password(password, protectedNativeV2Enabled, registration = true); require(code.isNotBlank())
         return json(url("/auth/register"), SessionToken.serializer(), body = Wire.json.encodeToString(RegisterRequest.serializer(), RegisterRequest(Admission.phone(phone), password, code)))
     }
-    override suspend fun session(token: Bearer) = json(url("/auth/session"), Session.serializer(), token)
+    override suspend fun registerNamed(phone: String, password: String, code: String, name: String): SessionToken {
+        require(protectedNativeV2Enabled)
+        return json(url("/auth/register"), SessionToken.serializer(), body = ProtectedAccountWire.registration(phone, password, code, name))
+    }
+    override suspend fun session(token: Bearer): Session {
+        if (!protectedNativeV2Enabled) return json(url("/auth/session"), Session.serializer(), token)
+        val response = packet(url("/auth/session"), token)
+        if (response.contentType?.substringBefore(';')?.trim()?.lowercase() != "application/json") throw ApiFailure(FailureKind.INVALID_RESPONSE)
+        return try { ProtectedAccountWire.session(response.bytes) }
+        catch (_: Exception) { throw ApiFailure(FailureKind.INVALID_RESPONSE) }
+    }
     override suspend fun acceptInvitation(token: Bearer, code: String) {
         require(code.isNotBlank())
         if (!json(url("/auth/invitations/accept"), Ok.serializer(), token, Wire.json.encodeToString(AcceptRequest.serializer(), AcceptRequest(code))).ok) throw ApiFailure(FailureKind.INVALID_RESPONSE)

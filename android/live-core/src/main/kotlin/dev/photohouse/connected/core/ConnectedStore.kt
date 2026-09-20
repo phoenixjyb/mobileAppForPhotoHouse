@@ -68,14 +68,18 @@ class ConnectedStore(private val api: PhotoHouseApi, private val scope: Coroutin
         requests += job
         job.invokeOnCompletion { requests.remove(job) }
     }
-    fun authenticate(phone: String, password: String, invitation: String? = null) {
+    fun authenticate(phone: String, password: String, invitation: String? = null, name: String? = null) {
         if (state.value.busy || coolingDown()) return
         invalidate(keepIdentity = false)
         mutable.value = state.value.copy(busy = true)
         launch { generation ->
             Admission.phone(phone); Admission.password(password, protectedNativeV2 = api.protectedNativeV2Enabled, registration = invitation != null)
             val issuedAt = now()
-            val response = if (invitation == null) api.login(phone, password) else api.register(phone, password, invitation)
+            val response = when {
+                invitation == null -> api.login(phone, password)
+                api.protectedNativeV2Enabled -> api.registerNamed(phone, password, invitation, Admission.displayName(name.orEmpty()))
+                else -> api.register(phone, password, invitation)
+            }
             if (!active(generation)) return@launch
             val credential = runCatching { Bearer.from(response) }.getOrElse { throw ApiFailure(FailureKind.INVALID_RESPONSE) }
             val session = api.session(credential)

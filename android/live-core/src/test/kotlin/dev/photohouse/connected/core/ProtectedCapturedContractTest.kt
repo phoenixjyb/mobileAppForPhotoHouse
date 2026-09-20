@@ -38,12 +38,13 @@ class ProtectedCapturedContractTest {
         assertEquals("LLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLL", token.access_token)
         assertEquals("Bearer", token.token_type)
 
-        val session = Wire.json.decodeFromString(Session.serializer(), body("invited_viewer_session"))
+        val session = ProtectedAccountWire.session(body("invited_viewer_session"))
         assertEquals("00000000-0000-0000-0000-000000000004", session.account_id)
         assertTrue(session.memberships.single().available)
+        assertEquals("Synthetic Member", session.displayName)
         assertEquals("family-a", session.memberships.single().library_id)
 
-        val secondLibrary = Wire.json.decodeFromString(Session.serializer(), body("accepted_second_library_session"))
+        val secondLibrary = ProtectedAccountWire.session(body("accepted_second_library_session"))
         assertEquals(setOf("family-a", "family-b"), secondLibrary.memberships.map { it.library_id }.toSet())
     }
 
@@ -83,7 +84,7 @@ class ProtectedCapturedContractTest {
 
     @Test
     fun revokedSessionDecodesButEveryMembershipIsUnavailable() {
-        val session = Wire.json.decodeFromString(Session.serializer(), body("revoked_session_still_authenticated"))
+        val session = ProtectedAccountWire.session(body("revoked_session_still_authenticated"))
         assertEquals(2, session.memberships.size)
         assertTrue(session.memberships.all { it.status == "revoked" && !it.available })
     }

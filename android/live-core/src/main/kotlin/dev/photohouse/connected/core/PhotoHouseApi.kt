@@ -31,6 +31,7 @@ interface PhotoHouseApi {
     suspend fun search(token: Bearer, library: String, binding: String, filters: PhoneFilters, page: Int = 1, fingerprint: String? = null): PhoneSearchPage = throw ApiFailure(FailureKind.INVALID_INPUT)
     suspend fun login(phone: String, password: String): SessionToken
     suspend fun register(phone: String, password: String, code: String): SessionToken
+    suspend fun registerNamed(phone: String, password: String, code: String, name: String): SessionToken = throw ApiFailure(FailureKind.INVALID_INPUT)
     suspend fun session(token: Bearer): Session
     suspend fun acceptInvitation(token: Bearer, code: String)
     suspend fun logout(token: Bearer)
@@ -56,6 +57,21 @@ object Admission {
         val points = value.codePointCount(0, value.length)
         val valid = if (!protectedNativeV2) points in 15..128 else points in (if (registration) 8..128 else 1..128)
         require(valid) { if (protectedNativeV2) "Password length is invalid" else "Password length must be 15 to 128 code points" }
+    }
+
+    /** Match Python str.split whitespace, counting Unicode code points after collapse. */
+    fun displayName(value: String): String {
+        require(value.toUtf8Strict())
+        val collapsed = value.split(Regex("[\\u0009-\\u000D\\u001C-\\u0020\\u0085\\u00A0\\u1680\\u2000-\\u200A\\u2028\\u2029\\u202F\\u205F\\u3000]+"))
+            .filter { it.isNotEmpty() }.joinToString(" ")
+        require(collapsed.codePointCount(0, collapsed.length) in 1..64)
+        require(collapsed.none { it < ' ' || it == '\u007f' })
+        return collapsed
+    }
+
+    fun invitationCode(value: String): String {
+        require(value.isNotBlank() && value.toUtf8Strict())
+        return value
     }
 
     private fun String.toUtf8Strict(): Boolean = runCatching {

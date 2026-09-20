@@ -1,0 +1,61 @@
+{
+  "date": "2026-09-20",
+  "base": "126863e4a87622081a89dad72f9a4ef27aeb9f7e",
+  "jvm": {
+    "core": {
+      "tests": 22,
+      "failures": 0,
+      "errors": 0,
+      "skipped": 0
+    },
+    "live-core": {
+      "tests": 143,
+      "failures": 0,
+      "errors": 0,
+      "skipped": 0
+    },
+    "home-core": {
+      "tests": 117,
+      "failures": 0,
+      "errors": 0,
+      "skipped": 0
+    }
+  },
+  "backend_replay": {
+    "cases": 61,
+    "tests": 7,
+    "passed": true
+  },
+  "build_lint": "PASS",
+  "normal_account_viewer_tests": 2,
+  "video_tests": {
+    "cases": 4,
+    "initial_passed": 3,
+    "targeted_replay_passed": 1,
+    "initial_issue": "One progress timing check timed out; unchanged replay passed."
+  },
+  "previous_normal_checks": {
+    "long_story": true,
+    "login_stories_logout": true
+  },
+  "large_font_tests": {
+    "font_scale": 2.0,
+    "passed": 2
+  },
+  "physical_install": false,
+  "real_credentials_used": false,
+  "backend_changed": false,
+  "frozen_contract_changed": false,
+  "ui_run_notes": [
+    "Initial restored emulator failed startup with ANR before assertions; cold boot used thereafter.",
+    "New registration test initially inserted digits before the +86 default; corrected to replace the full synthetic number.",
+    "One new preview assertion exceeded 5 seconds; aligned with existing viewer 10-second budget and added immediate viewer-entry assertion; replay passed.",
+    "Keyboard dismissal was added after visual inspection, with explicit IME-hidden assertion in the final registration journey."
+  ],
+  "checks": [
+    "frozen v1 checksums PASS",
+    "protected snapshot and complete backend hash closure PASS",
+    "connected boundaries PASS",
+    "git diff --check PASS"
+  ]
+}

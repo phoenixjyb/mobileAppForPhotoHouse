@@ -1,34 +1,32 @@
 # Protected native v2 adoption snapshot
 
-This directory is an Android-owned, byte-for-byte snapshot of the backend
-candidate pack adopted for compatibility review.
+Android-owned, byte-for-byte copy of the backend candidate.12 pack. The frozen
+shared `contracts/v1` stays unchanged.
 
-- Contract manifest SHA-256: `3c222c9525f89ff753353b17e7741e200d16061cd042df5afbd03618ed42ce3e`
-- Backend source commit in the manifest: `4022a57f56e6b2f976931a20569e15c879871d93`
-- Backend pack commit supplying this snapshot: `97c5d620b2eaf8bc5e50c48d3d8c5985bec8396d`
-- Contract version: `2.0.0-candidate.1`
-- Case pack: synthetic only, 60 cases.
+- Manifest SHA-256: `f942db21ff6ce11f348ecaf4698dbeaab953e74107e72e3445c0ce175c2495d2`
+- Backend source: `45f2123ad3447213aad68010154a6d14ff3613f9`
+- Pack checkout: `0789cabea29c1faa4a67bf7ac9f9a9d12abcbf34`
+- Contract: `2.0.0-candidate.12`, 61 synthetic captures
+- Schema: `f2a6d8b4c915`
 
-The client profile remains explicitly disabled by default. In Android,
-`photohouseProtectedNativeV2Enabled` maps the backend
-`protected_native_v2` opt-in and bundles the current native auth admission
-(login 1–128 code points, registration 8–128) with read-only Family Stories.
-`photohousePhonePhotoDeliveryEnabled` separately maps
-`protected_photo_display` and remains false for the configured live Phone v10
-because production has no `PhotoCache`; thumbnails are the available photo
-surface. There is no separate Android `protected_story_read` flag.
+Phone v12 adopts the current required registration `name` and nullable session
+`display_name`. A separate protected decoder preserves the strict frozen legacy
+wire format. Name whitespace is collapsed and limited to 64 Unicode code points;
+passwords remain unchanged. Registration still requires an owner-issued invitation,
+with viewer membership only and no automatic original-media permission.
 
-This snapshot's Android adoption is the read-only subset plus the invited
-registration/session/logout baseline: native auth/session, library/detail/
-caption reads, thumbnail-only photo evidence, and story listing. It contains
-no owner management, story writes, history, or search feature claim. The
-captured gallery DTO uses `page_size: 1`; that is compatibility evidence only,
-because the adapter always requests `page_size=50` and the capture is not
-altered. The broader backend pack contains 60 cases, including mutation,
-history, deletion, negative authorization, rate-limit, and other cases that
-remain backend evidence rather than Android feature claims.
+Existing login, library/gallery/detail/caption reads, preview viewing and read-only
+Family Stories remain in scope. This adoption does not implement the newer people,
+tags, duplicates, caption writes, album or upload client features. Those routes
+are not covered by the 61 captures and require their own client tests.
 
-Run `python3 android/verify-protected-native-contract.py` from the repository
-root to verify the local snapshot. Pass `--backend-root` with the pinned backend
-checkout to additionally verify its complete 98-source/7-payload hash closure
-and commit identity.
+The protected native profile and photo delivery remain off by default. The private
+configured APK enables the protected profile but leaves display delivery and
+protected discovery off, retaining existing Home-mode configuration. Preview zoom
+uses delivered preview pixels; original quality requires an explicit grant and action.
+Protected prepared-video streaming without an original grant is a backend gap.
+
+Run `python3 android/verify-protected-native-contract.py`. With `--backend-root`,
+the verifier also checks the pinned checkout identity and all 109 source and seven
+payload hashes. The Android HTTPS tests replay captured registration and sessions;
+backend ASGI replay is separate from real authenticated/device acceptance.
