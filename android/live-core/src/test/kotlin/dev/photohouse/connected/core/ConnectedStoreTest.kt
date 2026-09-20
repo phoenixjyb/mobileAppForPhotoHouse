@@ -199,8 +199,9 @@ class ConnectedStoreTest {
             assertEquals(2, api.preparedReads)
             assertTrue(reader.isClosed)
             // Native player error can arrive before the queued transport callback.
-            store.videoPlaybackFailed(reader, nativeFailure=true)
+            store.videoPlaybackFailed(reader, nativeFailure=true, reason=VideoPlaybackFailure.READ)
             runCurrent()
+            assertNull(store.state.value.problem?.playbackFailure)
             assertEquals(when(code) { 401 -> Message.ACCESS_DENIED; 409 -> Message.VIDEO_CHANGED; else -> Message.VIDEO_BUSY }, store.state.value.problem?.message)
             assertNull(store.state.value.video); assertEquals(0,api.originalVideoReads)
             if(code==401) assertNull(store.state.value.detail) else assertNotNull(store.state.value.detail)
@@ -440,6 +441,24 @@ class ConnectedStoreTest {
         assertEquals(2, api.sessionReads); assertNull(store.state.value.video); assertNull(store.state.value.detail)
         assertTrue(store.hasSession); assertEquals(Message.ACCESS_DENIED, store.state.value.problem?.message)
     }
+    @Test fun playbackTimeoutRetainsDetailAndManualRetryRechecksPreparedHead() = runTest {
+        val api = FakeApi().apply { protectedNativeV2Enabled=true; preparedVideoEnabled=true; assets=listOf(asset.copy(kind="video")) }
+        val store=store(api); signIn(store); store.selectLibrary("family"); runCurrent()
+        store.openMedia(api.assets.first()); runCurrent()
+        val old=store.state.value.video!!
+        old.close(); store.videoPlaybackFailed(old, nativeFailure=true, reason=VideoPlaybackFailure.BUFFER_TIMEOUT)
+        assertTrue(old.isClosed); assertNull(store.state.value.video); assertNotNull(store.state.value.detail)
+        assertEquals(VideoPlaybackFailure.BUFFER_TIMEOUT, store.state.value.problem?.playbackFailure)
+        assertTrue(store.canRetry()); assertEquals(1,api.preparedHeads)
+        advanceTimeBy(60000); runCurrent(); assertEquals(1,api.preparedHeads) // Never automatically reopen.
+        store.retry(); runCurrent()
+        assertEquals(2,api.preparedHeads); assertNotNull(store.state.value.video)
+        assertNull(store.state.value.problem); assertEquals(0,api.originalVideoReads)
+        val replacement=store.state.value.video!!
+        store.videoPlaybackFailed(old,nativeFailure=true,reason=VideoPlaybackFailure.SEEK_TIMEOUT)
+        assertSame(replacement,store.state.value.video)
+    }
+
     @Test fun nativeFailureAfterSourceCloseRetainsDetailsAndRejectsLateOldReader() = runTest {
         val api = FakeApi().apply { originalsAllowed = true; assets = listOf(asset.copy(kind = "video")) }
         val store = store(api); signIn(store); store.selectLibrary("family"); runCurrent()

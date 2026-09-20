@@ -37,6 +37,8 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.viewinterop.AndroidView
 import dev.photohouse.connected.core.VideoReader
 import dev.photohouse.connected.core.MediaViewport
+import dev.photohouse.connected.core.VideoPlaybackFailure
+import dev.photohouse.home.PlaybackWaitDeadline
 import kotlinx.coroutines.delay
 import java.util.concurrent.atomic.AtomicBoolean
 
@@ -66,11 +68,34 @@ internal fun videoTime(milliseconds: Int): String {
     else "${minutes / 60}:${(minutes % 60).toString().padStart(2, '0')}:${(seconds % 60).toString().padStart(2, '0')}"
 }
 
+@androidx.annotation.OptIn(UnstableApi::class)
+internal fun classifyPlaybackFailure(code: Int): VideoPlaybackFailure = when (code) {
+    PlaybackException.ERROR_CODE_DECODING_FORMAT_UNSUPPORTED,
+    PlaybackException.ERROR_CODE_DECODING_FORMAT_EXCEEDS_CAPABILITIES,
+    PlaybackException.ERROR_CODE_PARSING_CONTAINER_UNSUPPORTED,
+    PlaybackException.ERROR_CODE_PARSING_MANIFEST_UNSUPPORTED -> VideoPlaybackFailure.UNSUPPORTED
+    PlaybackException.ERROR_CODE_DECODER_INIT_FAILED,
+    PlaybackException.ERROR_CODE_DECODER_QUERY_FAILED,
+    PlaybackException.ERROR_CODE_DECODING_FAILED,
+    PlaybackException.ERROR_CODE_AUDIO_TRACK_INIT_FAILED,
+    PlaybackException.ERROR_CODE_AUDIO_TRACK_WRITE_FAILED -> VideoPlaybackFailure.DECODER
+    PlaybackException.ERROR_CODE_PARSING_CONTAINER_MALFORMED,
+    PlaybackException.ERROR_CODE_PARSING_MANIFEST_MALFORMED -> VideoPlaybackFailure.INVALID_MEDIA
+    PlaybackException.ERROR_CODE_IO_UNSPECIFIED,
+    PlaybackException.ERROR_CODE_IO_NETWORK_CONNECTION_FAILED,
+    PlaybackException.ERROR_CODE_IO_NETWORK_CONNECTION_TIMEOUT,
+    PlaybackException.ERROR_CODE_IO_BAD_HTTP_STATUS,
+    PlaybackException.ERROR_CODE_IO_FILE_NOT_FOUND,
+    PlaybackException.ERROR_CODE_IO_NO_PERMISSION -> VideoPlaybackFailure.READ
+    else -> VideoPlaybackFailure.PLAYER
+}
+
 /** Progressive extraction and bounded buffering; all player operations share one looper. */
 @androidx.annotation.OptIn(UnstableApi::class)
 internal class NativeVideoPlayer(context: Context, private val reader: PhonePlaybackSource,
-    private val changed: (Playback) -> Unit, private val failed: () -> Unit) {
-    constructor(context: Context, reader: VideoReader, changed: (Playback) -> Unit, failed: () -> Unit) :
+    private val changed: (Playback) -> Unit, private val failed: (VideoPlaybackFailure) -> Unit,
+    private val waitTimeoutMs: Long = 30_000) {
+    constructor(context: Context, reader: VideoReader, changed: (Playback) -> Unit, failed: (VideoPlaybackFailure) -> Unit) :
         this(context, AccountPlaybackSource(reader), changed, failed)
     val isClosed get() = closed.get()
     private val failureSent = AtomicBoolean(false)
@@ -86,7 +111,26 @@ internal class NativeVideoPlayer(context: Context, private val reader: PhonePlay
     private var lastDiagnosticAt = 0L
     private var surface: Surface? = null
     private var state = Playback()
-    private var seekGeneration = 0L
+    // Confined to main: the player/loader thread can be waiting on a network read.
+    private val waitDeadline = PlaybackWaitDeadline(waitTimeoutMs)
+    private var waiting: PlaybackWaitDeadline.Phase? = null
+    private var monitoring = false
+    private val waitWatchdog = object : Runnable {
+        override fun run() {
+            if (closed.get() || !monitoring) return
+            checkWait()
+            if (!closed.get()) main.postDelayed(this, 250)
+        }
+    }
+    private fun checkWait() {
+        waitDeadline.update(waiting, SystemClock.elapsedRealtime())?.let {
+            error(when (it) {
+                PlaybackWaitDeadline.Phase.PREPARING -> VideoPlaybackFailure.PREPARE_TIMEOUT
+                PlaybackWaitDeadline.Phase.SEEKING -> VideoPlaybackFailure.SEEK_TIMEOUT
+                PlaybackWaitDeadline.Phase.BUFFERING -> VideoPlaybackFailure.BUFFER_TIMEOUT
+            })
+        }
+    }
     private val noisy = object : BroadcastReceiver() { override fun onReceive(context: Context?, intent: Intent?) { pause() } }
     private val app = context.applicationContext
     init {
@@ -96,15 +140,37 @@ internal class NativeVideoPlayer(context: Context, private val reader: PhonePlay
         } catch (_: Exception) { error() }
         reader.onClose(::close)
     }
-    private fun publish() { val value = state; main.post { if (!closed.get()) changed(value) } }
-    private fun command(block: () -> Unit) { handler.post { if (!closed.get()) try { block() } catch (_: Exception) { error() } } }
-    private fun error() {
-        if (!closed.get() && failureSent.compareAndSet(false, true)) {
-            close()
-            main.post { failed() }
+    private fun publish() {
+        val value = state
+        main.post {
+            if (!closed.get()) {
+                waiting = when {
+                    !value.ready -> PlaybackWaitDeadline.Phase.PREPARING
+                    value.seeking -> PlaybackWaitDeadline.Phase.SEEKING
+                    value.buffering && value.playing -> PlaybackWaitDeadline.Phase.BUFFERING
+                    else -> null
+                }
+                if (monitoring) checkWait()
+                if (!closed.get()) changed(value)
+            }
         }
     }
-    fun attach(texture: SurfaceTexture) = command {
+    private fun command(block: () -> Unit) { handler.post { if (!closed.get()) try { block() } catch (_: Exception) { error() } } }
+    private fun error(reason: VideoPlaybackFailure = VideoPlaybackFailure.PLAYER) {
+        if (!closed.get() && failureSent.compareAndSet(false, true)) {
+            close()
+            main.post { failed(reason) }
+        }
+    }
+    fun attach(texture: SurfaceTexture) {
+        main.post {
+            if (!closed.get() && !monitoring) {
+                monitoring = true
+                waiting = PlaybackWaitDeadline.Phase.PREPARING
+                waitWatchdog.run()
+            }
+        }
+        command {
         if (player != null) return@command
         surface = Surface(texture)
         val loadControl = DefaultLoadControl.Builder()
@@ -128,13 +194,11 @@ internal class NativeVideoPlayer(context: Context, private val reader: PhonePlay
             override fun onPlaybackStateChanged(playbackState: Int) {
                 when (playbackState) {
                     Player.STATE_READY -> {
-                        seekGeneration++
                         state = state.copy(ready = true, buffering = false, seeking = false,
                             duration = p.duration.coerceIn(0, Int.MAX_VALUE.toLong()).toInt())
                     }
                     Player.STATE_BUFFERING -> state = state.copy(buffering = true)
                     Player.STATE_ENDED -> {
-                        seekGeneration++
                         p.pause()
                         state = state.copy(playing = false, buffering = false, seeking = false, position = state.duration)
                         audio.abandonAudioFocusRequest(focus)
@@ -144,12 +208,12 @@ internal class NativeVideoPlayer(context: Context, private val reader: PhonePlay
             }
             override fun onPositionDiscontinuity(oldPosition: Player.PositionInfo, newPosition: Player.PositionInfo, reason: Int) {
                 if (p.playbackState == Player.STATE_READY) {
-                    seekGeneration++; state = state.copy(seeking = false, position = p.currentPosition.toInt()); publish()
+                    state = state.copy(seeking = false, position = p.currentPosition.toInt()); publish()
                 }
             }
             override fun onPlayerError(error: PlaybackException) {
                 if (BuildConfig.DEBUG) android.util.Log.d("PhotoHouseVideoIO", "playerErrorCode=${error.errorCode}")
-                error()
+                error(classifyPlaybackFailure(error.errorCode))
             }
         })
         p.addAnalyticsListener(object : AnalyticsListener {
@@ -169,7 +233,7 @@ internal class NativeVideoPlayer(context: Context, private val reader: PhonePlay
             .createMediaSource(MediaItem.fromUri(ProgressiveVideoDataSource.PRIVATE_URI))
         p.setMediaSource(media)
         p.prepare() // Explicit Play; never autoplay audio after preparation.
-        handler.postDelayed({ if (!closed.get() && !state.ready) error() }, 30000)
+        }
     }
     fun playPause() = command {
         if (!state.ready || state.seeking) return@command
@@ -187,9 +251,7 @@ internal class NativeVideoPlayer(context: Context, private val reader: PhonePlay
     fun seek(milliseconds: Int) = command {
         if (!state.ready || state.seeking) return@command
         state = state.copy(seeking = true); publish()
-        val generation = ++seekGeneration
         player?.seekTo(milliseconds.coerceIn(0, state.duration).toLong())
-        handler.postDelayed({ if (!closed.get() && state.seeking && seekGeneration == generation) error() }, 30000)
     }
     fun poll() = command {
         if (state.ready && !state.seeking) { state = state.copy(position = (player?.currentPosition ?: 0).coerceIn(0, Int.MAX_VALUE.toLong()).toInt()); publish()
@@ -201,6 +263,7 @@ internal class NativeVideoPlayer(context: Context, private val reader: PhonePlay
     }
     fun close() {
         if (!closed.compareAndSet(false, true)) return
+        main.removeCallbacks(waitWatchdog)
         reader.close()
         runCatching { app.unregisterReceiver(noisy) }
         handler.post {
@@ -213,27 +276,27 @@ internal class NativeVideoPlayer(context: Context, private val reader: PhonePlay
     }
 }
 
-@Composable internal fun VideoPlayer(reader: VideoReader, zh: Boolean, close: () -> Unit, failure: () -> Unit) {
+@Composable internal fun VideoPlayer(reader: VideoReader, zh: Boolean, close: () -> Unit, failure: (VideoPlaybackFailure) -> Unit) {
     val source = remember(reader) { AccountPlaybackSource(reader) }
     PhoneVideoPlayer(source, zh, close, failure)
 }
 
-@Composable internal fun PhoneVideoPlayer(reader: PhonePlaybackSource, zh: Boolean, close: () -> Unit, failure: () -> Unit) {
+@Composable internal fun PhoneVideoPlayer(reader: PhonePlaybackSource, zh: Boolean, close: () -> Unit, failure: (VideoPlaybackFailure) -> Unit) {
     val current by rememberUpdatedState(reader)
     val onClose by rememberUpdatedState(close)
     val onFailure by rememberUpdatedState(failure)
-    key(reader) { PhoneVideoContent(reader, zh, { if (current === reader) onClose() }, { if (current === reader) onFailure() }) }
+    key(reader) { PhoneVideoContent(reader, zh, { if (current === reader) onClose() }, { reason -> if (current === reader) onFailure(reason) }) }
 }
 
 @OptIn(ExperimentalLayoutApi::class)
-@Composable private fun PhoneVideoContent(reader: PhonePlaybackSource, zh: Boolean, close: () -> Unit, failure: () -> Unit) {
+@Composable private fun PhoneVideoContent(reader: PhonePlaybackSource, zh: Boolean, close: () -> Unit, failure: (VideoPlaybackFailure) -> Unit) {
     fun t(en: String, cn: String) = if (zh) cn else en
     var state by remember(reader) { mutableStateOf(Playback()) }
     var fill by remember(reader) { mutableStateOf(false) }
     var fullScreen by remember(reader) { mutableStateOf(false) }
     val context = LocalContext.current
     val onFailure by rememberUpdatedState(failure)
-    val player = remember(reader) { NativeVideoPlayer(context, reader, { state = it }, { onFailure() }) }
+    val player = remember(reader) { NativeVideoPlayer(context, reader, { state = it }, { onFailure(it) }) }
     DisposableEffect(player) { onDispose { player.close() } }
     MediaWindow(fullScreen, state.playing)
     BackHandler(fullScreen) { fullScreen = false }
@@ -251,7 +314,7 @@ internal class NativeVideoPlayer(context: Context, private val reader: PhonePlay
                     override fun onSurfaceTextureDestroyed(texture: SurfaceTexture): Boolean {
                         val expected = player.isClosed
                         player.close()
-                        if (!expected) onFailure()
+                        if (!expected) onFailure(VideoPlaybackFailure.SURFACE)
                         return true
                     }
                 }

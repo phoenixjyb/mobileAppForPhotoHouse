@@ -129,3 +129,27 @@ The backend also offers an opt-in offline `phone-sdr-v1` preparation profile:
 maximum 1280×720, 2 Mbps target/3 Mbps cap H.264 and 96 kbps AAC. It requires a new
 qualified preparation job and publication; it does not automatically replace
 existing TV copies, originals or live phone delivery, and is not adaptive bitrate.
+
+## Playback wait recovery v20
+
+Phone and TV share a monotonic deadline for a continuous wait: preparing, seeking,
+or buffering while Play is requested. Phase changes cannot extend a wait. At 30
+seconds (checked every 250 ms), a main-looper watchdog closes the scoped reader
+and requests player release before emitting one fixed timeout diagnosis. Keeping the timer separate
+from the player/loader avoids waiting for a blocked media read to return first.
+READY, completion and ordinary pause end the wait; a paused seek or unfinished
+initial preparation still has a deadline. Closing cancels it. A paused buffering
+state is preserved so Play can resume monitoring without a new Media3 transition.
+
+This bounds reported loading/seeking/buffering, not every possible decoder hang.
+The sample buffer targets, network retries, scope validation and no-disk-cache
+policy are unchanged. Phone and TV classify Media3 errors using constants from the
+pinned dependency, rather than legacy MediaPlayer codes. Only fixed bilingual
+messages/codes are displayed; exception messages, URLs and credentials are not.
+
+The protected phone keeps the selected detail after a native failure. A recoverable
+timeout/read interruption offers explicit Retry, which opens a new reader and,
+for prepared playback, repeats HEAD. It never automatically restarts or falls back
+to the original. Already-recorded transport denial, revision change and rate-limit
+failures take precedence over native diagnostics. Late old-reader callbacks cannot
+replace a new viewer. Source and synthetic evidence: [v20 return](../docs/evidence/android/playback-recovery-v20/RETURN.md).

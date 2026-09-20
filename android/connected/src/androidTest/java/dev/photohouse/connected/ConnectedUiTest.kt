@@ -396,6 +396,15 @@ class ConnectedUiTest {
         rule.waitUntil(30000) { store.state.value.video == null && store.state.value.problem != null }
         assertEquals(Message.MEDIA_UNAVAILABLE, store.state.value.problem?.message)
         assertFalse(store.canRetry()); rule.onNodeWithTag("video-player").assertDoesNotExist()
+        val diagnosis = requireNotNull(store.state.value.problem?.playbackFailure)
+        assertTrue(diagnosis in listOf(VideoPlaybackFailure.UNSUPPORTED, VideoPlaybackFailure.INVALID_MEDIA))
+        reveal(hasText(diagnosis.message(false)))
+        rule.onNodeWithText(diagnosis.message(false)).assertIsDisplayed()
+        capture("playback-error-en")
+        click("简体中文")
+        reveal(hasText(diagnosis.message(true)))
+        rule.onNodeWithText(diagnosis.message(true)).assertIsDisplayed()
+        capture("playback-error-zh")
     }
     @Test fun failedPhotoSwitchRetriesBackIntoFullscreenWithoutRegistrationMessage() {
         val api = SyntheticApi().apply {

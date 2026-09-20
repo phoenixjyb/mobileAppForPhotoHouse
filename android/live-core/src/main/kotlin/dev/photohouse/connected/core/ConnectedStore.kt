@@ -9,7 +9,7 @@ enum class GalleryMedia(val wire: String) { ALL("all"), PHOTOS("image"), VIDEOS(
     val assetKind get() = if (this == PREPARED_VIDEOS) "video" else wire
 }
 enum class Message { SESSION_STORAGE_UNAVAILABLE, SIGNED_OUT_LOCAL, SIGNED_OUT_CONFIRMED, SESSION_ENDED, ACCESS_DENIED, UNAVAILABLE, TLS_ERROR, CLOSED, RATE_LIMITED, INVALID_INPUT, INVALID_RESPONSE, TOO_LARGE, MEDIA_UNAVAILABLE, DISCOVERY_CHANGED, DISCOVERY_INPUT, VIDEO_NOT_READY, VIDEO_CHANGED, VIDEO_BUSY, PLAYBACK_UNAVAILABLE }
-data class LiveProblem(val message: Message, val retryAtMillis: Long = 0)
+data class LiveProblem(val message: Message, val retryAtMillis: Long = 0, val playbackFailure: VideoPlaybackFailure? = null)
 /** Only the current page's IDs, never a persistent or cross-library history. */
 data class PhotoNavigation(val page: Int, val assetIds: List<String>, val index: Int, val discovery: PhoneDiscoveryState? = null, val media: GalleryMedia = GalleryMedia.ALL)
 data class StoryReading(val page: Int = 1, val result: ProtectedStoryPage? = null, val busy: Boolean = false, val problem: LiveProblem? = null)
@@ -463,14 +463,15 @@ class ConnectedStore(private val api: PhotoHouseApi, private val scope: Coroutin
         if (state.value.video !== reader) return
         if (usable() && state.value.video != null) retainDetail(viewingOriginal = false, busy = false)
     }
-    fun videoPlaybackFailed(reader: VideoReader, nativeFailure: Boolean = false) {
+    fun videoPlaybackFailed(reader: VideoReader, nativeFailure: Boolean = false, reason: VideoPlaybackFailure? = null) {
         if (state.value.video !== reader || !usable()) return
         // Transport failure owns its classified error and any session recheck. A native
         // failure may already have closed its source to stop reads/audio immediately.
         if (reader.hasReadFailure || reader.isClosed && !nativeFailure) return
         reader.close()
         retainDetail(viewingOriginal = false, busy = false)
-        mutable.value = state.value.copy(problem = LiveProblem(Message.MEDIA_UNAVAILABLE))
+        mutable.value = state.value.copy(problem = LiveProblem(Message.MEDIA_UNAVAILABLE, playbackFailure = reason))
+        if (reason?.canRetry == true) retry = { openVideo() }
     }
     fun openDisplayPhoto() {
         val detail = state.value.detail ?: return

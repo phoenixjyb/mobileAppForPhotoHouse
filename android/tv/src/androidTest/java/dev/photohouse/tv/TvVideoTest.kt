@@ -25,24 +25,73 @@ class TvVideoTest {
         val entered = java.util.concurrent.CountDownLatch(1)
         val released = java.util.concurrent.CountDownLatch(1)
         val reported = java.util.concurrent.CountDownLatch(1)
+        val failureCount = java.util.concurrent.atomic.AtomicInteger()
+        val closedBeforeFailure = java.util.concurrent.atomic.AtomicBoolean()
         var failure: TvPlaybackFailure? = null
         val source = object : dev.photohouse.home.HomeVideoSource {
             override fun size(): Long { entered.countDown(); released.await(5, java.util.concurrent.TimeUnit.SECONDS); return 1024 }
             override fun readAt(position: Long, buffer: ByteArray, offset: Int, size: Int): Int = -1
             override fun onClose(listener: () -> Unit) { }
-            override fun close() { released.countDown() }
+            override fun close() { closedBeforeFailure.set(true); released.countDown() }
         }
         val texture = android.graphics.SurfaceTexture(0)
-        val player = NativeVideoPlayer(rule.activity, source, {}, { failure = it; reported.countDown() }, 500)
+        val player = NativeVideoPlayer(rule.activity, source, {}, { failure = it; failureCount.incrementAndGet(); reported.countDown() }, 500)
         try {
             player.attach(texture)
             assertTrue(entered.await(3, java.util.concurrent.TimeUnit.SECONDS))
             assertTrue(reported.await(3, java.util.concurrent.TimeUnit.SECONDS))
             assertEquals(TvPlaybackFailure.Stage.PREPARE_TIMEOUT, failure?.stage)
             assertEquals(0L, released.count)
+            assertTrue(closedBeforeFailure.get())
+            assertEquals(1, failureCount.get())
             assertTrue(player.isClosed)
         } finally { player.close(); texture.release() }
     }
+    @Test fun pausedSeekIntoBlockedReadTimesOutAndReleasesAttachedPlayer() {
+        val data=androidx.test.platform.app.InstrumentationRegistry.getInstrumentation().context.assets
+            .open("synthetic-video.mp4").use { it.readBytes() }
+        val block=java.util.concurrent.atomic.AtomicBoolean(false)
+        val blocked=java.util.concurrent.CountDownLatch(1); val released=java.util.concurrent.CountDownLatch(1); val reported=java.util.concurrent.CountDownLatch(1)
+        val ready=java.util.concurrent.CountDownLatch(1)
+        var diagnosis: TvPlaybackFailure?=null
+        val source=object : dev.photohouse.home.HomeVideoSource {
+            override fun size()=data.size.toLong()
+            override fun readAt(position:Long,buffer:ByteArray,offset:Int,size:Int):Int {
+                if(block.get()) {
+                    blocked.countDown(); released.await(5,java.util.concurrent.TimeUnit.SECONDS)
+                    throw java.io.IOException("synthetic blocked read")
+                }
+                val count=minOf(size,data.size-position.toInt())
+                data.copyInto(buffer,offset,position.toInt(),position.toInt()+count);return count
+            }
+            override fun onClose(listener:()->Unit) { }
+            override fun close() { released.countDown() }
+        }
+        val player=NativeVideoPlayer(rule.activity,source,{ if(it.ready) ready.countDown() },{
+            diagnosis=it;reported.countDown()
+        },waitTimeoutMs=1500)
+        try {
+            rule.runOnUiThread {
+                val view=android.view.TextureView(rule.activity)
+                view.surfaceTextureListener=object : android.view.TextureView.SurfaceTextureListener {
+                    override fun onSurfaceTextureAvailable(t:android.graphics.SurfaceTexture,w:Int,h:Int) { player.attach(t) }
+                    override fun onSurfaceTextureSizeChanged(t:android.graphics.SurfaceTexture,w:Int,h:Int) { }
+                    override fun onSurfaceTextureUpdated(t:android.graphics.SurfaceTexture) { }
+                    override fun onSurfaceTextureDestroyed(t:android.graphics.SurfaceTexture)=true
+                }
+                rule.activity.setContentView(view)
+            }
+            assertTrue(ready.await(5,java.util.concurrent.TimeUnit.SECONDS))
+            // Paused and ready must remain available beyond the configured wait deadline.
+            assertFalse(reported.await(1700,java.util.concurrent.TimeUnit.MILLISECONDS)); assertFalse(player.isClosed)
+            block.set(true); player.seek(19000)
+            assertTrue(blocked.await(3,java.util.concurrent.TimeUnit.SECONDS))
+            assertTrue(reported.await(4,java.util.concurrent.TimeUnit.SECONDS))
+            assertEquals(TvPlaybackFailure.Stage.SEEK_TIMEOUT,diagnosis?.stage)
+            assertTrue(player.isClosed); assertEquals(0L,released.count)
+        } finally { player.close() }
+    }
+
     @get:Rule val rule = createAndroidComposeRule<MainActivity>()
     private fun install(bytes: ByteArray? = null): HomeVideoReader {
         val data = bytes ?: InstrumentationRegistry.getInstrumentation().context.assets.open("synthetic-video.mp4").use { it.readBytes() }

@@ -45,6 +45,7 @@ import androidx.media3.datasource.DataSpec
 import android.net.Uri
 import java.io.IOException
 import dev.photohouse.home.HomeVideoSource
+import dev.photohouse.home.PlaybackWaitDeadline
 import kotlinx.coroutines.delay
 import java.util.concurrent.atomic.AtomicBoolean
 
@@ -85,7 +86,7 @@ internal data class Playback(val ready: Boolean = false, val playing: Boolean = 
 @androidx.annotation.OptIn(UnstableApi::class)
 internal class NativeVideoPlayer(context: Context, private val reader: HomeVideoSource,
     private val changed: (Playback) -> Unit, private val failed: (TvPlaybackFailure) -> Unit,
-    private val prepareTimeoutMs: Long = 30000) {
+    private val waitTimeoutMs: Long = 30000) {
     private val thread = HandlerThread("PhotoHouseVideo").apply { start() }
     private val handler = Handler(thread.looper)
     private val main = Handler(Looper.getMainLooper())
@@ -101,8 +102,24 @@ internal class NativeVideoPlayer(context: Context, private val reader: HomeVideo
     private val noisy = object : BroadcastReceiver() { override fun onReceive(context: Context?, intent: Intent?) { pause() } }
     private val app = context.applicationContext
     private val failureSent = AtomicBoolean(false)
-    private val prepared = AtomicBoolean(false)
-    private val prepareWatchdog = Runnable { if (!closed.get() && !prepared.get()) error(TvPlaybackFailure(TvPlaybackFailure.Stage.PREPARE_TIMEOUT)) }
+    private val waitDeadline = PlaybackWaitDeadline(waitTimeoutMs)
+    // Confined to the main looper; publish() is the only state-to-watchdog bridge.
+    private var waiting: PlaybackWaitDeadline.Phase? = null
+    private var monitoring = false
+    private val waitWatchdog = object : Runnable {
+        override fun run() {
+            if (closed.get() || !monitoring) return
+            waitDeadline.update(waiting, SystemClock.elapsedRealtime())?.let { phase ->
+                val stage = when (phase) {
+                    PlaybackWaitDeadline.Phase.PREPARING -> TvPlaybackFailure.Stage.PREPARE_TIMEOUT
+                    PlaybackWaitDeadline.Phase.SEEKING -> TvPlaybackFailure.Stage.SEEK_TIMEOUT
+                    PlaybackWaitDeadline.Phase.BUFFERING -> TvPlaybackFailure.Stage.REBUFFER_TIMEOUT
+                }
+                error(TvPlaybackFailure(stage))
+            }
+            if (!closed.get()) main.postDelayed(this, 250)
+        }
+    }
     init {
         try {
             if (Build.VERSION.SDK_INT >= 33) app.registerReceiver(noisy, IntentFilter(AudioManager.ACTION_AUDIO_BECOMING_NOISY), Context.RECEIVER_NOT_EXPORTED)
@@ -110,7 +127,29 @@ internal class NativeVideoPlayer(context: Context, private val reader: HomeVideo
         } catch (_: Exception) { error(TvPlaybackFailure(TvPlaybackFailure.Stage.SETUP)) }
         reader.onClose(::close)
     }
-    private fun publish() { val value = state; main.post { if (!closed.get()) changed(value) } }
+    private fun publish() {
+        val value = state
+        main.post {
+            if (!closed.get()) {
+                waiting = when {
+                    !value.ready -> PlaybackWaitDeadline.Phase.PREPARING
+                    value.seeking -> PlaybackWaitDeadline.Phase.SEEKING
+                    value.buffering && value.playing -> PlaybackWaitDeadline.Phase.BUFFERING
+                    else -> null
+                }
+                if (monitoring) waitDeadline.update(waiting, SystemClock.elapsedRealtime())
+                    ?.let { phase ->
+                        val stage = when (phase) {
+                            PlaybackWaitDeadline.Phase.PREPARING -> TvPlaybackFailure.Stage.PREPARE_TIMEOUT
+                            PlaybackWaitDeadline.Phase.SEEKING -> TvPlaybackFailure.Stage.SEEK_TIMEOUT
+                            PlaybackWaitDeadline.Phase.BUFFERING -> TvPlaybackFailure.Stage.REBUFFER_TIMEOUT
+                        }
+                        error(TvPlaybackFailure(stage))
+                    }
+                if (!closed.get()) changed(value)
+            }
+        }
+    }
     private fun command(stage: TvPlaybackFailure.Stage = TvPlaybackFailure.Stage.CONTROL, block: () -> Unit) {
         handler.post { if (!closed.get()) try { block() } catch (_: Exception) { error(TvPlaybackFailure(stage)) } }
     }
@@ -122,7 +161,13 @@ internal class NativeVideoPlayer(context: Context, private val reader: HomeVideo
     }
     fun attach(texture: SurfaceTexture) {
         if (closed.get()) return
-        main.postDelayed(prepareWatchdog, prepareTimeoutMs)
+        main.post {
+            if (!closed.get() && !monitoring) {
+                monitoring = true
+                waiting = PlaybackWaitDeadline.Phase.PREPARING
+                waitWatchdog.run()
+            }
+        }
         command(TvPlaybackFailure.Stage.SETUP) {
         if (player != null) return@command
         surface = Surface(texture)
@@ -135,8 +180,10 @@ internal class NativeVideoPlayer(context: Context, private val reader: HomeVideo
         p.addListener(object : Player.Listener {
             override fun onVideoSizeChanged(videoSize: VideoSize) { if (videoSize.width > 0 && videoSize.height > 0) { state = state.copy(width = videoSize.width, height = videoSize.height); publish() } }
             override fun onPlaybackStateChanged(playbackState: Int) { when (playbackState) {
-                Player.STATE_READY -> { prepared.set(true); main.removeCallbacks(prepareWatchdog); state = state.copy(ready = true, buffering = false, seeking = false, duration = p.duration.coerceIn(0, Int.MAX_VALUE.toLong()).toInt()) }
-                Player.STATE_BUFFERING -> state = state.copy(buffering = true)
+                Player.STATE_READY -> { state = state.copy(ready = true, buffering = false, seeking = false, duration = p.duration.coerceIn(0, Int.MAX_VALUE.toLong()).toInt()) }
+                Player.STATE_BUFFERING -> {
+                    state = state.copy(buffering = true)
+                }
                 Player.STATE_ENDED -> { p.pause(); state = state.copy(playing = false, buffering = false, seeking = false, position = state.duration); audio.abandonAudioFocusRequest(focus) }
             }; publish() }
             override fun onPositionDiscontinuity(oldPosition: Player.PositionInfo, newPosition: Player.PositionInfo, reason: Int) { if (p.playbackState == Player.STATE_READY) { state = state.copy(seeking = false, position = p.currentPosition.toInt()); publish() } }
@@ -173,7 +220,8 @@ internal class NativeVideoPlayer(context: Context, private val reader: HomeVideo
     }
     fun close() {
         if (!closed.compareAndSet(false, true)) return
-        main.removeCallbacks(prepareWatchdog)
+        main.removeCallbacks(waitWatchdog)
+        main.post { monitoring = false; waitDeadline.reset() }
         reader.close()
         runCatching { app.unregisterReceiver(noisy) }
         handler.post {
