@@ -4,11 +4,15 @@ import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyListScope
 import androidx.compose.foundation.lazy.items
 import androidx.compose.material3.*
+import androidx.compose.runtime.*
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.unit.dp
 import dev.photohouse.connected.core.*
+import java.time.Instant
+import java.time.LocalDate
+import java.time.ZoneOffset
 
 @OptIn(ExperimentalLayoutApi::class)
 internal fun LazyListScope.phoneDiscoveryEditor(store: ConnectedStore, state: LiveState, zh: Boolean) {
@@ -49,6 +53,11 @@ internal fun LazyListScope.phoneDiscoveryEditor(store: ConnectedStore, state: Li
             if (current.inputInvalid) Text(t("Check dates and selected filters below.", "请检查下方的日期和已选条件。"), color = MaterialTheme.colorScheme.error)
             Text(t("${snapshot.indexed} of ${snapshot.assets} memories have searchable metadata. Missing details can limit matches.",
                 "${snapshot.assets} 条回忆中，${snapshot.indexed} 条有搜索资料。缺少信息可能影响搜索结果。"), style = MaterialTheme.typography.bodySmall)
+            val selected = f.people.map { it.label } + f.tags.map { it.label } + f.places.map { it.label } +
+                listOf(f.from.takeIf { it.isNotBlank() }, f.to.takeIf { it.isNotBlank() }).filterNotNull()
+            Text(if (selected.isEmpty()) t("No filters selected", "尚未选择筛选条件")
+                else t("Filters: ${selected.joinToString(" · ")}", "筛选：${selected.joinToString(" · ")}"),
+                modifier = Modifier.testTag("discovery-filter-summary"), style = MaterialTheme.typography.bodySmall)
         } }
     }
     item {
@@ -59,10 +68,32 @@ internal fun LazyListScope.phoneDiscoveryEditor(store: ConnectedStore, state: Li
                 enabled = !state.busy, modifier = Modifier.fillMaxWidth().testTag("discovery-caption"))
             if ("date" in enabled) {
                 Text(t("Recorded date · YYYY-MM-DD; either end is optional", "拍摄日期 · 年-月-日；可只填开始或结束"), style = MaterialTheme.typography.bodySmall)
-                OutlinedTextField(f.from, { if (it.length <= 10) store.updateDiscoveryFilters(f.copy(from = it)) }, label = { Text(t("From", "开始日期")) },
-                    singleLine = true, enabled = !state.busy, modifier = Modifier.fillMaxWidth().testTag("discovery-from"))
-                OutlinedTextField(f.to, { if (it.length <= 10) store.updateDiscoveryFilters(f.copy(to = it)) }, label = { Text(t("To", "结束日期")) },
-                    singleLine = true, enabled = !state.busy, modifier = Modifier.fillMaxWidth().testTag("discovery-to"))
+                var dateTarget by remember { mutableStateOf<String?>(null) }
+                val datePicker = rememberDatePickerState()
+                fun millis(value: String): Long? = runCatching {
+                    LocalDate.parse(value).atStartOfDay(ZoneOffset.UTC).toInstant().toEpochMilli()
+                }.getOrNull()
+                @Composable fun dateField(value: String, label: String, textTag: String, pickerTag: String, update: (String) -> Unit) {
+                    Row(horizontalArrangement = Arrangement.spacedBy(8.dp), modifier = Modifier.fillMaxWidth()) {
+                        OutlinedTextField(value, { if (it.length <= 10) update(it) }, label = { Text(label) },
+                            singleLine = true, enabled = !state.busy, modifier = Modifier.weight(1f).testTag(textTag))
+                        OutlinedButton(onClick = { dateTarget = textTag; datePicker.selectedDateMillis = millis(value) },
+                            enabled = !state.busy, modifier = Modifier.testTag(pickerTag)) { Text(t("Pick", "选择")) }
+                    }
+                }
+                dateField(f.from, t("From", "开始日期"), "discovery-from", "discovery-from-picker") { store.updateDiscoveryFilters(f.copy(from = it)) }
+                dateField(f.to, t("To", "结束日期"), "discovery-to", "discovery-to-picker") { store.updateDiscoveryFilters(f.copy(to = it)) }
+                if (dateTarget != null) DatePickerDialog(onDismissRequest = { dateTarget = null }, confirmButton = {
+                    TextButton(onClick = {
+                        datePicker.selectedDateMillis?.let { selected ->
+                            val value = Instant.ofEpochMilli(selected).atZone(ZoneOffset.UTC).toLocalDate().toString()
+                            if (dateTarget == "discovery-from") store.updateDiscoveryFilters(f.copy(from = value)) else store.updateDiscoveryFilters(f.copy(to = value))
+                        }
+                        dateTarget = null
+                    }) { Text(t("Apply", "应用")) }
+                }, dismissButton = { TextButton(onClick = { dateTarget = null }) { Text(t("Cancel", "取消")) } }) {
+                    DatePicker(state = datePicker, showModeToggle = false)
+                }
             }
             FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                 listOf("image" to t("Photos", "照片"), "video" to t("Videos", "视频"), "other" to t("Other media", "其他媒体")).forEach { (key, label) ->
