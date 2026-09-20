@@ -27,5 +27,6 @@ internal fun uploadNetwork(context: Context): UploadNetwork {
     val network = connectivity?.activeNetwork ?: return UploadNetwork.UNKNOWN
     val capabilities = connectivity.getNetworkCapabilities(network) ?: return UploadNetwork.UNKNOWN
     if (!capabilities.hasCapability(NetworkCapabilities.NET_CAPABILITY_INTERNET)) return UploadNetwork.UNKNOWN
+    if (!capabilities.hasCapability(NetworkCapabilities.NET_CAPABILITY_VALIDATED)) return UploadNetwork.UNKNOWN
     return if (capabilities.hasCapability(NetworkCapabilities.NET_CAPABILITY_NOT_METERED)) UploadNetwork.UNMETERED else UploadNetwork.METERED
 }
