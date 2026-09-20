@@ -1,0 +1,24 @@
+{
+  "base": "baa113c18fc955305a76af9d2e6b75dfc19da2b3",
+  "unit_tests": {
+    "core": 22,
+    "live_core": 153,
+    "home_core": 117,
+    "failures": 0
+  },
+  "backend_tests": 27,
+  "contract_cases": 70,
+  "emulator": {
+    "api": 36,
+    "normal_scale": 1.0,
+    "normal_tests": 7,
+    "large_scale": 2.0,
+    "large_tests": 2,
+    "physical": false
+  },
+  "build": true,
+  "lint": true,
+  "configured_apk_sha256": "9bf7bf76cbe64a5ef2b8235c364ad00f7c57ff7bda161c5f3bd73e4e1705e9d2",
+  "backend_deployed": false,
+  "push": false
+}

@@ -1,5 +1,10 @@
 # Android browsing pilot — configuration and final acceptance
 
+Current continuation: [Phone v15 evidence](evidence/family-memories-v15/RETURN.md).
+Cold-start sign-in and story-editing statements below describe the earlier baseline.
+V15 adds optional Keystore persistence (same 24-hour limit), reviewed story writes
+and an opt-in server-side media filter; live rollout remains a separate gate.
+
 The [local MVP](MVP_STATUS.md) is implemented. This document specifies the remaining
 live acceptance work; none is executed or authorized merely by documenting it.
 Initial audience/media must be synthetic and **original access remains off**.

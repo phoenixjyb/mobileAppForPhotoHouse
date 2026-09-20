@@ -22,10 +22,13 @@ for module in ('connected', 'live-core'):
     for source in (root / module / 'src/main').rglob('*.kt'):
         text = source.read_text()
         for forbidden in ('FixtureRepository', 'SharedPreferences', 'SavedStateHandle', 'rememberSaveable', 'FileOutputStream', 'hostnameVerifier(', 'sslSocketFactory(', 'WebView(', 'HttpLoggingInterceptor'):
+            if forbidden == 'FileOutputStream' and source == root / 'connected/src/main/java/dev/photohouse/connected/KeystoreSessionPersistence.kt':
+                assert 'noBackupFilesDir' in text and 'AndroidKeyStore' in text and 'AES/GCM/NoPadding' in text
+                continue
             assert forbidden not in text, f'{source.name}: unexpected {forbidden}'
 activity = (root / 'connected/src/main/java/dev/photohouse/connected/MainActivity.kt').read_text()
 assert 'FLAG_SECURE' in activity and 'model.store?.background()' in activity and 'model.store?.foreground()' in activity
-print('PASS connected app system TLS trust, no fixture dependencies, no credential/media persistence or logging')
+print('PASS connected app system TLS trust, no fixture dependencies, Keystore-only session persistence; no password/media persistence or logging')
 
 # The owner's explicit Home mode is a separate Activity/transport, never an auth fallback.
 activities = {a.get(ns + 'name'): a for a in app.findall('activity')}

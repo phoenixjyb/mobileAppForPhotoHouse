@@ -1,0 +1,9 @@
+
+dev.photohouse.connected.ProtectedJourneyTest:.
+dev.photohouse.connected.OnDemandPhotoTest:.
+
+Time: 13.355
+
+OK (2 tests)
+
+

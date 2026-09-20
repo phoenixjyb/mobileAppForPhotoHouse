@@ -50,3 +50,7 @@ Record base SHA, branch, changed paths, checks, skipped checks, and next gate.
 Keep source, unit tests, simulator/emulator, signed artifacts, installed builds,
 live authenticated service, and family acceptance separate. Update parity only
 with observed evidence. Never claim that a saved handoff created a Codex session.
+
+## Codex collaboration
+
+Astra owns cross-platform ambiguity, shared contracts, parity decisions, authority, review and integration. Prefer Luna for useful independent slices when the model and delegation are available; honor explicit model choices and keep small tasks with the owner. Luna may take a bounded Android or iOS implementation, discovery, documentation or check with exact write ownership and evidence. Suitable slices include tracing one screen against the parity plan, updating an assigned platform path, running affected unit or simulator checks, or recording observed parity evidence. Keep one writer per worktree/artifact and return shared-schema questions to Astra. Fixture, emulator, signed-build and family acceptance results remain separate evidence. Existing project constraints and authorization requirements still apply.

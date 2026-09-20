@@ -1,0 +1,28 @@
+{
+  "base": "7ec6843ba90ce440da3fc0fbaaaa6b1cf9eb8126",
+  "contract": "2.0.0-candidate.13",
+  "contract_cases": 70,
+  "unit_suites": {
+    "live-core": {
+      "tests": 159,
+      "failures": 0,
+      "errors": 0,
+      "skipped": 0
+    },
+    "home-core": {
+      "tests": 117,
+      "failures": 0,
+      "errors": 0,
+      "skipped": 0
+    }
+  },
+  "build_and_lint": "passed",
+  "physical_phone_installed_version": 14,
+  "family_acceptance": "pending",
+  "normal_phone_ui_passed": 8,
+  "large_fullwindow_ui_passed": 1,
+  "large_preview_ui": "screenshot redraw timeout; rerun failed to attach instrumentation",
+  "tablet_ui": "instrumentation failed to start; cold boot recovered boot flag but not responsive test execution",
+  "synthetic_renders_inspected": true,
+  "large_render_acceptance": "inconclusive: bounds pass but missing pixels in capture; subsequent redraw timeout"
+}

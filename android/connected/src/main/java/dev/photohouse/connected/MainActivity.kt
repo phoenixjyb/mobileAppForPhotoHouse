@@ -11,8 +11,8 @@ import androidx.lifecycle.ViewModelProvider
 import androidx.lifecycle.viewModelScope
 import dev.photohouse.connected.core.*
 
-class ConnectedViewModel(api: PhotoHouseApi?) : ViewModel() {
-    val store = api?.let { ConnectedStore(it, viewModelScope) }
+class ConnectedViewModel(api: PhotoHouseApi?, persistence: SessionPersistence? = null) : ViewModel() {
+    val store = api?.let { ConnectedStore(it, viewModelScope, persistence).also { store -> store.restoreSession() } }
 }
 class MainActivity : ComponentActivity() {
     private val model by viewModels<ConnectedViewModel> {
@@ -20,7 +20,14 @@ class MainActivity : ComponentActivity() {
             @Suppress("UNCHECKED_CAST")
             override fun <T : ViewModel> create(modelClass: Class<T>): T {
                 val origin = runCatching { TrustedOrigin.parse(BuildConfig.PHOTOHOUSE_ORIGIN) }.getOrNull()
-                return ConnectedViewModel(origin?.let { HttpsPhotoHouseApi(it, discoveryEnabled = BuildConfig.PHOTOHOUSE_DISCOVERY_ENABLED, photoDeliveryEnabled = BuildConfig.PHOTOHOUSE_PHOTO_DELIVERY_ENABLED) }) as T
+                return ConnectedViewModel(origin?.let { HttpsPhotoHouseApi(it,
+                    detailPreviewSize = if (BuildConfig.PHOTOHOUSE_PROTECTED_NATIVE_V2_ENABLED) 1024 else 256,
+                    protectedNativeV2Enabled = BuildConfig.PHOTOHOUSE_PROTECTED_NATIVE_V2_ENABLED,
+                    discoveryEnabled = BuildConfig.PHOTOHOUSE_DISCOVERY_ENABLED,
+                    photoDeliveryEnabled = BuildConfig.PHOTOHOUSE_PHOTO_DELIVERY_ENABLED,
+                    preparedVideoEnabled = BuildConfig.PHOTOHOUSE_PREPARED_VIDEO_ENABLED,
+                    mediaFilterEnabled = BuildConfig.PHOTOHOUSE_MEDIA_FILTER_ENABLED) },
+                    origin?.let { KeystoreSessionPersistence(applicationContext, BuildConfig.PHOTOHOUSE_ORIGIN) }) as T
             }
         }
     }

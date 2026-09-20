@@ -35,6 +35,19 @@ class HttpsApiTest {
     }
     private fun range(body: String = "abcd", header: String = "bytes 0-3/10") = MockResponse().setResponseCode(206)
         .setHeader("Content-Type", "video/mp4").setHeader("Content-Range", header).setBody(body)
+    @Test fun absentRetryAfterAllowsTransientReadRecoveryButRetainsRateLimitDefault() = runBlocking {
+        TlsFixture().use { f ->
+            for (status in listOf(502, 503, 504, 429)) {
+                f.server.enqueue(MockResponse().setResponseCode(status))
+                val error = failure { f.api.session(token) }
+                assertEquals(if (status == 429) 5000L else 0L, error.retryAfterMillis)
+            }
+            f.server.enqueue(MockResponse().setResponseCode(503).setHeader("Retry-After", "invalid"))
+            assertEquals(5000L, failure { f.api.session(token) }.retryAfterMillis)
+            assertEquals(5, f.server.requestCount) // the transport itself never retries requests
+        }
+    }
+
     @Test fun optimizedPhotoUsesProtectedDisplayRouteAndNeverOriginalFallback() = runBlocking {
         TlsFixture().use { f ->
             val api = HttpsPhotoHouseApi(f.origin, f.client, photoDeliveryEnabled = true)
@@ -230,7 +243,7 @@ class HttpsApiTest {
                 f.server.enqueue(MockResponse().setResponseCode(status).setHeader("Retry-After", "7").setBody("private diagnostic deliberately not parsed"))
                 val error = failure { f.api.session(token) }
                 assertEquals(status, error.status)
-                assertEquals(if (status == 429) 7000L else 0L, error.retryAfterMillis)
+                assertEquals(if (status == 429 || status in 502..504) 7000L else 0L, error.retryAfterMillis)
                 assertFalse(error.toString().contains("private diagnostic"))
             }
             assertEquals(5, f.server.requestCount)

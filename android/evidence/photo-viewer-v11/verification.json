@@ -1,0 +1,41 @@
+{
+  "date": "2026-09-16",
+  "base": "f24fc41cd1484c1f89389fcc523cc4d4459e411e",
+  "jvm": {
+    "live-core": {
+      "tests": 136,
+      "failures": 0,
+      "errors": 0,
+      "skipped": 0
+    },
+    "home-core": {
+      "tests": 117,
+      "failures": 0,
+      "errors": 0,
+      "skipped": 0
+    }
+  },
+  "emulator": {
+    "api": 36,
+    "normal_final_cases": 7,
+    "normal_initial_suite_passed": 6,
+    "normal_targeted_replay_passed": 1,
+    "normal_replay_reason": "Test harness opened Settings before selecting Chinese; no product change",
+    "large_font_scale": 2.0,
+    "large_font_cases_passed": 2,
+    "unresolved_failures": 0,
+    "synthetic_only": true,
+    "actual_size_physical_pixel_assertion": true
+  },
+  "checks": [
+    "phone assembleDebug and assembleDebugAndroidTest PASS",
+    "phone lintDebug PASS",
+    "connected boundary verification PASS",
+    "frozen v1 contract and protected v2 snapshot PASS",
+    "git diff --check PASS"
+  ],
+  "shared_contracts_changed": false,
+  "backend_changed": false,
+  "live_authenticated_acceptance": false,
+  "physical_phone_installation": "Not performed: user requested APK ready only"
+}

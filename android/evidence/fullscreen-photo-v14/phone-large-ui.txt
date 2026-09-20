@@ -1,0 +1,71 @@
+INSTRUMENTATION_STATUS: class=dev.photohouse.connected.PhotoFullscreenTest
+INSTRUMENTATION_STATUS: current=1
+INSTRUMENTATION_STATUS: id=AndroidJUnitRunner
+INSTRUMENTATION_STATUS: numtests=2
+INSTRUMENTATION_STATUS: stream=
+dev.photohouse.connected.PhotoFullscreenTest:
+INSTRUMENTATION_STATUS: test=photoFillsWindowAndControlsNeverShrinkItDuringNavigation
+INSTRUMENTATION_STATUS_CODE: 1
+INSTRUMENTATION_STATUS: class=dev.photohouse.connected.PhotoFullscreenTest
+INSTRUMENTATION_STATUS: current=1
+INSTRUMENTATION_STATUS: id=AndroidJUnitRunner
+INSTRUMENTATION_STATUS: numtests=2
+INSTRUMENTATION_STATUS: stream=.
+INSTRUMENTATION_STATUS: test=photoFillsWindowAndControlsNeverShrinkItDuringNavigation
+INSTRUMENTATION_STATUS_CODE: 0
+INSTRUMENTATION_STATUS: class=dev.photohouse.connected.ProtectedJourneyTest
+INSTRUMENTATION_STATUS: current=2
+INSTRUMENTATION_STATUS: id=AndroidJUnitRunner
+INSTRUMENTATION_STATUS: numtests=2
+INSTRUMENTATION_STATUS: stream=
+dev.photohouse.connected.ProtectedJourneyTest:
+INSTRUMENTATION_STATUS: test=previewOnlyProfileOpensViewerModesWithoutOriginalOrDisplayRequests
+INSTRUMENTATION_STATUS_CODE: 1
+INSTRUMENTATION_STATUS: class=dev.photohouse.connected.ProtectedJourneyTest
+INSTRUMENTATION_STATUS: current=2
+INSTRUMENTATION_STATUS: id=AndroidJUnitRunner
+INSTRUMENTATION_STATUS: numtests=2
+INSTRUMENTATION_STATUS: stack=androidx.compose.ui.test.ComposeTimeoutException: Condition still not satisfied after 2000 ms
+	at androidx.compose.ui.test.android.WindowCapture_androidKt.waitUntil(WindowCapture.android.kt:143)
+	at androidx.compose.ui.test.android.WindowCapture_androidKt.forceRedraw(WindowCapture.android.kt:93)
+	at androidx.compose.ui.test.android.WindowCapture_androidKt$captureRegionToImage$1.invoke(WindowCapture.android.kt:48)
+	at androidx.compose.ui.test.android.WindowCapture_androidKt$captureRegionToImage$1.invoke(WindowCapture.android.kt:46)
+	at androidx.compose.ui.test.android.WindowCapture_androidKt.withDrawingEnabled(WindowCapture.android.kt:60)
+	at androidx.compose.ui.test.android.WindowCapture_androidKt.captureRegionToImage(WindowCapture.android.kt:46)
+	at androidx.compose.ui.test.AndroidImageHelpers_androidKt.captureToImage(AndroidImageHelpers.android.kt:97)
+	at dev.photohouse.connected.ProtectedJourneyTest.previewOnlyProfileOpensViewerModesWithoutOriginalOrDisplayRequests(ProtectedJourneyTest.kt:254)
+
+INSTRUMENTATION_STATUS: stream=
+Error in previewOnlyProfileOpensViewerModesWithoutOriginalOrDisplayRequests(dev.photohouse.connected.ProtectedJourneyTest):
+androidx.compose.ui.test.ComposeTimeoutException: Condition still not satisfied after 2000 ms
+	at androidx.compose.ui.test.android.WindowCapture_androidKt.waitUntil(WindowCapture.android.kt:143)
+	at androidx.compose.ui.test.android.WindowCapture_androidKt.forceRedraw(WindowCapture.android.kt:93)
+	at androidx.compose.ui.test.android.WindowCapture_androidKt$captureRegionToImage$1.invoke(WindowCapture.android.kt:48)
+	at androidx.compose.ui.test.android.WindowCapture_androidKt$captureRegionToImage$1.invoke(WindowCapture.android.kt:46)
+	at androidx.compose.ui.test.android.WindowCapture_androidKt.withDrawingEnabled(WindowCapture.android.kt:60)
+	at androidx.compose.ui.test.android.WindowCapture_androidKt.captureRegionToImage(WindowCapture.android.kt:46)
+	at androidx.compose.ui.test.AndroidImageHelpers_androidKt.captureToImage(AndroidImageHelpers.android.kt:97)
+	at dev.photohouse.connected.ProtectedJourneyTest.previewOnlyProfileOpensViewerModesWithoutOriginalOrDisplayRequests(ProtectedJourneyTest.kt:254)
+
+INSTRUMENTATION_STATUS: test=previewOnlyProfileOpensViewerModesWithoutOriginalOrDisplayRequests
+INSTRUMENTATION_STATUS_CODE: -2
+INSTRUMENTATION_RESULT: stream=
+
+Time: 134.168
+There was 1 failure:
+1) previewOnlyProfileOpensViewerModesWithoutOriginalOrDisplayRequests(dev.photohouse.connected.ProtectedJourneyTest)
+androidx.compose.ui.test.ComposeTimeoutException: Condition still not satisfied after 2000 ms
+	at androidx.compose.ui.test.android.WindowCapture_androidKt.waitUntil(WindowCapture.android.kt:143)
+	at androidx.compose.ui.test.android.WindowCapture_androidKt.forceRedraw(WindowCapture.android.kt:93)
+	at androidx.compose.ui.test.android.WindowCapture_androidKt$captureRegionToImage$1.invoke(WindowCapture.android.kt:48)
+	at androidx.compose.ui.test.android.WindowCapture_androidKt$captureRegionToImage$1.invoke(WindowCapture.android.kt:46)
+	at androidx.compose.ui.test.android.WindowCapture_androidKt.withDrawingEnabled(WindowCapture.android.kt:60)
+	at androidx.compose.ui.test.android.WindowCapture_androidKt.captureRegionToImage(WindowCapture.android.kt:46)
+	at androidx.compose.ui.test.AndroidImageHelpers_androidKt.captureToImage(AndroidImageHelpers.android.kt:97)
+	at dev.photohouse.connected.ProtectedJourneyTest.previewOnlyProfileOpensViewerModesWithoutOriginalOrDisplayRequests(ProtectedJourneyTest.kt:254)
+
+FAILURES!!!
+Tests run: 2,  Failures: 1
+
+
+INSTRUMENTATION_CODE: -1

@@ -1,0 +1,62 @@
+{
+  "date": "2026-09-16",
+  "base": "b35ce77b0cdfaa9ca30640497a32d8dd1bc914e5",
+  "contract_manifest_sha256": "3c222c9525f89ff753353b17e7741e200d16061cd042df5afbd03618ed42ce3e",
+  "jvm": {
+    "core": {
+      "tests": 22,
+      "failures": 0,
+      "errors": 0,
+      "skipped": 0
+    },
+    "story-fixture-core": {
+      "tests": 16,
+      "failures": 0,
+      "errors": 0,
+      "skipped": 0
+    },
+    "live-core": {
+      "tests": 125,
+      "failures": 0,
+      "errors": 0,
+      "skipped": 0
+    },
+    "home-core": {
+      "tests": 117,
+      "failures": 0,
+      "errors": 0,
+      "skipped": 0
+    },
+    "tv": {
+      "tests": 2,
+      "failures": 0,
+      "errors": 0,
+      "skipped": 0
+    }
+  },
+  "emulator": {
+    "api": 36,
+    "size": "1080x2400",
+    "font_scale_1_tests": 4,
+    "font_scale_2_tests": 2,
+    "failures": 0,
+    "synthetic_only": true
+  },
+  "checks": [
+    "frozen v1: 12 operations, 38 ASGI cases, 8 hashes",
+    "v2 snapshot and exact backend: 98 source, 7 payload hashes, 60 cases",
+    "connected boundaries",
+    "git diff --check",
+    "default APK DEX flags off and origins blank",
+    "default APK excludes offline Story Fixture package"
+  ],
+  "physical_device_acceptance": false,
+  "authenticated_live_backend": false,
+  "uploads_implemented": false,
+  "builds": {
+    "phone_default": "PASS",
+    "tv_default": "PASS",
+    "phone_android_test": "PASS",
+    "phone_lint": "PASS"
+  }
+}

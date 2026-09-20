@@ -11,6 +11,21 @@ class ConnectedStoreTest {
     private val asset = Asset("1", "image", 256, 256, null, null, "/assets/1/thumbnail?library=family")
     private fun membership(id: String, available: Boolean = true) = Membership(id, "approved", "viewer", 1, null, 0, available)
     private inner class FakeApi : PhotoHouseApi {
+        override var protectedNativeV2Enabled = false
+        override var preparedVideoEnabled = false
+        var preparedHeads = 0
+        var preparedReads = 0
+        var originalVideoReads = 0
+        var preparedError: ApiFailure? = null
+        var preparedGate: CompletableDeferred<Unit>? = null
+        override suspend fun preparedVideoInfo(token: Bearer, library: String, assetId: String): PreparedVideoInfo {
+            preparedHeads++; preparedGate?.let { withContext(NonCancellable) { it.await() } }
+            preparedError?.let { throw it }; return PreparedVideoInfo(100,"\""+"a".repeat(64)+"\"")
+        }
+        override suspend fun preparedVideoRange(token: Bearer, library: String, assetId: String, info: PreparedVideoInfo, start: Long, length: Int): VideoChunk {
+            preparedReads++; preparedError?.let { throw it }
+            return VideoChunk(start,100,ByteArray(minOf(length,100-start.toInt())))
+        }
         override var photoDeliveryEnabled = false
         var displayReads = 0
         var displayError: Exception? = null
@@ -26,6 +41,7 @@ class ConnectedStoreTest {
         var sessionError: Exception? = null
         var galleryError: Exception? = null
         var detailError: Exception? = null
+        var detailFailures: Int? = null
         var detailGate: CompletableDeferred<Unit>? = null
         var originalsAllowed = false
         var originalGate: CompletableDeferred<Unit>? = null
@@ -42,11 +58,17 @@ class ConnectedStoreTest {
         var images: ByteArray? = byteArrayOf(1, 2, 3)
         var assets = listOf(asset)
         var lastRegistration: String? = null
+        var registrationName: String? = null
         override suspend fun login(phone: String, password: String): SessionToken {
             logins++; admissionError?.let { throw it }; loginGate?.let { withContext(NonCancellable) { it.await() } }
             return SessionToken(86400, "T".repeat(43), "Bearer")
         }
         override suspend fun register(phone: String, password: String, code: String): SessionToken { lastRegistration = code; return login(phone, password) }
+        override suspend fun registerNamed(phone: String, password: String, code: String, name: String): SessionToken {
+            registrationName = name
+            currentSession = currentSession.copy(displayName = name)
+            return register(phone, password, code)
+        }
         override suspend fun session(token: Bearer): Session {
             sessionReads++; val response = currentSession
             sessionGate?.let { withContext(NonCancellable) { it.await() } }
@@ -63,12 +85,18 @@ class ConnectedStoreTest {
             detailReads += assetId
             val response = Detail(library, originalsAllowed, assets.first { it.id == assetId })
             detailGate?.let { withContext(NonCancellable) { it.await() } }
-            detailError?.let { throw it }; return response
+            if (detailFailures != null) {
+                if (detailFailures!! > 0) {
+                    detailFailures = detailFailures!! - 1
+                    detailError?.let { throw it }
+                }
+            } else detailError?.let { throw it }
+            return response
         }
         override suspend fun captions(token: Bearer, library: String, assetId: String) = Captions(library, assetId, false, listOf(Caption("c1", "<b>原文 literal</b>", false, false, null, null)))
         override suspend fun thumbnail(token: Bearer, library: String, asset: Asset): ByteArray? { imageReads++; val response = images; thumbnailGate?.let { withContext(NonCancellable) { it.await() } }; return response }
         override suspend fun videoRange(token: Bearer, library: String, assetId: String, start: Long, length: Int): VideoChunk {
-            videoError?.let { throw it }
+            originalVideoReads++; videoError?.let { throw it }
             return VideoChunk(start, 100, ByteArray(minOf(length, 100 - start.toInt())))
         }
         override suspend fun originalPhoto(token: Bearer, library: String, assetId: String): ByteArray {
@@ -79,6 +107,181 @@ class ConnectedStoreTest {
     }
     private fun TestScope.store(api: FakeApi) = ConnectedStore(api, backgroundScope) { testScheduler.currentTime }
     private fun TestScope.signIn(store: ConnectedStore) { store.authenticate("+12025550123", "synthetic-password-only"); runCurrent(); assertNotNull(store.state.value.session) }
+
+    @Test fun directLookupFetchesAuthorizedDetailOutsideCurrentPageAndReturnsToPage() = runTest {
+        val api = FakeApi()
+        val store = store(api); signIn(store); store.selectLibrary("family"); runCurrent()
+        store.loadPage(31); runCurrent()
+        api.assets = listOf(asset.copy(id = "901", kind = "video"))
+        store.openAssetById("901"); runCurrent()
+        assertEquals(listOf("901"), api.detailReads)
+        assertEquals("901", store.state.value.detail?.asset?.id)
+        assertNull(store.state.value.video) // Opening details does not autoplay.
+        store.backToPhotos(); runCurrent()
+        assertEquals(31, store.state.value.gallery?.page)
+    }
+    @Test fun directLookupRejectsMalformedIdsAndPreservesAuthorization() = runTest {
+        val api = FakeApi()
+        val store = store(api)
+        store.openAssetById("1"); runCurrent(); assertTrue(api.detailReads.isEmpty())
+        signIn(store); store.selectLibrary("family"); runCurrent()
+        for (id in listOf("", "0", "-1", "01", "1/thumbnail", "9223372036854775808")) store.openAssetById(id)
+        runCurrent(); assertTrue(api.detailReads.isEmpty())
+        api.detailError = ApiFailure(FailureKind.HTTP, 403)
+        store.openAssetById("1"); runCurrent()
+        assertEquals(listOf("1"), api.detailReads)
+        assertNull(store.state.value.detail)
+        assertNull(store.state.value.video)
+        assertEquals(0, api.preparedHeads)
+    }
+
+    @Test fun preparedViewerOpensAndSeeksWithoutOriginalGrant() = runTest {
+        val api = FakeApi().apply { protectedNativeV2Enabled=true; preparedVideoEnabled=true; assets=listOf(asset.copy(kind="video")) }
+        val store=store(api); signIn(store); store.selectLibrary("family"); runCurrent()
+        store.openMedia(api.assets.first()); runCurrent()
+        val reader=store.state.value.video!!
+        assertEquals(1,api.preparedHeads); assertEquals(100L,reader.size())
+        assertEquals(4,reader.readAt(80,ByteArray(4),0,4)); assertEquals(1,api.preparedReads)
+        assertEquals(0,api.originalVideoReads)
+        store.closeVideo(); store.openOriginalVideo(); runCurrent(); assertNull(store.state.value.video)
+        store.background(); runCurrent(); assertTrue(reader.isClosed)
+    }
+    @Test fun preparedReadinessErrorsKeepDetailAndManualRetryHonorsCooldown() = runTest {
+        for ((code,message) in listOf(404 to Message.VIDEO_NOT_READY,409 to Message.VIDEO_CHANGED,429 to Message.VIDEO_BUSY,503 to Message.PLAYBACK_UNAVAILABLE)) {
+            val api=FakeApi().apply { protectedNativeV2Enabled=true; preparedVideoEnabled=true; assets=listOf(asset.copy(kind="video")); preparedError=ApiFailure(FailureKind.HTTP,code,2000) }
+            val store=store(api); signIn(store); store.selectLibrary("family"); runCurrent()
+            store.openMedia(api.assets.first()); runCurrent()
+            assertNull(store.state.value.video); assertNotNull(store.state.value.detail)
+            assertEquals(message,store.state.value.problem?.message); assertEquals(0,api.originalVideoReads)
+            if(code==429 || code == 503) { store.retry(); runCurrent(); assertEquals(1,api.preparedHeads); advanceTimeBy(2000) }
+            api.preparedError=null; store.retry(); runCurrent()
+            assertEquals(2,api.preparedHeads); assertNotNull(store.state.value.video)
+            store.logout(); runCurrent()
+        }
+    }
+    @Test fun latePreparedHeadCannotReopenAfterBackgroundOrLogout() = runTest {
+        for(logout in listOf(false,true)) {
+            val gate=CompletableDeferred<Unit>()
+            val api=FakeApi().apply { protectedNativeV2Enabled=true; preparedVideoEnabled=true; assets=listOf(asset.copy(kind="video")); preparedGate=gate }
+            val store=store(api); signIn(store); store.selectLibrary("family"); runCurrent()
+            store.openMedia(api.assets.first()); runCurrent(); assertTrue(store.state.value.busy)
+            if(logout) store.logout() else store.background()
+            gate.complete(Unit); runCurrent()
+            assertNull(store.state.value.video); assertNull(store.state.value.detail); assertNull(store.state.value.session)
+        }
+    }
+    @Test fun preparedMidstreamFailureWinsDecoderRaceAndNeverFallsBack() = runTest {
+        for (code in listOf(401, 409, 429)) {
+            val api = FakeApi().apply { protectedNativeV2Enabled=true; preparedVideoEnabled=true; assets=listOf(asset.copy(kind="video")) }
+            val store=store(api); signIn(store); store.selectLibrary("family"); runCurrent()
+            store.openMedia(api.assets.first()); runCurrent()
+            val reader=store.state.value.video!!
+            assertEquals(4, reader.readAt(0, ByteArray(4), 0, 4))
+            api.preparedError=ApiFailure(FailureKind.HTTP, code, 2000)
+            // A repeated consumed range must authorize again, even with an admitted suffix.
+            try { reader.readAt(0, ByteArray(4), 0, 4); fail("Read must fail") } catch (_: java.io.IOException) { }
+            assertEquals(2, api.preparedReads)
+            assertTrue(reader.isClosed)
+            // Native player error can arrive before the queued transport callback.
+            store.videoPlaybackFailed(reader, nativeFailure=true)
+            runCurrent()
+            assertEquals(when(code) { 401 -> Message.ACCESS_DENIED; 409 -> Message.VIDEO_CHANGED; else -> Message.VIDEO_BUSY }, store.state.value.problem?.message)
+            assertNull(store.state.value.video); assertEquals(0,api.originalVideoReads)
+            if(code==401) assertNull(store.state.value.detail) else assertNotNull(store.state.value.detail)
+            store.logout(); runCurrent()
+        }
+    }
+    @Test fun preparedDenialClearsPrivateDetailAndRechecksSession() = runTest {
+        val api=FakeApi().apply { protectedNativeV2Enabled=true; preparedVideoEnabled=true; assets=listOf(asset.copy(kind="video")); preparedError=ApiFailure(FailureKind.HTTP,401) }
+        val store=store(api); signIn(store); store.selectLibrary("family"); runCurrent()
+        val before=api.sessionReads
+        store.openMedia(api.assets.first()); runCurrent()
+        assertNull(store.state.value.detail); assertNull(store.state.value.video)
+        assertEquals(before+1,api.sessionReads); assertEquals(Message.ACCESS_DENIED,store.state.value.problem?.message)
+        assertEquals(0,api.originalVideoReads)
+    }
+
+    @Test fun protectedRegistrationRequiresNameBeforeSendingAndKeepsViewerMembership() = runTest {
+        val api = FakeApi().apply { protectedNativeV2Enabled = true }
+        val store = store(api)
+        store.authenticate("+12025550123", "12345678", "synthetic-invite"); runCurrent()
+        assertEquals(0, api.logins); assertNull(store.state.value.session)
+        assertEquals(Message.INVALID_INPUT, store.state.value.problem?.message)
+        store.authenticate("+12025550123", "12345678", "synthetic-invite", "  小溪\u00a0 Jane "); runCurrent()
+        assertEquals("小溪 Jane", api.registrationName)
+        assertEquals("小溪 Jane", store.state.value.session?.displayName)
+        assertEquals(0, store.state.value.session!!.memberships.first().originals)
+        store.background(); assertNull(store.state.value.session)
+        store.foreground(); runCurrent()
+        assertEquals("小溪 Jane", store.state.value.session?.displayName)
+        store.logout(); runCurrent(); assertNull(store.state.value.session)
+    }
+
+    @Test fun protectedThumbnailViewerDoesNotNeedOriginalPermissionOrDisplayService() = runTest {
+        val api = FakeApi().apply { protectedNativeV2Enabled = true }
+        val store = store(api); signIn(store); store.selectLibrary("family"); runCurrent()
+        store.openMedia(asset); runCurrent()
+        assertTrue(store.state.value.viewingOriginal); assertTrue(store.state.value.photoPreviewOnly)
+        assertFalse(store.state.value.photoOriginalQuality); assertArrayEquals(api.images, store.state.value.originalPhoto)
+        assertEquals(0, api.displayReads); assertEquals(0, api.originalReads)
+        store.openOriginalPhoto(); runCurrent(); assertEquals(0, api.originalReads)
+        store.closeOriginalPhoto(); runCurrent(); assertNull(store.state.value.originalPhoto)
+        store.openPreviewPhoto(); runCurrent(); assertTrue(store.state.value.photoPreviewOnly)
+        store.background(); runCurrent(); assertNull(store.state.value.originalPhoto); assertFalse(store.state.value.photoPreviewOnly)
+    }
+
+    @Test fun protectedPreviewNeverSilentlyUpgradesEvenWhenOriginalsAreAllowed() = runTest {
+        val api = FakeApi().apply { protectedNativeV2Enabled = true; originalsAllowed = true }
+        val store = store(api); signIn(store); store.selectLibrary("family"); runCurrent()
+        store.openMedia(asset); runCurrent(); assertTrue(store.state.value.photoPreviewOnly); assertEquals(0, api.originalReads)
+        store.openOriginalPhoto(); runCurrent(); assertEquals(1, api.originalReads)
+        assertTrue(store.state.value.photoOriginalQuality); assertFalse(store.state.value.photoPreviewOnly)
+    }
+
+    @Test fun missingProtectedPreviewIsUnavailableWithoutOriginalOrDisplayFallback() = runTest {
+        for (bytes in listOf(null, byteArrayOf())) {
+            val api = FakeApi().apply { protectedNativeV2Enabled = true; originalsAllowed = true; images = bytes }
+            val store = store(api); signIn(store); store.selectLibrary("family"); runCurrent()
+            store.openMedia(asset); runCurrent()
+            assertFalse(store.state.value.viewingOriginal); assertFalse(store.state.value.busy)
+            assertNull(store.state.value.originalPhoto); assertEquals(Message.MEDIA_UNAVAILABLE, store.state.value.problem?.message)
+            assertEquals(0, api.originalReads); assertEquals(0, api.displayReads)
+        }
+    }
+
+    @Test fun protectedPreviewPagingAndSlideshowStayWithinAuthorizedCurrentPage() = runTest {
+        val api = FakeApi().apply { protectedNativeV2Enabled = true; assets = listOf(asset, asset.copy(id = "2"), asset.copy(id = "3", kind = "video")) }
+        val store = store(api); signIn(store); store.selectLibrary("family"); runCurrent()
+        store.openMedia(asset); runCurrent(); store.adjacentOriginalPhoto(1); runCurrent()
+        assertEquals("2", store.state.value.detail?.asset?.id); assertTrue(store.state.value.photoPreviewOnly)
+        store.togglePhotoSlideshow(); store.advancePhotoSlideshow(); runCurrent()
+        assertEquals("3", store.state.value.detail?.asset?.id); assertFalse(store.state.value.photoSlideshow)
+        assertFalse(store.state.value.viewingOriginal); assertNull(store.state.value.video)
+        assertEquals(0, api.originalReads); assertEquals(0, api.displayReads)
+    }
+
+    @Test fun lateProtectedPreviewCannotReturnAfterPrivacyBoundaries() = runTest {
+        for (action in listOf("background", "logout", "library")) {
+            val api = FakeApi().apply { protectedNativeV2Enabled = true }
+            val store = store(api); signIn(store); store.selectLibrary("family"); runCurrent()
+            api.thumbnailGate = CompletableDeferred(); store.openMedia(asset); runCurrent()
+            when (action) { "background" -> store.background(); "logout" -> store.logout(); else -> store.libraries() }
+            runCurrent(); api.thumbnailGate!!.complete(Unit); runCurrent()
+            assertNull(store.state.value.originalPhoto); assertFalse(store.state.value.viewingOriginal)
+            assertFalse(store.state.value.photoPreviewOnly)
+        }
+    }
+
+    @Test fun protectedPreviewRechecksAuthorizationBeforeDisplayingBytes() = runTest {
+        for (status in listOf(401, 403)) {
+            val api = FakeApi().apply { protectedNativeV2Enabled = true }
+            val store = store(api); signIn(store); store.selectLibrary("family"); runCurrent()
+            store.openAsset(asset); runCurrent(); api.detailError = ApiFailure(FailureKind.HTTP, status)
+            store.openPreviewPhoto(); runCurrent()
+            assertNull(store.state.value.originalPhoto); assertFalse(store.state.value.viewingOriginal)
+            assertTrue(store.state.value.previews.isEmpty()); assertEquals(0, api.originalReads)
+        }
+    }
 
     @Test fun onDemandViewerWorksWithoutOriginalPermissionAndDoesNotUpgradeIt() = runTest {
         val api = FakeApi().apply { photoDeliveryEnabled = true }
@@ -485,7 +688,7 @@ class ConnectedStoreTest {
         assertTrue(store.state.value.photoSlideshow)
         store.advancePhotoSlideshow(); assertNull(store.state.value.originalPhoto); runCurrent()
         assertEquals("2", store.state.value.detail?.asset?.id); assertTrue(store.state.value.photoSlideshow)
-        store.advancePhotoSlideshow(); runCurrent()
+        store.advancePhotoSlideshow(); advanceTimeBy(350); runCurrent()
         assertEquals("3", store.state.value.detail?.asset?.id); assertFalse(store.state.value.photoSlideshow)
         store.advancePhotoSlideshow(); runCurrent(); assertEquals(3, api.originalReads)
         assertEquals(listOf("1", "2", "3"), api.detailReads)
@@ -526,17 +729,18 @@ class ConnectedStoreTest {
             assertNull(store.state.value.originalPhoto); assertNull(store.state.value.photoNavigation)
         }
     }
-    @Test fun slideshowFailureClearsPrivateStateAndRetryDoesNotReopenOriginalAutomatically() = runTest {
+    @Test fun slideshowFailureClearsPrivateStateAndManualRetryReopensPhotoWithoutResumingSlideshow() = runTest {
         val api = FakeApi().apply { assets = listOf(asset, asset.copy(id = "2")); originalsAllowed = true }
         val store = store(api); signIn(store); store.selectLibrary("family"); runCurrent(); store.openAsset(asset); runCurrent()
         store.openOriginalPhoto(); runCurrent(); store.togglePhotoSlideshow()
         api.originalError = ApiFailure(FailureKind.OFFLINE)
-        store.advancePhotoSlideshow(); runCurrent()
+        store.advancePhotoSlideshow(); advanceTimeBy(350); runCurrent()
         assertNull(store.state.value.detail); assertNull(store.state.value.originalPhoto)
         assertFalse(store.state.value.photoSlideshow); assertEquals(0, store.cachedBytes)
         api.originalError = null; store.retry(); runCurrent()
-        assertEquals("2", store.state.value.detail?.asset?.id); assertFalse(store.state.value.viewingOriginal)
-        assertEquals(2, api.originalReads)
+        assertEquals("2", store.state.value.detail?.asset?.id); assertTrue(store.state.value.viewingOriginal)
+        assertFalse(store.state.value.photoSlideshow)
+        assertEquals(4, api.originalReads)
     }
     @Test fun manualViewerNavigationStopsSlideshowAndFetchesFreshOriginal() = runTest {
         val api = FakeApi().apply { assets = listOf(asset, asset.copy(id = "2"), asset.copy(id = "3")); originalsAllowed = true }
@@ -552,12 +756,68 @@ class ConnectedStoreTest {
         val store = store(api); signIn(store); store.selectLibrary("family"); runCurrent()
         store.loadPage(2); runCurrent(); store.openAsset(asset); runCurrent()
         api.detailError = ApiFailure(FailureKind.OFFLINE)
-        store.adjacentPhoto(1); runCurrent()
+        store.adjacentPhoto(1); advanceTimeBy(350); runCurrent()
         assertNull(store.state.value.photoNavigation); assertNull(store.state.value.detail)
         assertTrue(store.canRetry()); assertEquals(0, store.cachedBytes)
         api.detailError = null; store.retry(); runCurrent()
         assertEquals("2", store.state.value.detail?.asset?.id)
-        assertEquals(listOf("1", "2", "2"), api.detailReads)
+        assertEquals(listOf("1", "2", "2", "2"), api.detailReads)
         store.backToPhotos(); runCurrent(); assertEquals(2, store.state.value.gallery?.page)
+    }
+
+    @Test fun transientAdjacentReadRecoversOnceWithoutShowingUnavailableOrEnablingManualRetry() = runTest {
+        val api = FakeApi().apply { assets = listOf(asset, asset.copy(id = "2")) }
+        val store = store(api); signIn(store); store.selectLibrary("family"); runCurrent()
+        store.openAsset(asset); runCurrent()
+        api.detailError = ApiFailure(FailureKind.OFFLINE); api.detailFailures = 1
+        store.adjacentPhoto(1); advanceTimeBy(350); runCurrent()
+        assertEquals("2", store.state.value.detail?.asset?.id)
+        assertNull(store.state.value.problem)
+        assertFalse(store.canRetry())
+        assertEquals(listOf("1", "2", "2"), api.detailReads)
+    }
+
+    @Test fun transientAdjacentReadIsBoundedToOneAutomaticRetry() = runTest {
+        val api = FakeApi().apply { assets = listOf(asset, asset.copy(id = "2")) }
+        val store = store(api); signIn(store); store.selectLibrary("family"); runCurrent()
+        store.openAsset(asset); runCurrent()
+        api.detailError = ApiFailure(FailureKind.OFFLINE); api.detailFailures = 2
+        store.adjacentPhoto(1); advanceTimeBy(350); runCurrent()
+        assertEquals(listOf("1", "2", "2"), api.detailReads)
+        assertNull(store.state.value.detail); assertEquals(Message.UNAVAILABLE, store.state.value.problem?.message)
+        assertTrue(store.canRetry())
+    }
+
+    @Test fun transientAdjacentReadIsCancelledByBackgroundDuringRecoveryWait() = runTest {
+        val api = FakeApi().apply { assets = listOf(asset, asset.copy(id = "2")) }
+        val store = store(api); signIn(store); store.selectLibrary("family"); runCurrent()
+        store.openAsset(asset); runCurrent()
+        api.detailError = ApiFailure(FailureKind.OFFLINE); api.detailFailures = 1
+        store.adjacentPhoto(1); runCurrent(); store.background(); advanceTimeBy(350); runCurrent()
+        assertEquals(listOf("1", "2"), api.detailReads)
+        assertNull(store.state.value.detail); assertTrue(store.state.value.covered)
+    }
+
+    @Test fun retryAfterOnTransientServerReadPreventsEarlyAutomaticRetry() = runTest {
+        val api = FakeApi().apply { assets = listOf(asset, asset.copy(id = "2")) }
+        val store = store(api); signIn(store); store.selectLibrary("family"); runCurrent()
+        store.openAsset(asset); runCurrent()
+        api.detailError = ApiFailure(FailureKind.HTTP, 503, 1000); api.detailFailures = 1
+        store.adjacentPhoto(1); runCurrent()
+        assertEquals(listOf("1", "2"), api.detailReads); assertFalse(store.canRetry())
+        advanceTimeBy(1000); assertTrue(store.canRetry())
+        store.retry(); runCurrent()
+        assertEquals("2", store.state.value.detail?.asset?.id)
+    }
+
+    @Test fun automaticPhotoRecoveryPreservesOriginalViewerIntent() = runTest {
+        val api = FakeApi().apply { assets = listOf(asset, asset.copy(id = "2")); originalsAllowed = true }
+        val store = store(api); signIn(store); store.selectLibrary("family"); runCurrent()
+        store.openAsset(asset); runCurrent(); store.openOriginalPhoto(); runCurrent()
+        api.detailError = ApiFailure(FailureKind.OFFLINE); api.detailFailures = 1
+        store.adjacentOriginalPhoto(1); advanceTimeBy(350); runCurrent()
+        assertEquals("2", store.state.value.detail?.asset?.id)
+        assertTrue(store.state.value.viewingOriginal); assertTrue(store.state.value.photoOriginalQuality)
+        assertNotNull(store.state.value.originalPhoto)
     }
 }

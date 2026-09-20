@@ -5,7 +5,8 @@ import kotlinx.serialization.json.Json
 
 // Names intentionally match the frozen wire fields. No derived language/date fields.
 @Serializable data class SessionToken(val expires_in: Long, val access_token: String, val token_type: String)
-@Serializable data class Session(val account_id: String, val phone_login: String, val memberships: List<Membership>)
+@Serializable data class Session(val account_id: String, val phone_login: String, val memberships: List<Membership>,
+    @kotlinx.serialization.Transient val displayName: String? = null)
 @Serializable data class Membership(
     val library_id: String, val status: String, val role: String, val revision: Long,
     val expires_at: Long?, val originals: Int, val available: Boolean,

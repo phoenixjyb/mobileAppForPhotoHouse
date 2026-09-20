@@ -73,6 +73,7 @@ class HomePhoneTest {
         clickTag("home-language")
         clickTag("home-asset-300")
         rule.waitUntil(10000) { rule.onAllNodesWithTag("original-image").fetchSemanticsNodes().size==1 }
+        if (rule.onAllNodesWithTag("photo-exit-fullscreen").fetchSemanticsNodes().isNotEmpty()) rule.onNodeWithTag("photo-exit-fullscreen").performClick()
         click("Zoom in");rule.onNodeWithTag("photo-zoom").assertTextEquals("150%")
         click("Original quality");rule.waitUntil { store.state.value.originalQuality }
         click("Full screen");rule.onNodeWithTag("photo-exit-fullscreen").performClick()
