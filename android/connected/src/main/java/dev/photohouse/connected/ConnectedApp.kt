@@ -141,7 +141,9 @@ private class Words(val zh: Boolean) {
                     if (state.busy) item { LinearProgressIndicator(Modifier.fillMaxWidth()) }
                     state.problem?.let { problem -> item {
                         Card(Modifier.fillMaxWidth()) { Column(Modifier.padding(16.dp)) {
-                            Text(words.message(problem.message))
+                            Text(if (problem.message == Message.UNAVAILABLE && state.session != null)
+                                t("Could not load this item. Check the connection and retry.", "暂时无法加载此内容，请检查网络连接后重试。")
+                            else words.message(problem.message))
                             var now by remember(problem) { mutableLongStateOf(System.currentTimeMillis()) }
                             LaunchedEffect(problem) { while (now < problem.retryAtMillis) { delay(500); now = System.currentTimeMillis() } }
                             if (now < problem.retryAtMillis) Text(t("Please wait", "请稍候"))

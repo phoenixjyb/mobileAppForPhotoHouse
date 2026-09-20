@@ -144,6 +144,7 @@ class ProtectedJourneyTest {
             clickTag("media-1")
             assertTrue("Preview entry: ${store.state.value.problem}", store.state.value.viewingOriginal)
             rule.waitUntil(10000) { rule.onAllNodesWithTag("original-image").fetchSemanticsNodes().size == 1 }
+            if (rule.onAllNodesWithTag("photo-exit-fullscreen").fetchSemanticsNodes().isNotEmpty()) rule.onNodeWithTag("photo-exit-fullscreen").performClick()
             rule.onNodeWithTag("photo-fit-width").performScrollTo().performClick()
             rule.onNodeWithTag("photo-actual-size").performScrollTo().performClick()
             assertEquals(0, api.originalCalls); assertEquals(0, api.displayCalls)
@@ -230,6 +231,7 @@ class ProtectedJourneyTest {
         rule.runOnIdle { store.authenticate("+8612345678", "eight888") }
         rule.waitForIdle(); clickText("Open library"); clickTag("media-1")
         rule.waitUntil(10000) { rule.onAllNodesWithTag("original-image").fetchSemanticsNodes().size == 1 }
+        if (rule.onAllNodesWithTag("photo-exit-fullscreen").fetchSemanticsNodes().isNotEmpty()) rule.onNodeWithTag("photo-exit-fullscreen").performClick()
         assertTrue(store.state.value.photoPreviewOnly)
         fun viewerTag(tag: String) { rule.onNodeWithTag(tag).performScrollTo().performClick(); rule.waitForIdle() }
         viewerTag("photo-fit-width")
@@ -258,6 +260,7 @@ class ProtectedJourneyTest {
         rule.onNodeWithText("简体中文").performClick(); rule.waitForIdle()
         clickTag("view-protected-preview")
         rule.waitUntil(10000) { rule.onAllNodesWithTag("original-image").fetchSemanticsNodes().size == 1 }
+        if (rule.onAllNodesWithTag("photo-exit-fullscreen").fetchSemanticsNodes().isNotEmpty()) rule.onNodeWithTag("photo-exit-fullscreen").performClick()
         viewerTag("photo-fit-width")
         rule.onNodeWithTag("photo-fit-mode").assertTextEquals("适合宽度")
         viewerTag("photo-fit-height")

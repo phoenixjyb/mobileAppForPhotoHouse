@@ -107,7 +107,7 @@ internal fun orientPhoto(bitmap: Bitmap, orientation: Int): Bitmap {
     var offset by remember(bytes) { mutableStateOf(Offset.Zero) }
     var viewport by remember { mutableStateOf(IntSize.Zero) }
     var mode by remember(bytes) { mutableStateOf(PhotoViewportMode.FIT) }
-    var fullScreen by remember { mutableStateOf(false) }
+    var fullScreen by remember { mutableStateOf(true) }
     val density = LocalDensity.current
     val currentZoom by rememberUpdatedState(zoom)
     val advance by rememberUpdatedState(onAdvanceSlideshow)
@@ -118,7 +118,8 @@ internal fun orientPhoto(bitmap: Bitmap, orientation: Int): Bitmap {
         if (slideshow && result.complete && photo == null) stop()
         else if (slideshow && photo != null && !loading) { kotlinx.coroutines.delay(8000); advance() }
     }
-    MediaWindow(fullScreen, slideshow && photo != null && !loading)
+    // The image always owns the entire window; controls never resize its viewport.
+    MediaWindow(true, slideshow && photo != null && !loading)
     BackHandler(fullScreen) { fullScreen = false; onStopSlideshow() }
     fun updateZoom(factor: Float, pan: Offset = Offset.Zero) {
         if (!factor.isFinite() || !pan.x.isFinite() || !pan.y.isFinite()) return
@@ -130,9 +131,9 @@ internal fun orientPhoto(bitmap: Bitmap, orientation: Int): Bitmap {
     }
     val transform = rememberTransformableState { zoomChange, panChange, _ -> updateZoom(zoomChange, panChange) }
     BoxWithConstraints(Modifier.fillMaxSize().testTag("original-viewer")) {
-    val panelLimit = maxHeight * 0.5f
-    Column(Modifier.fillMaxSize().then(if (fullScreen) Modifier else Modifier.safeDrawingPadding().padding(16.dp))) {
-        Box(Modifier.fillMaxWidth().weight(1f).background(Color.Black).clipToBounds().testTag("photo-viewport").onSizeChanged {
+        val panelLimit = maxHeight * 0.45f
+        Box(Modifier.fillMaxSize().background(Color.Black).clipToBounds().testTag("photo-viewport")
+            .pointerInput(Unit) { detectTapGestures(onTap = { fullScreen = !fullScreen }) }.onSizeChanged {
             viewport = it
             photo?.let { decoded ->
                 val bounds = PhotoViewport.measure(decoded.bitmap.width.toFloat(), decoded.bitmap.height.toFloat(), it.width.toFloat(), it.height.toFloat(), mode)
@@ -158,12 +159,17 @@ internal fun orientPhoto(bitmap: Bitmap, orientation: Int): Bitmap {
                 modifier = Modifier.requiredSize(with(density) { layout.width.toDp() }, with(density) { layout.height.toDp() }).testTag("original-image")
                     .graphicsLayer(scaleX = modeScale * zoom, scaleY = modeScale * zoom, translationX = offset.x, translationY = offset.y)
                     .transformable(transform)
-                    .pointerInput(bytes) { detectTapGestures(onDoubleTap = {
+                    .pointerInput(bytes) { detectTapGestures(onTap = { fullScreen = !fullScreen }, onDoubleTap = {
                         zoom = if (currentZoom > 1f) 1f else 2f; offset = Offset.Zero
                     }) })
             }
         }
-        if (!fullScreen) Column(Modifier.fillMaxWidth().heightIn(max = panelLimit).verticalScroll(rememberScrollState()).testTag("photo-controls")) {
+        if (!fullScreen) Surface(
+            modifier = Modifier.align(Alignment.BottomCenter).fillMaxWidth().safeDrawingPadding(),
+            color = MaterialTheme.colorScheme.surface.copy(alpha = 0.94f),
+            tonalElevation = 3.dp
+        ) {
+        Column(Modifier.fillMaxWidth().heightIn(max = panelLimit).verticalScroll(rememberScrollState()).padding(horizontal = 12.dp, vertical = 8.dp).testTag("photo-controls")) {
             FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalArrangement = Arrangement.spacedBy(4.dp)) {
                 TextButton(onClick = onClose) { Text(t("Close photo", "关闭照片")) }
                 if (onOriginal != null && !originalQuality) TextButton(onClick = onOriginal, enabled = !loading) { Text(t("Original quality", "原图画质")) }
@@ -213,6 +219,15 @@ internal fun orientPhoto(bitmap: Bitmap, orientation: Int): Bitmap {
                 Text(t("8 seconds per photo on this page. Stops at videos or unavailable photos.", "本页每张照片停留 8 秒，遇到视频或不可用照片时停止。"), style = MaterialTheme.typography.bodySmall)
             }
         }
+    }
+    if (fullScreen && navigation != null) Row(
+        Modifier.align(Alignment.BottomCenter).widthIn(max = 560.dp).fillMaxWidth().safeDrawingPadding().padding(12.dp),
+        horizontalArrangement = Arrangement.spacedBy(12.dp)
+    ) {
+        FilledTonalButton(onClick = { onAdjacent(-1) }, enabled = !loading && navigation.index > 0,
+            modifier = Modifier.weight(1f).testTag("photo-fullscreen-previous")) { Text(t("Previous photo", "上一张")) }
+        FilledTonalButton(onClick = { onAdjacent(1) }, enabled = !loading && navigation.index < navigation.assetIds.lastIndex,
+            modifier = Modifier.weight(1f).testTag("photo-fullscreen-next")) { Text(t("Next photo", "下一张")) }
     }
     if (fullScreen) FilledTonalButton(onClick = { fullScreen = false; onStopSlideshow() },
         modifier = Modifier.align(Alignment.TopEnd).safeDrawingPadding().padding(12.dp).testTag("photo-exit-fullscreen")) {

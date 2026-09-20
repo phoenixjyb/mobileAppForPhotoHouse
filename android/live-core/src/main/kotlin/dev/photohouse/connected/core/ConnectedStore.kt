@@ -403,7 +403,7 @@ class ConnectedStore(private val api: PhotoHouseApi, private val scope: Coroutin
             captions = previous.captions, previews = previous.previews, photoNavigation = previous.photoNavigation,
             viewingOriginal = viewingOriginal, busy = busy)
     }
-    private fun openPhoto(assetId: String, navigation: PhotoNavigation?, originalAfterLoad: Boolean = false, slideshow: Boolean = false, mediaAfterLoad: Boolean = false, originalQuality: Boolean = false) {
+    private fun openPhoto(assetId: String, navigation: PhotoNavigation?, originalAfterLoad: Boolean = false, slideshow: Boolean = false, mediaAfterLoad: Boolean = false, originalQuality: Boolean = false, allowTransientRetry: Boolean = true) {
         if (!allowed() || coolingDown()) return
         val library = state.value.library!!; val credential = token!!
         invalidate(keepIdentity = true)
@@ -446,11 +446,27 @@ class ConnectedStore(private val api: PhotoHouseApi, private val scope: Coroutin
                 // still authorize access. Preparing a player never starts its audio.
                 if (mediaAfterLoad && (api.preparedVideoEnabled || detail.originals_allowed) && detail.asset.kind == "video") openVideo()
             } catch (e: CancellationException) { throw e }
-            catch (e: Exception) { readFailure(e, generation, credential) { openPhoto(assetId, navigation) } }
+            catch (e: Exception) {
+                readFailure(e, generation, credential, allowTransientRetry = allowTransientRetry) {
+                    openPhoto(assetId, navigation, originalAfterLoad, slideshow && state.value.photoSlideshow,
+                        mediaAfterLoad, originalQuality, allowTransientRetry = false)
+                }
+            }
         }
     }
-    private suspend fun readFailure(error: Exception, generation: Long, credential: Bearer, retryRead: () -> Unit) {
+    private suspend fun readFailure(error: Exception, generation: Long, credential: Bearer, allowTransientRetry: Boolean = false, retryRead: () -> Unit) {
         if (!active(generation)) return
+        // A protected photo transition is a read-only operation. Give a single
+        // short-lived transport/5xx failure a bounded recovery attempt while
+        // retaining the current generation and cancellation boundary. Auth
+        // denial, rate limiting, malformed responses and writes remain explicit.
+        if (allowTransientRetry && error is ApiFailure &&
+            (error.kind == FailureKind.OFFLINE ||
+                error.kind == FailureKind.HTTP && error.status in 502..504 && error.retryAfterMillis == 0L)) {
+            delay(350)
+            if (active(generation)) retryRead()
+            return
+        }
         state.value.video?.close()
         mutable.value = state.value.copy(video = null, gallery = null, detail = null, captions = null, previews = emptyMap(), photoNavigation = null, originalPhoto = null, viewingOriginal = false, photoSlideshow = false, photoPreviewOnly = false, photoOriginalQuality = false, discovery = null, stories = null, busy = false, problem = problem(error))
         if (error is ApiFailure && error.status == 401) {
@@ -547,8 +563,9 @@ class ConnectedStore(private val api: PhotoHouseApi, private val scope: Coroutin
         }
         val wait = error.retryAfterMillis.coerceAtLeast(0)
         val at = if (Long.MAX_VALUE - now() < wait) Long.MAX_VALUE else now() + wait
-        if (message == Message.RATE_LIMITED) cooldownUntil = maxOf(cooldownUntil, at)
-        return LiveProblem(message, if (message == Message.RATE_LIMITED) cooldownUntil else 0)
+        val retryAfterCooldown = error.status in 502..504 && wait > 0
+        if (message == Message.RATE_LIMITED || retryAfterCooldown) cooldownUntil = maxOf(cooldownUntil, at)
+        return LiveProblem(message, if (message == Message.RATE_LIMITED || retryAfterCooldown) cooldownUntil else 0)
     }
     private fun validateSession(session: Session, account: String? = null) {
         validResponse(session.account_id.isNotBlank() && (account == null || session.account_id == account))

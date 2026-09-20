@@ -105,7 +105,13 @@ class HttpsPhotoHouseApi internal constructor(private val origin: TrustedOrigin,
                     try {
                         val result = response.use {
                             if (it.code !in 200..299 && !(missingAllowed && it.code == 404)) {
-                                throw ApiFailure(FailureKind.HTTP, it.code, if (it.code == 429) retryAfterMillis(it.header("Retry-After")) else 0)
+                                val retryAfter = it.header("Retry-After")
+                                throw ApiFailure(FailureKind.HTTP, it.code,
+                                    when {
+                                        it.code == 429 -> retryAfterMillis(retryAfter)
+                                        it.code in 502..504 && retryAfter != null -> retryAfterMillis(retryAfter)
+                                        else -> 0
+                                    })
                             }
                             if (it.code == 404) return@use Packet(404, null, byteArrayOf())
                             var total = 0L

@@ -23,6 +23,7 @@ class OnDemandPhotoTest {
         for (chinese in listOf(false,true)) {
             rule.runOnUiThread { zh=chinese;original=false }
             rule.waitUntil(10000) { rule.onAllNodesWithTag("original-image").fetchSemanticsNodes().size==1 }
+            if (rule.onAllNodesWithTag("photo-exit-fullscreen").fetchSemanticsNodes().isNotEmpty()) rule.onNodeWithTag("photo-exit-fullscreen").performClick()
             rule.onNodeWithText(if(chinese) "原图画质" else "Original quality").performScrollTo().performClick()
             rule.onNodeWithText(if(chinese) "原始文件" else "Original file").performScrollTo().assertIsDisplayed()
             rule.onNodeWithText(if(chinese) "全屏" else "Full screen").performScrollTo().performClick()

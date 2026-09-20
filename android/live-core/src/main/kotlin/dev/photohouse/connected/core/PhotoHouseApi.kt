@@ -84,7 +84,8 @@ object Admission {
 }
 
 fun retryAfterMillis(value: String?, nowMillis: Long = System.currentTimeMillis()): Long {
-    // Honor long server cooldowns without overflow; there is never an automatic retry.
+    // Parse long server cooldowns without overflow; callers decide whether a
+    // read may recover automatically or must wait for explicit retry.
     value?.toLongOrNull()?.let { return it.coerceIn(0, Long.MAX_VALUE / 1000) * 1000 }
     val date = runCatching { ZonedDateTime.parse(value, DateTimeFormatter.RFC_1123_DATE_TIME).toInstant().toEpochMilli() }.getOrNull()
     return if (date == null) 5000 else (date - nowMillis).coerceAtLeast(0)

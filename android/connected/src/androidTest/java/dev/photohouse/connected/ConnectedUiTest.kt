@@ -63,7 +63,11 @@ class ConnectedUiTest {
         override suspend fun logout(token: Bearer) { }
         override suspend fun acceptInvitation(token: Bearer, code: String) { }
         override suspend fun gallery(token: Bearer, library: String, page: Int) = Gallery(library, page, 50, total, false, photos)
-        override suspend fun detail(token: Bearer, library: String, assetId: String) = Detail(library, originalsAllowed, photos.first { it.id == assetId })
+        var transientDetailFailures = 0
+        override suspend fun detail(token: Bearer, library: String, assetId: String): Detail {
+            if (transientDetailFailures > 0) { transientDetailFailures--; throw ApiFailure(FailureKind.HTTP, 503) }
+            return Detail(library, originalsAllowed, photos.first { it.id == assetId })
+        }
         override suspend fun captions(token: Bearer, library: String, assetId: String) = Captions(library, assetId, false, listOf(Caption("1", "<b>Literal 原文</b>", false, false, null, null)))
         override suspend fun thumbnail(token: Bearer, library: String, asset: Asset): ByteArray? = previewBytes
         override suspend fun videoRange(token: Bearer, library: String, assetId: String, start: Long, length: Int): VideoChunk {
@@ -196,6 +200,7 @@ class ConnectedUiTest {
         click("Open library"); click("Next")
         reveal(hasTestTag("media-1")); rule.onNodeWithTag("media-1").performClick()
         rule.waitUntil(5000) { rule.onAllNodesWithTag("original-image").fetchSemanticsNodes().size == 1 }
+        if (rule.onAllNodesWithTag("photo-exit-fullscreen").fetchSemanticsNodes().isNotEmpty()) rule.onNodeWithTag("photo-exit-fullscreen").performClick()
         assertEquals(2, store.state.value.photoNavigation?.page)
         rule.runOnUiThread { rule.activity.onBackPressedDispatcher.onBackPressed() }
         assertNull(store.state.value.originalPhoto)
@@ -392,6 +397,27 @@ class ConnectedUiTest {
         assertEquals(Message.MEDIA_UNAVAILABLE, store.state.value.problem?.message)
         assertFalse(store.canRetry()); rule.onNodeWithTag("video-player").assertDoesNotExist()
     }
+    @Test fun failedPhotoSwitchRetriesBackIntoFullscreenWithoutRegistrationMessage() {
+        val api = SyntheticApi().apply {
+            photos = listOf(photo.copy(id = "1", kind = "image"), photo.copy(id = "2", kind = "image"))
+            originalsAllowed = true
+        }
+        val store = ConnectedStore(api, scope)
+        rule.runOnUiThread { rule.activity.setContent { ConnectedApp(store) }; store.authenticate("+12025550123", "synthetic-password-only") }
+        click("Open library"); details("1"); click("Open original photo")
+        rule.waitUntil(10000) { rule.onAllNodesWithTag("original-image").fetchSemanticsNodes().size == 1 }
+        rule.runOnIdle { api.transientDetailFailures = 2 }
+        rule.onNodeWithTag("photo-fullscreen-next").performClick()
+        rule.waitUntil(10000) { store.state.value.problem != null }
+        rule.onNodeWithText("Could not load this item. Check the connection and retry.").assertExists()
+        assertNotNull(store.state.value.session)
+        click("Retry")
+        rule.waitUntil(10000) { rule.onAllNodesWithTag("original-image").fetchSemanticsNodes().size == 1 }
+        assertEquals("2", store.state.value.detail?.asset?.id)
+        rule.onNodeWithTag("photo-controls").assertDoesNotExist()
+        rule.onNodeWithTag("photo-fullscreen-previous").assertIsEnabled()
+        rule.runOnIdle { store.background() }
+    }
     @Test fun originalViewerZoomCloseAndPrivacyUseSyntheticImageBytes() {
         val api = SyntheticApi().apply { photos = listOf(photo.copy(kind = "image")); originalsAllowed = true }
         val store = ConnectedStore(api, scope)
@@ -401,6 +427,7 @@ class ConnectedUiTest {
         }
         click("Open library"); details("1"); click("Open original photo")
         rule.waitUntil(5000) { rule.onAllNodesWithTag("original-image").fetchSemanticsNodes().size == 1 }
+        if (rule.onAllNodesWithTag("photo-exit-fullscreen").fetchSemanticsNodes().isNotEmpty()) rule.onNodeWithTag("photo-exit-fullscreen").performClick()
         rule.onNodeWithTag("photo-zoom").assertTextEquals("100%")
         rule.onNode(hasText("Zoom in") and hasClickAction()).performScrollTo().performClick()
         rule.onNodeWithTag("photo-zoom").assertTextEquals("150%")
@@ -421,12 +448,14 @@ class ConnectedUiTest {
         rule.onAllNodesWithTag("original-viewer").assertCountEquals(0)
         click("简体中文"); click("打开原始照片")
         rule.waitUntil(5000) { rule.onAllNodesWithTag("original-image").fetchSemanticsNodes().size == 1 }
+        if (rule.onAllNodesWithTag("photo-exit-fullscreen").fetchSemanticsNodes().isNotEmpty()) rule.onNodeWithTag("photo-exit-fullscreen").performClick()
         rule.onNodeWithTag("photo-zoom").assertTextEquals("100%")
         capture("original-photo-zh")
         rule.onNode(hasText("关闭照片") and hasClickAction()).performScrollTo().performClick()
         rule.waitForIdle(); assertNull(store.state.value.originalPhoto)
         click("打开原始照片")
         rule.waitUntil(5000) { rule.onAllNodesWithTag("original-image").fetchSemanticsNodes().size == 1 }
+        if (rule.onAllNodesWithTag("photo-exit-fullscreen").fetchSemanticsNodes().isNotEmpty()) rule.onNodeWithTag("photo-exit-fullscreen").performClick()
         rule.runOnUiThread { store.background() }
         rule.waitForIdle(); rule.onAllNodesWithTag("original-viewer").assertCountEquals(0)
         assertNull(store.state.value.originalPhoto); assertTrue(store.state.value.covered)
@@ -441,7 +470,7 @@ class ConnectedUiTest {
         click("Open library"); click("Next"); details("1"); click("Open original photo")
         fun ready() { rule.waitUntil(5000) { rule.onAllNodesWithTag("original-image").fetchSemanticsNodes().size == 1 } }
         fun mediaClick(label: String) { rule.onNode(hasText(label) and hasClickAction()).performScrollTo().performClick() }
-        ready(); val original = store.state.value.originalPhoto
+        ready(); rule.onNodeWithTag("photo-exit-fullscreen").performClick(); val original = store.state.value.originalPhoto
         mediaClick("Fill screen"); rule.onNodeWithTag("photo-fit-mode").assertTextEquals("Fill · edges cropped")
         rule.onNodeWithTag("original-image").performTouchInput {
             swipe(center, center + androidx.compose.ui.geometry.Offset(width * 0.3f, height * 0.3f), 300)
