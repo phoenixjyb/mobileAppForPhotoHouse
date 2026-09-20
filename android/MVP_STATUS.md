@@ -1,5 +1,10 @@
 # Android family browsing MVP — current status
 
+Current continuation: [Phone v15 evidence](evidence/family-memories-v15/RETURN.md).
+Cold-start sign-in and story-editing statements below describe the earlier baseline.
+V15 adds optional Keystore persistence (same 24-hour limit), reviewed story writes
+and an opt-in server-side media filter; live rollout remains a separate gate.
+
 For the later phone/TV media and opt-in search additions, start with
 [phone/TV parity](PHONE_TV_PARITY.md) and the
 [protected discovery candidate](phone-discovery-contract/README.md). The original

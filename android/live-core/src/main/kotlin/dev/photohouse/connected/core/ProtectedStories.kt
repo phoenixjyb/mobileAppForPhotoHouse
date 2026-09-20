@@ -35,6 +35,40 @@ internal object ProtectedStoriesWire {
     } catch (_: Exception) {
         bad()
     }
+    internal fun single(bytes: ByteArray, assetId: String, storyId: String? = null): ProtectedStory = try {
+        parseStory(obj(DiscoveryJson.parse(bytes, HttpsPhotoHouseApi.STORIES_LIMIT)), assetId, mutableSetOf()).also {
+            check(storyId == null || it.id == storyId)
+        }
+    } catch (e: ApiFailure) { throw e } catch (_: Exception) { bad() }
+
+    internal fun current(bytes: ByteArray, assetId: String, storyId: String): ProtectedStory? = try {
+        val root = obj(DiscoveryJson.parse(bytes, HttpsPhotoHouseApi.STORIES_LIMIT))
+        fields(root, setOf("story", "page", "has_more", "items"))
+        check(long(root, "page") == 1L); bool(root, "has_more")
+        val history = root["items"] as? JsonArray ?: bad(); check(history.size <= 5)
+        val story = obj(root["story"] ?: bad())
+        // A deleted story cannot be edited or silently recreated as a new memory.
+        check(str(story, "asset_id") == assetId && str(story, "id") == storyId)
+        if (bool(story, "deleted")) null else parseStory(story, assetId, mutableSetOf())
+    } catch (e: ApiFailure) { throw e } catch (_: Exception) { bad() }
+
+    internal fun mutation(value: StoryMutation): String {
+        fun requireText(text: String, max: Int) {
+            require(text.indexOf('\u0000') < 0)
+            require(Charsets.UTF_8.newEncoder().onMalformedInput(java.nio.charset.CodingErrorAction.REPORT)
+                .onUnmappableCharacter(java.nio.charset.CodingErrorAction.REPORT)
+                .encode(java.nio.CharBuffer.wrap(text)).remaining() <= max)
+        }
+        requireText(value.draft.title, 512); requireText(value.draft.text, 64 * 1024); requireText(value.draft.byline, 256)
+        require(value.draft.text.isNotBlank() && value.draft.language in setOf("en", "zh", "mixed", "und"))
+        require((value.storyId == null && value.revision == null) || (value.storyId != null && (value.revision ?: 0) > 0))
+        return buildJsonObject {
+            put("title", value.draft.title); put("text", value.draft.text)
+            put("language", value.draft.language); put("byline", value.draft.byline)
+            put("mutation_id", value.mutationId.toString())
+            value.revision?.let { put("revision", it.toString()) }
+        }.toString()
+    }
     private fun parseInternal(bytes: ByteArray, library: String, assetId: String, page: Int): ProtectedStoryPage {
         val root = obj(DiscoveryJson.parse(bytes, HttpsPhotoHouseApi.STORIES_LIMIT))
         fields(root, setOf("asset_id", "library_id", "page", "can_create", "has_more", "items"))

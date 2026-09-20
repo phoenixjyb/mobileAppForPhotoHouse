@@ -1,12 +1,12 @@
 # Protected native v2 adoption snapshot
 
-Android-owned exact copy of candidate.13. Frozen contracts/v1 stays unchanged.
+Android-owned exact copy of candidate.14. Frozen contracts/v1 stays unchanged.
 
-Backend source: `1d9248e577947c4b8fea1a1551f11b2f78bc2781`.
-Pack commit: `7af4498e6a55b4c17f7223e815d145e4a595ce0c`.
-Contract: `2.0.0-candidate.13`, 70 cases; schema `f2a6d8b4c915`.
+Backend source: `1ee1af8d6efb1fac0546bf9013ad4e044aa554e5`.
+Pack commit: `4d1de0f06bae4f2e5342134db6a4b847657d2484`.
+Contract: `2.0.0-candidate.14`, 78 cases; schema `f2a6d8b4c915`.
 See manifest.json and android/verify-protected-native-contract.py for exact hashes.
-The verifier checks all 115 source and seven payload hashes against the backend.
+The verifier checks all 116 source and seven payload hashes against the backend.
 PREPARED_MEDIA.md is an exact copy of the additional backend-owned streaming contract,
 verified against its source hash rather than altering the original pack documents.
 
@@ -21,3 +21,11 @@ no automatic retry, original fallback, anonymous Home fallback or persistent cac
 This pack does not enable a live backend, discovery, uploads or high-quality photo
 rendering. Those services still need separate runtime qualification. Emulator/local
 TLS checks and APK packaging do not establish physical device acceptance.
+
+Phone v15 adopts the additive server-paged media query under
+`photohousePhoneMediaFilterEnabled` (default false; requires protected native v2).
+Enable only with candidate14 or a compatible qualified backend. The text story
+editor uses the existing POST/PUT revision and mutation-ID contract, with explicit
+review/confirmation and manual exact-body retry. Story write access comes from
+server `can_create`/`can_edit`, never from local role inference. Keystore sign-in
+retains the existing 24-hour token only; no refresh route or lifetime extension.

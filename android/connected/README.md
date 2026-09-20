@@ -1,5 +1,10 @@
 # Phone Android development app
 
+Phone v15 adds protected **All / Photos / Videos** browsing, editable text family
+memories with review before saving, and optional encrypted remembered sign-in.
+See [v15 source and verification evidence](../evidence/family-memories-v15/RETURN.md)
+for current rollout gates. Older sections below describe earlier slices.
+
 Phone v6 adds an explicit **At home / Sign in** launcher. The new
 [Home mode](../PHONE_HOME_MODE.md) uses the existing anonymous home v3 publication
 with its own private routing and server audience. The account-mode history below
@@ -21,7 +26,7 @@ play/pause/seek/fit/fill/fullscreen. The gallery, details, admission and Setting
 layouts have completed the local UI refinement slice.
 
 It is not the complete PhotoHouse product. File downloads, uploads,
-search, albums, voice, owner administration and persistent sign-in are absent.
+albums, voice narration and owner administration remain separate work.
 Real backend deployment and physical-device acceptance have not been verified.
 
 ## Configuration
@@ -66,11 +71,17 @@ authentication retries and refresh tokens are disabled. The internal custom-clie
 constructor is used only by JVM tests: either synthetic in-process interceptors
 or runtime-generated certificates on loopback in the separately authorized TLS lane. No trust overrides or test certificate are packaged into the app.
 
-Bearer credentials stay in memory. Logout, account/library changes and background
+With “Remember sign-in” selected, the current Bearer token and its issue/expiry
+times are encrypted with AES-256-GCM and an Android Keystore key in the app's
+no-backup directory. Passwords, account records and media are never saved. The
+stored token is tied to the configured origin. Logout and expiry clear it;
+backgrounding retains the credential and clears private views/drafts.
+Logout, account/library changes and background
 events cancel outstanding calls and clear private views. Late responses cannot
 cross generations. Foreground session revalidation must succeed before content is
 uncovered. The 24-hour deadline clears state even while idle. Cold process starts
-are signed out. Local logout is immediate; server revocation is labeled confirmed
+restore an unexpired credential only after server revalidation, without extending
+its lifetime. Local logout is immediate; server revocation is labeled confirmed
 only after acknowledgement. A cancelled/lost login or registration response may
 leave a server session until its expiry; there is no invented recovery endpoint.
 
@@ -78,7 +89,7 @@ Each JSON response is limited to 512 KiB, each thumbnail to 1 MiB, and retained
 thumbnail bytes to 8 MiB. Thumbnail decoding rejects dimensions above 1024 pixels.
 Only the exact same-origin, library-scoped thumbnail path is accepted. A missing
 thumbnail becomes a placeholder and never falls back to an original or provider.
-No photos, credentials or navigation are persisted; backup and saved-state
+No photos, passwords, story drafts or navigation are persisted; backup and saved-state
 restoration are disabled, with `FLAG_SECURE` protecting task snapshots.
 
 The original viewer is separate from thumbnail loading. It is offered only for
@@ -145,10 +156,20 @@ Phone video controls show minutes/hours and seeking/buffering feedback, includin
 fullscreen. A stalled seek exits through the existing failure lifecycle after 30 seconds.
 At large text sizes the gallery uses one column and action groups wrap.
 
-The UI remains a development build with memory-only sign-in. Dates are source text,
+The UI remains a development build; remembered sign-in is optional and encrypted. Dates are source text,
 captions stay literal, and unavailable previews never fall back to original files.
 See [UI evidence](../../docs/evidence/android/ui/RETURN.md) for the independently recorded UI check.
 
 The [phone/TV parity record](../PHONE_TV_PARITY.md) describes the media continuation,
 its privacy behavior, and the remaining protected discovery and prepared-media
 contracts. Discovery is not enabled by copying the TV's anonymous API adapter.
+
+## Synthetic physical-phone QA
+
+When emulator infrastructure is unavailable, `-PphotohousePhoneUiQa=true` builds
+`dev.photohouse.connected.qa`, which cannot replace the family app. This option
+requires empty `photohouseOrigin`, `photohousePhoneHomeOrigin` and
+`photohousePhoneHomeLanAddress`; the test process injects synthetic adapters.
+It is not the installable family candidate. Remove this test package and its
+instrumentation package after verification. Normal builds retain the original
+application ID and all trust/backup/privacy restrictions.

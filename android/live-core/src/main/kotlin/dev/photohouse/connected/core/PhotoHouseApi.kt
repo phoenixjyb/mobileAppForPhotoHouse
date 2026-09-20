@@ -24,6 +24,7 @@ class ApiFailure(val kind: FailureKind, val status: Int? = null, val retryAfterM
 interface PhotoHouseApi {
     /** Protected family stories are opt-in until the integration owner enables the route. */
     val protectedNativeV2Enabled: Boolean get() = false
+    val mediaFilterEnabled: Boolean get() = false
     val preparedVideoEnabled: Boolean get() = false
     suspend fun preparedVideoInfo(token: Bearer, library: String, assetId: String): PreparedVideoInfo = throw ApiFailure(FailureKind.INVALID_INPUT)
     suspend fun preparedVideoRange(token: Bearer, library: String, assetId: String, info: PreparedVideoInfo, start: Long, length: Int): VideoChunk = throw ApiFailure(FailureKind.INVALID_INPUT)
@@ -39,6 +40,12 @@ interface PhotoHouseApi {
     suspend fun acceptInvitation(token: Bearer, code: String)
     suspend fun logout(token: Bearer)
     suspend fun gallery(token: Bearer, library: String, page: Int): Gallery
+    suspend fun gallery(token: Bearer, library: String, page: Int, media: GalleryMedia): Gallery {
+        require(media == GalleryMedia.ALL)
+        return gallery(token, library, page)
+    }
+    suspend fun saveStory(token: Bearer, library: String, mutation: StoryMutation): ProtectedStory = throw ApiFailure(FailureKind.INVALID_INPUT)
+    suspend fun currentStory(token: Bearer, library: String, assetId: String, storyId: String): ProtectedStory? = throw ApiFailure(FailureKind.INVALID_INPUT)
     suspend fun detail(token: Bearer, library: String, assetId: String): Detail
     suspend fun captions(token: Bearer, library: String, assetId: String): Captions
     suspend fun thumbnail(token: Bearer, library: String, asset: Asset): ByteArray?

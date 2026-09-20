@@ -17,6 +17,13 @@ class ProtectedStoryStoreTest {
         var gate: CompletableDeferred<Unit>? = null
         val reads = mutableListOf<Int>()
         var wrongScope = false
+        var canCreate = false
+        var editEnabled = false
+        var saveGate: CompletableDeferred<Unit>? = null
+        var saveError: Exception? = null
+        val savedMutations = mutableListOf<StoryMutation>()
+        var savedStoryText = "server returned text"
+        var currentStory: ProtectedStory? = null
         override suspend fun login(phone: String, password: String) = SessionToken(86400, "T".repeat(43), "Bearer")
         override suspend fun register(phone: String, password: String, code: String) = login(phone,password)
         override suspend fun session(token: Bearer): Session {
@@ -35,9 +42,19 @@ class ProtectedStoryStoreTest {
             reads += page
             gate?.let { withContext(NonCancellable) { it.await() } }
             storyError?.let { throw it }
-            return ProtectedStoryPage(if(wrongScope) "foreign" else library, assetId, page, false, page==1,
-                if(page==1) listOf(ProtectedStory("10000000-0000-0000-0000-000000000001",assetId,"Title","家人的原文 <b>literal</b>","mixed","A family member","synthetic-account",1,100,100,false,false)) else emptyList())
+            val story = ProtectedStory("10000000-0000-0000-0000-000000000001",assetId,"Title","家人的原文 <b>literal</b>","mixed","A family member","synthetic-account",1,100,100,editEnabled,false)
+            currentStory = story
+            return ProtectedStoryPage(if(wrongScope) "foreign" else library, assetId, page, canCreate, page==1,
+                if(page==1) listOf(story) else emptyList())
         }
+        override suspend fun saveStory(token: Bearer, library: String, mutation: StoryMutation): ProtectedStory {
+            saveGate?.let { withContext(NonCancellable) { it.await() } }
+            saveError?.let { throw it }
+            savedMutations += mutation
+            return (currentStory ?: ProtectedStory("10000000-0000-0000-0000-000000000001", mutation.assetId, "Title", "", "mixed", "A family member", "synthetic-account", 1, 100, 100, true, false)).copy(
+                assetId = mutation.assetId, revision = (mutation.revision ?: 1) + 1, text = savedStoryText)
+        }
+        override suspend fun currentStory(token: Bearer, library: String, assetId: String, storyId: String): ProtectedStory? = currentStory
     }
     private fun TestScope.open(api: Api): ConnectedStore {
         val store=ConnectedStore(api,backgroundScope) { testScheduler.currentTime }
@@ -100,5 +117,57 @@ class ProtectedStoryStoreTest {
     @Test fun longLivedSessionExpiryClearsAlreadyReadStories()=runTest {
         val api=Api();val store=open(api);store.loadStories();runCurrent()
         advanceTimeBy(86400001);runCurrent();assertNull(store.state.value.stories);assertNull(store.state.value.session)
+    }
+
+    @Test fun viewerCannotCreateOrEditStories() = runTest {
+        val api = Api(); val store = open(api)
+        store.loadStories(); runCurrent()
+        assertFalse(store.state.value.stories!!.result!!.canCreate)
+        assertFalse(store.state.value.stories!!.result!!.items.single().canEdit)
+        store.editStory(); assertNull(store.state.value.storyEditor)
+    }
+
+    @Test fun editorSavePublishesServerReturnedText() = runTest {
+        val api = Api().apply { canCreate = true; editEnabled = true; savedStoryText = "server canonical text" }
+        val store = open(api); store.loadStories(); runCurrent(); store.editStory()
+        val editor = store.state.value.storyEditor!!
+        editor.updateText("client draft")
+        assertTrue(editor.beginReview()); editor.confirmSave(); runCurrent()
+        assertEquals(StoryEditorPhase.SAVED, editor.state.value.phase)
+        assertEquals("server canonical text", editor.state.value.latest!!.text)
+        assertNull(store.state.value.stories)
+        assertEquals("client draft", api.savedMutations.single().draft.text)
+    }
+
+    @Test fun conflict409NeverOverwritesDraft() = runTest {
+        val api = Api().apply { editEnabled = true; saveError = ApiFailure(FailureKind.HTTP, 409) }
+        val store = open(api); store.loadStories(); runCurrent(); store.editStory("10000000-0000-0000-0000-000000000001")
+        val editor = store.state.value.storyEditor!!
+        editor.updateText("keep this draft")
+        assertTrue(editor.beginReview()); editor.confirmSave(); runCurrent()
+        assertEquals(StoryEditorPhase.CONFLICT, editor.state.value.phase)
+        assertEquals("keep this draft", editor.state.value.mutation!!.draft.text)
+        assertEquals("家人的原文 <b>literal</b>", store.state.value.stories!!.result!!.items.single().text)
+    }
+
+    @Test fun navigationCancelsEditorAndIgnoresLateSave() = runTest {
+        for (action in listOf("background", "logout", "library", "asset")) {
+            val gate = CompletableDeferred<Unit>()
+            val api = Api().apply { editEnabled = true; saveGate = gate }
+            val store = open(api); store.loadStories(); runCurrent(); store.editStory("10000000-0000-0000-0000-000000000001")
+            val editor = store.state.value.storyEditor!!
+            editor.updateText("draft that must not land")
+            assertTrue(editor.beginReview()); editor.confirmSave(); runCurrent()
+            when (action) {
+                "background" -> store.background()
+                "logout" -> store.logout()
+                "library" -> store.libraries()
+                else -> store.openAsset(asset.copy(id = "2"))
+            }
+            runCurrent(); gate.complete(Unit); runCurrent()
+            assertEquals(StoryEditorPhase.CLOSED, editor.state.value.phase)
+            assertNull(store.state.value.storyEditor)
+            assertTrue(store.state.value.stories?.result?.items?.singleOrNull()?.text != "server returned text")
+        }
     }
 }

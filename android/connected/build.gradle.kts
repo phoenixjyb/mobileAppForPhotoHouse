@@ -16,6 +16,9 @@ require(photoDeliveryEnabled in listOf("true", "false"))
 val preparedVideoEnabled = providers.gradleProperty("photohousePhonePreparedVideoEnabled").orElse("false").get()
 require(preparedVideoEnabled in listOf("true", "false"))
 require(preparedVideoEnabled != "true" || protectedNativeV2Enabled == "true")
+val mediaFilterEnabled = providers.gradleProperty("photohousePhoneMediaFilterEnabled").orElse("false").get()
+require(mediaFilterEnabled in listOf("true", "false"))
+require(mediaFilterEnabled != "true" || protectedNativeV2Enabled == "true")
 // Home mode has independent routing. Neither field can carry account credentials.
 val homeOrigin = providers.gradleProperty("photohousePhoneHomeOrigin").orElse(localConfig.getProperty("photohousePhoneHomeOrigin", "")).get()
 val homeAddress = providers.gradleProperty("photohousePhoneHomeLanAddress").orElse(localConfig.getProperty("photohousePhoneHomeLanAddress", "")).get()
@@ -30,6 +33,11 @@ require(calendarEnabled != "true" || tagLookupEnabled == "true")
 val storyFixtureFlag = providers.gradleProperty("photohouseStoryFixtureEnabled").orElse("false").get()
 require(storyFixtureFlag in listOf("true", "false"))
 val storyFixtureEnabled = storyFixtureFlag == "true"
+// A separate, unconfigured package for synthetic checks on a physical phone.
+// It cannot replace the family app or construct a configured network client.
+val uiQa = providers.gradleProperty("photohousePhoneUiQa").orElse("false").get()
+require(uiQa in listOf("true", "false"))
+require(uiQa != "true" || (configuredOrigin.isEmpty() && homeOrigin.isEmpty() && homeAddress.isEmpty()))
 android {
     if (storyFixtureEnabled) {
         sourceSets.getByName("debug").java.srcDir("../story-fixture-ui/src/main/java")
@@ -43,12 +51,12 @@ android {
     defaultConfig {
         buildConfigField("boolean", "PHOTOHOUSE_HOME_CALENDAR_ENABLED", calendarEnabled)
         buildConfigField("boolean", "PHOTOHOUSE_HOME_TAG_LOOKUP_ENABLED", tagLookupEnabled)
-        applicationId = "dev.photohouse.connected"
+        applicationId = if (uiQa == "true") "dev.photohouse.connected.qa" else "dev.photohouse.connected"
         minSdk = 26
         targetSdk = 34
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
-        versionCode = 14
-        versionName = "0.15-fullscreen-photos"
+        versionCode = 15
+        versionName = "0.16-family-memories"
         buildConfigField("boolean", "PHOTOHOUSE_HOME_DISCOVERY_ENABLED", homeDiscoveryEnabled)
         buildConfigField("String", "PHOTOHOUSE_HOME_ORIGIN", "\"$homeOrigin\"")
         buildConfigField("String", "PHOTOHOUSE_HOME_LAN_ADDRESS", "\"$homeAddress\"")
@@ -56,6 +64,7 @@ android {
         buildConfigField("boolean", "PHOTOHOUSE_DISCOVERY_ENABLED", discoveryEnabled)
         buildConfigField("boolean", "PHOTOHOUSE_PHOTO_DELIVERY_ENABLED", photoDeliveryEnabled)
         buildConfigField("boolean", "PHOTOHOUSE_PREPARED_VIDEO_ENABLED", preparedVideoEnabled)
+        buildConfigField("boolean", "PHOTOHOUSE_MEDIA_FILTER_ENABLED", mediaFilterEnabled)
         buildConfigField("String", "PHOTOHOUSE_ORIGIN", "\"$configuredOrigin\"")
     }
     androidComponents { beforeVariants(selector().withBuildType("release")) { it.enable = false } }

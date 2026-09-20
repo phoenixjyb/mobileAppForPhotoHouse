@@ -36,6 +36,7 @@ import kotlinx.coroutines.delay
 private class Words(val zh: Boolean) {
     fun t(en: String, cn: String) = if (zh) cn else en
     fun message(m: Message) = when (m) {
+        Message.SESSION_STORAGE_UNAVAILABLE -> t("Secure sign-in storage is unavailable on this device. Sign in again next time; if signing out, check server revocation.", "此设备的安全登录存储不可用，下次需重新登录；退出时请确认服务器已撤销会话。")
         Message.SIGNED_OUT_LOCAL -> t("Signed out on this phone. Server acknowledgement is unavailable.", "已在本机退出，尚未获得服务器确认。")
         Message.SIGNED_OUT_CONFIRMED -> t("Signed out. The server confirmed session revocation.", "已退出，服务器已确认会话撤销。")
         Message.SESSION_ENDED -> t("Your session ended. Please sign in again.", "会话已结束，请重新登录。")
@@ -77,6 +78,9 @@ private class Words(val zh: Boolean) {
     val scroll = rememberLazyListState()
     LaunchedEffect(state.generation) { scroll.scrollToItem(0) }
     PhotoHouseTheme {
+        if (!state.covered && store != null) state.storyEditor?.let { editor ->
+            ProtectedStoryEditorDialog(editor, onDismiss = store::closeStoryEditor, zh = words.zh)
+        }
         val galleryForJump = state.gallery
         if (jumpPage && galleryForJump != null && !state.covered && store != null) PhonePageJump(
             galleryForJump.page, galleryForJump.page_size, galleryForJump.total, words.zh,
@@ -222,7 +226,7 @@ private class Words(val zh: Boolean) {
                                     } }
                                     if (store.protectedNativeV2Enabled) item {
                                         ProtectedStoriesPanel(state.stories, state.busy, words,
-                                            load = store::loadStories)
+                                            load = store::loadStories, edit = store::editStory)
                                     }
                                     item { Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
                                         HorizontalDivider(Modifier.padding(vertical = 12.dp))
@@ -243,17 +247,28 @@ private class Words(val zh: Boolean) {
                                 }
                                 else -> {
                                     item { Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
-                                        Text(if (state.discovery != null) t("Search results", "搜索结果") else t("Photos", "照片"), style = MaterialTheme.typography.headlineMedium, fontFamily = FontFamily.Serif)
+                                        Text(if (state.discovery != null) t("Search results", "搜索结果") else t("Your memories", "家庭相册"), style = MaterialTheme.typography.headlineMedium, fontFamily = FontFamily.Serif)
                                         Text(state.library.orEmpty(), style = MaterialTheme.typography.bodySmall,
                                             color = MaterialTheme.colorScheme.onSurfaceVariant)
                                     } }
+                                    if (store.mediaFilterEnabled && state.discovery == null) item {
+                                        FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                                            for (media in GalleryMedia.entries) FilterChip(
+                                                selected = state.media == media, onClick = { store.selectMedia(media) },
+                                                modifier = Modifier.testTag("gallery-media-${media.wire}"), label = { Text(when(media) {
+                                                    GalleryMedia.ALL -> t("All", "全部")
+                                                    GalleryMedia.PHOTOS -> t("Photos", "照片")
+                                                    GalleryMedia.VIDEOS -> t("Videos", "视频")
+                                                }) })
+                                        }
+                                    }
                                     if (store.discoveryEnabled) item { FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                                         Button(onClick = { if (state.discovery == null) store.openDiscovery() else store.editDiscovery() }, enabled = !state.busy,
                                             modifier = Modifier.testTag("open-discovery")) { Text(if (state.discovery == null) t("Find a memory", "寻找回忆") else t("Edit filters", "修改条件")) }
                                         if (state.discovery != null) TextButton(onClick = { store.loadPage(1) }, enabled = !state.busy) { Text(t("All photos", "全部照片")) }
                                     } }
                                     state.gallery?.let { gallery ->
-                                        if (gallery.items.isEmpty()) item { Text(t("This page has no photos", "此页没有照片")) }
+                                        if (gallery.items.isEmpty()) item { Text(t("No matching items on this page", "此页暂无符合条件的内容")) }
                                         val columns = if (config.fontScale > 1.3f || config.screenWidthDp < 360) 1 else 2
                                         items(gallery.items.chunked(columns)) { row -> Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
                                             row.forEach { asset -> Card(onClick = { store.openMedia(asset) }, modifier = Modifier.weight(1f).testTag("media-${asset.id}")) {
@@ -270,7 +285,7 @@ private class Words(val zh: Boolean) {
                                             if (row.size < columns) Spacer(Modifier.weight(1f))
                                         } }
                                         item {
-                                            Text(t("Page ${gallery.page} · ${gallery.total} photos", "第 ${gallery.page} 页 · ${gallery.total} 张照片"))
+                                            Text(t("Page ${gallery.page} · ${gallery.total} items", "第 ${gallery.page} 页 · ${gallery.total} 项"))
                                             FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                                                 OutlinedButton(onClick = { store.navigatePage(gallery.page - 1) }, enabled = !state.busy && gallery.page > 1) { Text(t("Previous", "上一页")) }
                                                 OutlinedButton(onClick = { store.navigatePage(gallery.page + 1) }, enabled = !state.busy && gallery.page < 100000 && gallery.page.toLong() * gallery.page_size < gallery.total) { Text(t("Next", "下一页")) }
@@ -293,6 +308,7 @@ private class Words(val zh: Boolean) {
     val focus = LocalFocusManager.current
     val keyboard = LocalSoftwareKeyboardController.current
     var register by remember { mutableStateOf(false) }
+    var rememberSession by remember { mutableStateOf(true) }
     val defaultPhone = if (store.protectedNativeV2Enabled) "+86" else ""
     var phone by remember { mutableStateOf(defaultPhone) }
     var password by remember { mutableStateOf("") }
@@ -312,8 +328,16 @@ private class Words(val zh: Boolean) {
             OutlinedTextField(phone, { if (it.length <= 32) phone = it }, label = { Text(words.t("Phone with country code", "含国家码的手机号")) }, keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Phone), singleLine = true, enabled = !state.busy, modifier = Modifier.fillMaxWidth())
             OutlinedTextField(password, { if (it.codePointCount(0, it.length) <= 128) password = it }, label = { Text(if (store.protectedNativeV2Enabled) { if (register) words.t("Password (8–128 characters)", "密码（8–128 个字符）") else words.t("Password", "密码") } else words.t("Password (15–128 characters)", "密码（15–128 个字符）")) }, keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Password, autoCorrect = false), visualTransformation = PasswordVisualTransformation(), singleLine = true, enabled = !state.busy, modifier = Modifier.fillMaxWidth())
             if (register) OutlinedTextField(code, { if (it.length <= 512) code = it }, label = { Text(words.t("Invitation code", "邀请码")) }, keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Password, autoCorrect = false), visualTransformation = PasswordVisualTransformation(), singleLine = true, enabled = !state.busy, modifier = Modifier.fillMaxWidth())
+            if (store.canRememberSession) {
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    Checkbox(rememberSession, { rememberSession = it }, enabled = !state.busy, modifier = Modifier.testTag("remember-session"))
+                    Text(words.t("Remember sign-in on this device", "在此设备记住登录"))
+                }
+                Text(words.t("Encrypted on this device. Sign-in still expires after 24 hours; your password is never saved.",
+                    "在此设备加密保存。登录仍会在 24 小时后过期，不保存密码。"), style = MaterialTheme.typography.bodySmall)
+            }
             val valid = runCatching { Admission.phone(phone); Admission.password(password, protectedNativeV2 = store.protectedNativeV2Enabled, registration = register); if (register && store.protectedNativeV2Enabled) { Admission.displayName(name); Admission.invitationCode(code) }; !register || code.isNotBlank() }.getOrDefault(false)
-            Button(onClick = { focus.clearFocus(); keyboard?.hide(); store.authenticate(phone, password, if (register) code else null, if (register) name else null); phone = defaultPhone; password = ""; code = ""; name = "" }, enabled = valid && !state.busy && now >= (state.problem?.retryAtMillis ?: 0), modifier = Modifier.fillMaxWidth()) { Text(words.t(if (register) "Register with invitation" else "Sign in", if (register) "使用邀请注册" else "登录")) }
+            Button(onClick = { focus.clearFocus(); keyboard?.hide(); store.authenticate(phone, password, if (register) code else null, if (register) name else null, remember = rememberSession); phone = defaultPhone; password = ""; code = ""; name = "" }, enabled = valid && !state.busy && now >= (state.problem?.retryAtMillis ?: 0), modifier = Modifier.fillMaxWidth()) { Text(words.t(if (register) "Register with invitation" else "Sign in", if (register) "使用邀请注册" else "登录")) }
             TextButton(onClick = { focus.clearFocus(); keyboard?.hide(); register = !register; phone = defaultPhone; password = ""; code = ""; name = "" }, enabled = !state.busy) { Text(words.t(if (register) "Already registered? Sign in" else "Have an invitation? Register", if (register) "已有账号？登录" else "收到邀请？注册")) }
             Text(words.t("Phone is an unverified login label. Include your country code.", "手机号是未经验证的登录标识，请包含国家码。"),
                 style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
@@ -373,7 +397,7 @@ private class Words(val zh: Boolean) {
 
 
 @OptIn(ExperimentalLayoutApi::class)
-@Composable private fun ProtectedStoriesPanel(reading: StoryReading?, detailBusy: Boolean, words: Words, load: (Int) -> Unit) {
+@Composable private fun ProtectedStoriesPanel(reading: StoryReading?, detailBusy: Boolean, words: Words, load: (Int) -> Unit, edit: (String?) -> Unit) {
     val t = words::t
     var expanded by remember(reading?.result) { mutableStateOf<String?>(null) }
     reading?.result?.items?.firstOrNull { it.id == expanded }?.let { story ->
@@ -415,7 +439,7 @@ private class Words(val zh: Boolean) {
             style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
         if (reading == null) {
             OutlinedButton(onClick = { load(1) }, enabled = !detailBusy, modifier = Modifier.testTag("stories-open")) {
-                Text(t("Read family stories", "阅读家人的故事"))
+                Text(t("Stories & memories", "故事与回忆"))
             }
         } else if (reading.busy) {
             LinearProgressIndicator(Modifier.fillMaxWidth())
@@ -429,12 +453,16 @@ private class Words(val zh: Boolean) {
                 }
             }
             reading.result?.let { result ->
+                if (result.canCreate) Button(onClick = { edit(null) }, enabled = !detailBusy,
+                    modifier = Modifier.testTag("story-add")) { Text(t("Add a memory", "添加回忆")) }
                 if (result.items.isEmpty()) Text(t("No family stories on this page yet.", "此页暂无家人的故事。"))
                 result.items.forEach { story ->
                     Card(Modifier.fillMaxWidth().testTag("story-${story.id}")) {
                         Column(Modifier.padding(20.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
                             Text(t("Family memory", "家人回忆"), color = MaterialTheme.colorScheme.primary, style = MaterialTheme.typography.labelLarge)
                             if (story.title.isNotEmpty()) Text(story.title, style = MaterialTheme.typography.titleMedium)
+                            if (story.canEdit) TextButton(onClick = { edit(story.id) }, enabled = !detailBusy,
+                                modifier = Modifier.testTag("story-edit-${story.id}")) { Text(t("Edit memory", "编辑回忆")) }
                             if (story.byline.isNotEmpty()) Text(story.byline, style = MaterialTheme.typography.labelMedium)
                             if (story.text.length <= 2000) Text(story.text, style = MaterialTheme.typography.bodyLarge)
                             else {
@@ -456,8 +484,8 @@ private class Words(val zh: Boolean) {
                         Text(t("Refresh", "刷新"))
                     }
                 }
-                Text(t("Stories can change while you browse. Refresh to start again. Editing is available in the web app.",
-                    "浏览期间故事可能更新，可刷新重新查看。编辑请使用网页版。"), style = MaterialTheme.typography.bodySmall)
+                Text(t("Stories can change while you browse. Refresh to see the latest. Review your words before saving.",
+                    "浏览期间故事可能更新，可刷新查看。保存前请检查你的文字。"), style = MaterialTheme.typography.bodySmall)
             }
         }
     }

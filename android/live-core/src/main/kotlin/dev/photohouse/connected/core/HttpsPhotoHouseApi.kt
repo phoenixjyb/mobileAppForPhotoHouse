@@ -30,9 +30,9 @@ class TrustedOrigin private constructor(internal val url: HttpUrl) {
 /** Application construction always uses platform trust and hostname validation.
  * The internal overload is visible only to this module's JVM test friend source set.
  */
-class HttpsPhotoHouseApi internal constructor(private val origin: TrustedOrigin, client: OkHttpClient, private val detailPreviewSize: Int = 256, override val discoveryEnabled: Boolean = false, override val photoDeliveryEnabled: Boolean = false, override val protectedNativeV2Enabled: Boolean = false, override val preparedVideoEnabled: Boolean = false) : PhotoHouseApi {
-    constructor(origin: TrustedOrigin, detailPreviewSize: Int = 256, discoveryEnabled: Boolean = false, photoDeliveryEnabled: Boolean = false, protectedNativeV2Enabled: Boolean = false, preparedVideoEnabled: Boolean = false) : this(origin, OkHttpClient(), detailPreviewSize, discoveryEnabled, photoDeliveryEnabled, protectedNativeV2Enabled, preparedVideoEnabled)
-    init { require(detailPreviewSize in 64..1024); require(!preparedVideoEnabled || protectedNativeV2Enabled) }
+class HttpsPhotoHouseApi internal constructor(private val origin: TrustedOrigin, client: OkHttpClient, private val detailPreviewSize: Int = 256, override val discoveryEnabled: Boolean = false, override val photoDeliveryEnabled: Boolean = false, override val protectedNativeV2Enabled: Boolean = false, override val preparedVideoEnabled: Boolean = false, override val mediaFilterEnabled: Boolean = false) : PhotoHouseApi {
+    constructor(origin: TrustedOrigin, detailPreviewSize: Int = 256, discoveryEnabled: Boolean = false, photoDeliveryEnabled: Boolean = false, protectedNativeV2Enabled: Boolean = false, preparedVideoEnabled: Boolean = false, mediaFilterEnabled: Boolean = false) : this(origin, OkHttpClient(), detailPreviewSize, discoveryEnabled, photoDeliveryEnabled, protectedNativeV2Enabled, preparedVideoEnabled, mediaFilterEnabled)
+    init { require(detailPreviewSize in 64..1024); require(!preparedVideoEnabled || protectedNativeV2Enabled); require(!mediaFilterEnabled || protectedNativeV2Enabled) }
     private val client = client.newBuilder()
         .followRedirects(false).followSslRedirects(false).retryOnConnectionFailure(false)
         .cookieJar(CookieJar.NO_COOKIES).cache(null)
@@ -83,7 +83,7 @@ class HttpsPhotoHouseApi internal constructor(private val origin: TrustedOrigin,
             }
         }
     }
-    private suspend fun packet(url: HttpUrl, token: Bearer?, body: String? = null, limit: Int = JSON_LIMIT, missingAllowed: Boolean = false, accept: String = "application/json", rangeStart: Long? = null, requestLimit: Int = 2048, prepared: Boolean = false, head: Boolean = false, preparedEtag: String? = null): Packet {
+    private suspend fun packet(url: HttpUrl, token: Bearer?, body: String? = null, limit: Int = JSON_LIMIT, missingAllowed: Boolean = false, accept: String = "application/json", rangeStart: Long? = null, requestLimit: Int = 2048, prepared: Boolean = false, head: Boolean = false, preparedEtag: String? = null, method: String = "POST"): Packet {
         require(url.scheme == "https" && url.host == origin.url.host && url.port == origin.url.port)
         val bytes = body?.toByteArray(Charsets.UTF_8)
         if (bytes != null && bytes.size > requestLimit) throw ApiFailure(FailureKind.INVALID_INPUT)
@@ -92,7 +92,7 @@ class HttpsPhotoHouseApi internal constructor(private val origin: TrustedOrigin,
             .apply { rangeStart?.let { header("Range", "bytes=$it-${it + limit - 1}"); header("Accept-Encoding", "identity") } }
             .apply { token?.let { header("Authorization", it.header()) } }
             .apply { if (head) head(); preparedEtag?.let { header("If-Range", it) } }
-            .apply { if (bytes != null) post(bytes.toRequestBody("application/json; charset=utf-8".toMediaType())) }
+            .apply { if (bytes != null) { require(method in setOf("POST", "PUT")); method(method, bytes.toRequestBody("application/json; charset=utf-8".toMediaType())) } }
             .build()
         return suspendCancellableCoroutine { continuation ->
             val call = client.newCall(request)
@@ -220,6 +220,11 @@ class HttpsPhotoHouseApi internal constructor(private val origin: TrustedOrigin,
     }
     override suspend fun logout(token: Bearer) { if (!json(url("/auth/logout"), Ok.serializer(), token, "{}").ok) throw ApiFailure(FailureKind.INVALID_RESPONSE) }
     override suspend fun gallery(token: Bearer, library: String, page: Int) = json(url("/assets", library, page), Gallery.serializer(), token)
+    override suspend fun gallery(token: Bearer, library: String, page: Int, media: GalleryMedia): Gallery {
+        if (media == GalleryMedia.ALL) return gallery(token, library, page)
+        require(mediaFilterEnabled)
+        return json(url("/assets", library, page).newBuilder().addQueryParameter("media", media.wire).build(), Gallery.serializer(), token)
+    }
     override suspend fun detail(token: Bearer, library: String, assetId: String) = json(url("/assets/detail/${assetId(assetId)}", library), Detail.serializer(), token)
     override suspend fun captions(token: Bearer, library: String, assetId: String) = json(url("/assets/${assetId(assetId)}/captions", library), Captions.serializer(), token)
     override suspend fun thumbnail(token: Bearer, library: String, asset: Asset): ByteArray? {
@@ -281,6 +286,31 @@ class HttpsPhotoHouseApi internal constructor(private val origin: TrustedOrigin,
         if (result.code != 200 || result.contentType?.substringBefore(';')?.trim()?.lowercase() != "application/json")
             throw ApiFailure(FailureKind.INVALID_RESPONSE)
         return ProtectedStoriesWire.parse(result.bytes, library, assetId, page)
+    }
+    private fun storyId(id: String): String {
+        require(runCatching { java.util.UUID.fromString(id).toString() == id }.getOrDefault(false))
+        return id
+    }
+    override suspend fun saveStory(token: Bearer, library: String, mutation: StoryMutation): ProtectedStory {
+        require(protectedNativeV2Enabled && PhoneDiscoveryWire.validLibrary(library))
+        assetId(mutation.assetId)
+        val body = try { ProtectedStoriesWire.mutation(mutation) } catch (_: Exception) { throw ApiFailure(FailureKind.INVALID_INPUT) }
+        val creating = mutation.storyId == null
+        val path = if (creating) "/assets/${mutation.assetId}/stories" else "/stories/${storyId(mutation.storyId!!)}"
+        val result = packet(url(path, library), token, body, limit = STORIES_LIMIT,
+            requestLimit = 512 * 1024, method = if (creating) "POST" else "PUT")
+        if (result.code != (if (creating) 201 else 200) ||
+            result.contentType?.substringBefore(';')?.trim()?.lowercase() != "application/json")
+            throw ApiFailure(FailureKind.INVALID_RESPONSE)
+        return ProtectedStoriesWire.single(result.bytes, mutation.assetId, mutation.storyId)
+    }
+    override suspend fun currentStory(token: Bearer, library: String, assetId: String, storyId: String): ProtectedStory? {
+        require(protectedNativeV2Enabled && PhoneDiscoveryWire.validLibrary(library))
+        assetId(assetId)
+        val result = packet(url("/stories/${storyId(storyId)}/history", library).newBuilder().addQueryParameter("page", "1").build(), token, limit = STORIES_LIMIT)
+        if (result.code != 200 || result.contentType?.substringBefore(';')?.trim()?.lowercase() != "application/json")
+            throw ApiFailure(FailureKind.INVALID_RESPONSE)
+        return ProtectedStoriesWire.current(result.bytes, assetId, storyId)
     }
     companion object {
         const val VIDEO_CHUNK_LIMIT = 256 * 1024

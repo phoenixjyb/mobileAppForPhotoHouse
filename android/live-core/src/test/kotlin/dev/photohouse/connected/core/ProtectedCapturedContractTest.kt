@@ -88,4 +88,27 @@ class ProtectedCapturedContractTest {
         assertEquals(2, session.memberships.size)
         assertTrue(session.memberships.all { it.status == "revoked" && !it.available })
     }
+    @Test fun capturedStoryWritesAndConflictReloadUseServerCurrentRevision() {
+        val created = ProtectedStoriesWire.single(body("story_create_1").toByteArray(), "101")
+        assertTrue(created.canEdit)
+        val updated = ProtectedStoriesWire.single(body("story_update").toByteArray(), "101", created.id)
+        assertEquals(2L, updated.revision)
+        val retried = ProtectedStoriesWire.single(body("story_exact_old_retry").toByteArray(), "101")
+        assertEquals(updated, retried)
+        val current = ProtectedStoriesWire.current(body("story_history").toByteArray(), "101", created.id)
+        assertEquals(updated, current)
+    }
+
+    @Test fun capturedMediaPagesKeepFilteredTotalsAndOrdering() {
+        fun gallery(id: String) = Wire.json.decodeFromString(Gallery.serializer(), body(id))
+        assertEquals(gallery("gallery_media_default"), gallery("gallery_media_all"))
+        val first = gallery("gallery_media_video_page_one")
+        val next = gallery("gallery_media_video_page_two")
+        assertEquals(2L, first.total); assertEquals(first.total, next.total)
+        assertEquals("104", first.items.single().id); assertEquals("101", next.items.single().id)
+        assertEquals(2, next.page)
+        assertEquals("video", first.items.single().kind)
+        assertEquals("image", gallery("gallery_media_image").items.single().kind)
+    }
+
 }
