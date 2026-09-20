@@ -30,9 +30,9 @@ class TrustedOrigin private constructor(internal val url: HttpUrl) {
 /** Application construction always uses platform trust and hostname validation.
  * The internal overload is visible only to this module's JVM test friend source set.
  */
-class HttpsPhotoHouseApi internal constructor(private val origin: TrustedOrigin, client: OkHttpClient, private val detailPreviewSize: Int = 256, override val discoveryEnabled: Boolean = false, override val photoDeliveryEnabled: Boolean = false, override val protectedNativeV2Enabled: Boolean = false) : PhotoHouseApi {
-    constructor(origin: TrustedOrigin, detailPreviewSize: Int = 256, discoveryEnabled: Boolean = false, photoDeliveryEnabled: Boolean = false, protectedNativeV2Enabled: Boolean = false) : this(origin, OkHttpClient(), detailPreviewSize, discoveryEnabled, photoDeliveryEnabled, protectedNativeV2Enabled)
-    init { require(detailPreviewSize in 64..1024) }
+class HttpsPhotoHouseApi internal constructor(private val origin: TrustedOrigin, client: OkHttpClient, private val detailPreviewSize: Int = 256, override val discoveryEnabled: Boolean = false, override val photoDeliveryEnabled: Boolean = false, override val protectedNativeV2Enabled: Boolean = false, override val preparedVideoEnabled: Boolean = false) : PhotoHouseApi {
+    constructor(origin: TrustedOrigin, detailPreviewSize: Int = 256, discoveryEnabled: Boolean = false, photoDeliveryEnabled: Boolean = false, protectedNativeV2Enabled: Boolean = false, preparedVideoEnabled: Boolean = false) : this(origin, OkHttpClient(), detailPreviewSize, discoveryEnabled, photoDeliveryEnabled, protectedNativeV2Enabled, preparedVideoEnabled)
+    init { require(detailPreviewSize in 64..1024); require(!preparedVideoEnabled || protectedNativeV2Enabled) }
     private val client = client.newBuilder()
         .followRedirects(false).followSslRedirects(false).retryOnConnectionFailure(false)
         .cookieJar(CookieJar.NO_COOKIES).cache(null)
@@ -40,7 +40,7 @@ class HttpsPhotoHouseApi internal constructor(private val origin: TrustedOrigin,
         .connectionSpecs(listOf(ConnectionSpec.MODERN_TLS))
         .connectTimeout(10, TimeUnit.SECONDS).readTimeout(15, TimeUnit.SECONDS).callTimeout(20, TimeUnit.SECONDS)
         .build()
-    private data class Packet(val code: Int, val contentType: String?, val bytes: ByteArray, val total: Long = 0)
+    private data class Packet(val code: Int, val contentType: String?, val bytes: ByteArray, val total: Long = 0, val etag: String? = null)
 
     private fun url(path: String, library: String? = null, page: Int? = null): HttpUrl {
         require(path.startsWith('/') && !path.startsWith("//"))
@@ -83,7 +83,7 @@ class HttpsPhotoHouseApi internal constructor(private val origin: TrustedOrigin,
             }
         }
     }
-    private suspend fun packet(url: HttpUrl, token: Bearer?, body: String? = null, limit: Int = JSON_LIMIT, missingAllowed: Boolean = false, accept: String = "application/json", rangeStart: Long? = null, requestLimit: Int = 2048): Packet {
+    private suspend fun packet(url: HttpUrl, token: Bearer?, body: String? = null, limit: Int = JSON_LIMIT, missingAllowed: Boolean = false, accept: String = "application/json", rangeStart: Long? = null, requestLimit: Int = 2048, prepared: Boolean = false, head: Boolean = false, preparedEtag: String? = null): Packet {
         require(url.scheme == "https" && url.host == origin.url.host && url.port == origin.url.port)
         val bytes = body?.toByteArray(Charsets.UTF_8)
         if (bytes != null && bytes.size > requestLimit) throw ApiFailure(FailureKind.INVALID_INPUT)
@@ -91,6 +91,7 @@ class HttpsPhotoHouseApi internal constructor(private val origin: TrustedOrigin,
             .header("Cache-Control", "no-store").header("Accept-Encoding", "identity")
             .apply { rangeStart?.let { header("Range", "bytes=$it-${it + limit - 1}"); header("Accept-Encoding", "identity") } }
             .apply { token?.let { header("Authorization", it.header()) } }
+            .apply { if (head) head(); preparedEtag?.let { header("If-Range", it) } }
             .apply { if (bytes != null) post(bytes.toRequestBody("application/json; charset=utf-8".toMediaType())) }
             .build()
         return suspendCancellableCoroutine { continuation ->
@@ -109,6 +110,22 @@ class HttpsPhotoHouseApi internal constructor(private val origin: TrustedOrigin,
                             if (it.code == 404) return@use Packet(404, null, byteArrayOf())
                             var total = 0L
                             var expectedBytes = -1L
+                            if (prepared) {
+                                for (name in listOf("Content-Type", "Content-Length", "Content-Range", "Content-Encoding", "ETag", "Accept-Ranges", "Cache-Control"))
+                                    if (it.headers.values(name).size > 1) throw ApiFailure(FailureKind.INVALID_RESPONSE)
+                                if (it.header("Content-Type")?.substringBefore(';')?.trim()?.lowercase() != "video/mp4" ||
+                                    it.header("Content-Encoding")?.lowercase() !in listOf(null, "identity") ||
+                                    it.header("Cache-Control") != "no-store" || it.header("Accept-Ranges") != "bytes" ||
+                                    !it.header("ETag").orEmpty().matches(Regex("\"[0-9a-f]{64}\""))) throw ApiFailure(FailureKind.INVALID_RESPONSE)
+                                if (preparedEtag != null && (it.header("ETag") != preparedEtag || it.code == 200))
+                                    throw ApiFailure(FailureKind.HTTP, 409)
+                                if (head) {
+                                    val length = it.header("Content-Length")?.toLongOrNull() ?: throw ApiFailure(FailureKind.INVALID_RESPONSE)
+                                    if (length > VIDEO_FILE_LIMIT) throw ApiFailure(FailureKind.TOO_LARGE)
+                                    if (it.code != 200 || length < 1 || it.header("Content-Range") != null) throw ApiFailure(FailureKind.INVALID_RESPONSE)
+                                    return@use Packet(200, "video/mp4", byteArrayOf(), length, it.header("ETag"))
+                                }
+                            }
                             if (rangeStart != null) {
                                 if (it.code != 206 || it.header("Content-Encoding")?.lowercase() !in listOf(null, "identity") ||
                                     it.header("Content-Type")?.substringBefore(';')?.trim()?.lowercase() !in setOf("video/mp4", "video/webm"))
@@ -127,7 +144,7 @@ class HttpsPhotoHouseApi internal constructor(private val origin: TrustedOrigin,
                             if (responseBody.contentLength() > limit) throw ApiFailure(FailureKind.TOO_LARGE)
                             val data = readBody(responseBody, limit)
                             if (expectedBytes >= 0 && data.size.toLong() != expectedBytes) throw ApiFailure(FailureKind.INVALID_RESPONSE)
-                            Packet(it.code, it.header("Content-Type"), data, total)
+                            Packet(it.code, it.header("Content-Type"), data, total, it.header("ETag"))
                         }
                         if (continuation.isActive) continuation.resume(result)
                     } catch (_: OutOfMemoryError) {
@@ -239,6 +256,19 @@ class HttpsPhotoHouseApi internal constructor(private val origin: TrustedOrigin,
         val packet = packet(url("/assets/${assetId(assetId)}/media", library), token,
             limit = length, accept = "video/mp4, video/webm", rangeStart = start)
         return VideoChunk(start, packet.total, packet.bytes)
+    }
+    override suspend fun preparedVideoInfo(token: Bearer, library: String, assetId: String): PreparedVideoInfo {
+        require(preparedVideoEnabled && PhoneDiscoveryWire.validLibrary(library))
+        val result = packet(url("/assets/${assetId(assetId)}/playback", library), token,
+            accept = "video/mp4", prepared = true, head = true)
+        return PreparedVideoInfo(result.total, result.etag!!)
+    }
+    override suspend fun preparedVideoRange(token: Bearer, library: String, assetId: String, info: PreparedVideoInfo, start: Long, length: Int): VideoChunk {
+        require(preparedVideoEnabled && PhoneDiscoveryWire.validLibrary(library) && start in 0 until info.bytes && length in 1..VIDEO_CHUNK_LIMIT)
+        val result = packet(url("/assets/${assetId(assetId)}/playback", library), token,
+            limit = length, accept = "video/mp4", rangeStart = start, prepared = true, preparedEtag = info.etag)
+        if (result.total != info.bytes) throw ApiFailure(FailureKind.HTTP, 409)
+        return VideoChunk(start, result.total, result.bytes)
     }
     override suspend fun stories(token: Bearer, library: String, assetId: String, page: Int): ProtectedStoryPage {
         val result = packet(storiesUrl(library, assetId, page), token, limit = STORIES_LIMIT)

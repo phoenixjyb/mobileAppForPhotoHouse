@@ -5,7 +5,7 @@ import kotlinx.coroutines.*
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.asStateFlow
 
-enum class Message { SIGNED_OUT_LOCAL, SIGNED_OUT_CONFIRMED, SESSION_ENDED, ACCESS_DENIED, UNAVAILABLE, TLS_ERROR, CLOSED, RATE_LIMITED, INVALID_INPUT, INVALID_RESPONSE, TOO_LARGE, MEDIA_UNAVAILABLE, DISCOVERY_CHANGED, DISCOVERY_INPUT }
+enum class Message { SIGNED_OUT_LOCAL, SIGNED_OUT_CONFIRMED, SESSION_ENDED, ACCESS_DENIED, UNAVAILABLE, TLS_ERROR, CLOSED, RATE_LIMITED, INVALID_INPUT, INVALID_RESPONSE, TOO_LARGE, MEDIA_UNAVAILABLE, DISCOVERY_CHANGED, DISCOVERY_INPUT, VIDEO_NOT_READY, VIDEO_CHANGED, VIDEO_BUSY, PLAYBACK_UNAVAILABLE }
 data class LiveProblem(val message: Message, val retryAtMillis: Long = 0)
 /** Only the current page's IDs, never a persistent or cross-library history. */
 data class PhotoNavigation(val page: Int, val assetIds: List<String>, val index: Int, val discovery: PhoneDiscoveryState? = null)
@@ -37,6 +37,7 @@ class ConnectedStore(private val api: PhotoHouseApi, private val scope: Coroutin
     private val requests = mutableSetOf<Job>()
     private var retry: (() -> Unit)? = null
     val protectedNativeV2Enabled get() = api.protectedNativeV2Enabled
+    val preparedVideoEnabled get() = api.preparedVideoEnabled
     val photoDeliveryEnabled get() = api.photoDeliveryEnabled
     val discoveryEnabled get() = api.discoveryEnabled
     val hasSession get() = token != null
@@ -270,20 +271,58 @@ class ConnectedStore(private val api: PhotoHouseApi, private val scope: Coroutin
         if (context != null) searchDiscoveryPage(navigation.page, context)
         else loadPage(navigation?.page ?: state.value.gallery?.page ?: 1)
     }
-    fun openVideo() {
+    fun openVideo() = startVideo(prepared = api.preparedVideoEnabled)
+    fun openOriginalVideo() = startVideo(prepared = false)
+    private fun startVideo(prepared: Boolean) {
         if (!allowed() || state.value.busy || state.value.video != null || coolingDown()) return
         val detail = state.value.detail ?: return
-        if (!detail.originals_allowed || detail.asset.kind != "video") return
+        if (detail.asset.kind != "video" || (!prepared && !detail.originals_allowed)) return
         val credential = token!!
         val navigation = state.value.photoNavigation
-        retainDetail(viewingOriginal = false, busy = false)
+        retainDetail(viewingOriginal = false, busy = prepared)
         val generation = state.value.generation
-        val reader = VideoReader({ start, length -> api.videoRange(credential, detail.library_id, detail.asset.id, start, length) }, deadline, now) { error ->
-            scope.launch {
-                if (active(generation)) readFailure(error, generation, credential) { openPhoto(detail.asset.id, navigation) }
+        fun attach(info: PreparedVideoInfo?) {
+            if (!active(generation)) return
+            val reader = VideoReader({ start, length ->
+                if (info != null) api.preparedVideoRange(credential, detail.library_id, detail.asset.id, info, start, length)
+                else api.videoRange(credential, detail.library_id, detail.asset.id, start, length)
+            }, deadline, now, initialSize = info?.bytes ?: -1L) { error ->
+                scope.launch {
+                    if (active(generation)) {
+                        if (prepared) preparedPlaybackFailure(error, generation, credential)
+                        else readFailure(error, generation, credential) { openPhoto(detail.asset.id, navigation) }
+                    }
+                }
             }
+            mutable.value = state.value.copy(video = reader, busy = false)
         }
-        mutable.value = state.value.copy(video = reader)
+        if (!prepared) attach(null)
+        else launch {
+            try {
+                val info = api.preparedVideoInfo(credential, detail.library_id, detail.asset.id)
+                attach(info)
+            } catch (e: CancellationException) { throw e }
+            catch (e: Exception) { preparedPlaybackFailure(e, generation, credential) }
+        }
+    }
+    private suspend fun preparedPlaybackFailure(error: Exception, generation: Long, credential: Bearer) {
+        if (!active(generation)) return
+        if (error is ApiFailure && error.status in listOf(401, 403)) {
+            readFailure(error, generation, credential) { } // Privacy handling owns denial; never fall back.
+            return
+        }
+        retainDetail(viewingOriginal = false, busy = false)
+        val generic = problem(error)
+        val message = when ((error as? ApiFailure)?.status) {
+            404 -> Message.VIDEO_NOT_READY
+            409 -> Message.VIDEO_CHANGED
+            429 -> Message.VIDEO_BUSY
+            503 -> Message.PLAYBACK_UNAVAILABLE
+            else -> generic.message
+        }
+        mutable.value = state.value.copy(problem = generic.copy(message = message))
+        if (error is ApiFailure && (error.status in listOf(404, 409, 429, 503) || error.kind == FailureKind.OFFLINE))
+            retry = { openVideo() } // Explicit retry repeats HEAD; no automatic loop or original fallback.
     }
     fun closeVideo(reader: VideoReader? = state.value.video) {
         if (state.value.video !== reader) return
@@ -293,7 +332,7 @@ class ConnectedStore(private val api: PhotoHouseApi, private val scope: Coroutin
         if (state.value.video !== reader || !usable()) return
         // Transport failure owns its classified error and any session recheck. A native
         // failure may already have closed its source to stop reads/audio immediately.
-        if (reader.isClosed && !nativeFailure) return
+        if (reader.hasReadFailure || reader.isClosed && !nativeFailure) return
         reader.close()
         retainDetail(viewingOriginal = false, busy = false)
         mutable.value = state.value.copy(problem = LiveProblem(Message.MEDIA_UNAVAILABLE))
@@ -405,7 +444,7 @@ class ConnectedStore(private val api: PhotoHouseApi, private val scope: Coroutin
                 }
                 // The gallery tap requests viewing; returned detail and each byte read
                 // still authorize access. Preparing a player never starts its audio.
-                if (mediaAfterLoad && detail.originals_allowed && detail.asset.kind == "video") openVideo()
+                if (mediaAfterLoad && (api.preparedVideoEnabled || detail.originals_allowed) && detail.asset.kind == "video") openVideo()
             } catch (e: CancellationException) { throw e }
             catch (e: Exception) { readFailure(e, generation, credential) { openPhoto(assetId, navigation) } }
         }

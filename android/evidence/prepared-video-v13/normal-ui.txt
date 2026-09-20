@@ -1,0 +1,7 @@
+
+dev.photohouse.connected.ConnectedUiTest:...
+dev.photohouse.connected.ProtectedJourneyTest:....
+
+Time: 133.213
+
+OK (7 tests)

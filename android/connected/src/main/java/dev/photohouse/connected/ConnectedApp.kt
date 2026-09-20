@@ -49,6 +49,10 @@ private class Words(val zh: Boolean) {
         Message.TOO_LARGE -> t("This file is too large to display here.", "文件过大，无法在此处显示。")
         Message.DISCOVERY_CHANGED -> t("Search information changed. Refresh options and apply your filters again.", "搜索资料已更新，请刷新选项后重新选择并应用条件。")
         Message.DISCOVERY_INPUT -> t("Check your search filters and dates.", "请检查搜索条件和日期。")
+        Message.VIDEO_NOT_READY -> t("This video is not ready for playback yet. You can try again later.", "此视频尚未准备好，可稍后重试。")
+        Message.VIDEO_CHANGED -> t("This video changed. Open it again to load the current version.", "此视频已更新，请重新打开。")
+        Message.VIDEO_BUSY -> t("Video playback is busy. Wait a moment before trying again.", "视频播放繁忙，请稍候重试。")
+        Message.PLAYBACK_UNAVAILABLE -> t("Video playback is temporarily unavailable. Your album is still available.", "视频播放暂不可用，仍可继续浏览相册。")
         Message.MEDIA_UNAVAILABLE -> t("This media is unavailable.", "此媒体不可用。")
     }
     fun membership(m: Membership) = when {
@@ -199,8 +203,14 @@ private class Words(val zh: Boolean) {
                                     if (detail.asset.kind == "image" && detail.originals_allowed) item {
                                         Button(onClick = store::openOriginalPhoto, enabled = !state.busy) { Text(t("Open original photo", "打开原始照片")) }
                                     }
-                                    if (detail.asset.kind == "video" && detail.originals_allowed) item {
-                                        Button(onClick = store::openVideo, enabled = !state.busy) { Text(t("Open video", "打开视频")) }
+                                    if (detail.asset.kind == "video" && (store.preparedVideoEnabled || detail.originals_allowed)) item {
+                                        var videoNow by remember(state.problem) { mutableLongStateOf(System.currentTimeMillis()) }
+                                        LaunchedEffect(state.problem) { while (videoNow < (state.problem?.retryAtMillis ?: 0)) { delay(500); videoNow = System.currentTimeMillis() } }
+                                        val videoEnabled = !state.busy && videoNow >= (state.problem?.retryAtMillis ?: 0)
+                                        Button(onClick = store::openVideo, enabled = videoEnabled, modifier = Modifier.testTag("open-video")) { Text(t("Open video", "打开视频")) }
+                                        if (store.preparedVideoEnabled && state.busy) Text(t("Checking video availability…", "正在检查视频是否可播放…"))
+                                        if (store.preparedVideoEnabled && detail.originals_allowed)
+                                            TextButton(onClick = store::openOriginalVideo, enabled = videoEnabled, modifier = Modifier.testTag("open-original-video")) { Text(t("Open original video", "打开原始视频")) }
                                     }
                                     item { Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
                                         Text(detail.asset.taken_at ?: t("Date unknown", "日期未知"), style = MaterialTheme.typography.titleLarge)

@@ -10,15 +10,15 @@ from pathlib import Path
 
 ANDROID = Path(__file__).resolve().parent
 SNAPSHOT = ANDROID / "protected-native-contract"
-MANIFEST_SHA256 = "f942db21ff6ce11f348ecaf4698dbeaab953e74107e72e3445c0ce175c2495d2"
+MANIFEST_SHA256 = "a62d962bce9841a933a40c7460d905472cf8d378652401cd86b175cae3db64eb"
 BACKEND_PACK = Path("docs/contracts/protected-native-v2")
-BACKEND_COMMIT = "0789cabea29c1faa4a67bf7ac9f9a9d12abcbf34"
-SOURCE_COMMIT = "45f2123ad3447213aad68010154a6d14ff3613f9"
+BACKEND_COMMIT = "7af4498e6a55b4c17f7223e815d145e4a595ce0c"
+SOURCE_COMMIT = "1d9248e577947c4b8fea1a1551f11b2f78bc2781"
 SNAPSHOT_PAYLOADS = {
-    "CONTRACT.md": "54036f9520bdebf59e85f4794e7b6bba4e475fcf6ca936074f0f43bb8ea7b8aa",
+    "CONTRACT.md": "8f10498aa34dea547781512029f4ac0fe42ae71668dbfacfb96e6de7346ca5c6",
     "UPLOAD_NEXT.md": "81b72802c2b2ea1ed0795bd0fc335323110853016acf75958e520f85a11d0936",
-    "VALIDATION.md": "5a6413957de60fee75d822cf77c89725c38bd380a492dab93e6b25dca5e17f2c",
-    "cases.json": "927fa4bbf7c861093ff3d1af3a522903b4c3c1506df9349f283213cfa8cc2c97"
+    "VALIDATION.md": "a024980940a1e14473714aa76c380147392f3465122e3a4f4e09895f67da1f8f",
+    "cases.json": "c2561e4c71bc5bbe209d95e73af09e552342d21f28caf5269202b8789aed079a"
 }
 
 def digest(path: Path) -> str:
@@ -32,7 +32,7 @@ def verify_snapshot() -> dict:
     manifest = json.loads(manifest_path.read_text())
     if manifest["backend_source_commit"] != SOURCE_COMMIT:
         raise ValueError("unexpected backend source commit")
-    if manifest["case_count"] != 61:
+    if manifest["case_count"] != 70:
         raise ValueError("unexpected case metadata")
     if manifest["client_profile_defaults"] != {
         "protected_native_v2": False,
@@ -44,6 +44,8 @@ def verify_snapshot() -> dict:
         actual = digest(SNAPSHOT / name)
         if actual != expected or manifest["payload_sha256"].get(str(BACKEND_PACK / name)) != expected:
             raise ValueError(f"snapshot payload mismatch: {name}")
+    if digest(SNAPSHOT / "PREPARED_MEDIA.md") != manifest["source_sha256"]["docs/security/PROTECTED_PREPARED_MEDIA.md"]:
+        raise ValueError("prepared playback contract reference changed")
     cases = json.loads((SNAPSHOT / "cases.json").read_text())
     if cases["contract_version"] != manifest["contract_version"] or cases["synthetic_only"] is not True:
         raise ValueError("case metadata mismatch")

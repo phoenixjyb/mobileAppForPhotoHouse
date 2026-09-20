@@ -39,6 +39,17 @@ class ConnectedUiTest {
             return PhoneSearchPage(Gallery(library, page, 50, 51, originalsAllowed, photos), binding, "f".repeat(64), page == 1)
         }
         var previewBytes: ByteArray? = null
+        override var preparedVideoEnabled = false
+        var preparedHeads = 0
+        var originalVideoReads = 0
+        var preparedError: ApiFailure? = null
+        override suspend fun preparedVideoInfo(token: Bearer, library: String, assetId: String): PreparedVideoInfo {
+            preparedHeads++; preparedError?.let { throw it }
+            return PreparedVideoInfo(videoBytes.size.toLong(), "\"" + "a".repeat(64) + "\"")
+        }
+        override suspend fun preparedVideoRange(token: Bearer, library: String, assetId: String, info: PreparedVideoInfo, start: Long, length: Int): VideoChunk {
+            preparedError?.let { throw it }; return readVideo(start, length)
+        }
         var videoBytes = byteArrayOf()
         val videoReads = java.util.concurrent.CopyOnWriteArrayList<Pair<Long, Int>>()
         var registrationCode: String? = null
@@ -56,6 +67,9 @@ class ConnectedUiTest {
         override suspend fun captions(token: Bearer, library: String, assetId: String) = Captions(library, assetId, false, listOf(Caption("1", "<b>Literal 原文</b>", false, false, null, null)))
         override suspend fun thumbnail(token: Bearer, library: String, asset: Asset): ByteArray? = previewBytes
         override suspend fun videoRange(token: Bearer, library: String, assetId: String, start: Long, length: Int): VideoChunk {
+            originalVideoReads++; return readVideo(start, length)
+        }
+        private fun readVideo(start: Long, length: Int): VideoChunk {
             videoReads += start to length
             return VideoChunk(start, videoBytes.size.toLong(), videoBytes.copyOfRange(start.toInt(), minOf(videoBytes.size, start.toInt() + length)))
         }
@@ -189,9 +203,12 @@ class ConnectedUiTest {
         assertFalse(store.state.value.viewingOriginal)
         reveal(hasText("<b>Literal 原文</b>")); rule.onNodeWithText("<b>Literal 原文</b>").assertIsDisplayed()
     }
-    @Test fun longVideoStartsWithoutFullDownloadAndSeeksPastOneMinute() {
+    @Test fun longVideoStartsWithoutFullDownloadAndSeeksPastOneMinute() = longVideoJourney(false)
+    @Test fun preparedViewerStreamsAndSeeksWithoutOriginalPermission() = longVideoJourney(true)
+    private fun longVideoJourney(prepared: Boolean) {
         val api = SyntheticApi().apply {
-            originalsAllowed = true
+            preparedVideoEnabled = prepared
+            originalsAllowed = !prepared
             videoBytes = androidx.test.platform.app.InstrumentationRegistry.getInstrumentation().context.assets.open("synthetic-long-video.mp4").use { it.readBytes() }
         }
         val store = ConnectedStore(api, scope)
@@ -213,9 +230,37 @@ class ConnectedUiTest {
         rule.onNodeWithText("Play").performScrollTo().performClick()
         rule.waitUntil(10000) { positionSeconds() >= 3 }
         rule.onNodeWithText("Pause").performScrollTo().performClick(); ready()
-        capture("video-long-en")
+        capture(if (prepared) "video-prepared-en" else "video-long-en")
+        if (prepared) { assertEquals(1, api.preparedHeads); assertEquals(0, api.originalVideoReads) }
         assertTrue(api.videoReads.all { it.second in 1..262144 })
         rule.runOnUiThread { store.background() }; rule.waitForIdle()
+        assertTrue(reader.isClosed); assertNull(store.state.value.video)
+    }
+    @Test fun preparedReadinessShowsErrorsAndRequiresExplicitRetry() {
+        val api = SyntheticApi().apply {
+            preparedVideoEnabled = true
+            preparedError = ApiFailure(FailureKind.HTTP, 404)
+            videoBytes = androidx.test.platform.app.InstrumentationRegistry.getInstrumentation().context.assets.open("synthetic-video.mp4").use { it.readBytes() }
+        }
+        val store = ConnectedStore(api, scope)
+        rule.runOnUiThread { rule.activity.setContent { ConnectedApp(store) }; store.authenticate("+12025550123", "synthetic-password-only") }
+        click("Open library"); clickTag("media-1")
+        val unavailable = "This video is not ready for playback yet. You can try again later."
+        reveal(hasText(unavailable)); rule.onNodeWithText(unavailable).assertIsDisplayed()
+        capture("prepared-not-ready-en")
+        rule.onAllNodesWithTag("open-original-video").assertCountEquals(0)
+        assertEquals(1, api.preparedHeads); assertTrue(api.videoReads.isEmpty())
+        api.preparedError = ApiFailure(FailureKind.HTTP, 429, 4000)
+        clickTag("open-video")
+        reveal(hasTestTag("open-video")); rule.onNodeWithTag("open-video").assertIsNotEnabled()
+        api.preparedError = null
+        rule.waitUntil(8000) { rule.onAllNodes(hasTestTag("open-video") and isEnabled()).fetchSemanticsNodes().size == 1 }
+        assertEquals(2, api.preparedHeads)
+        clickTag("open-video")
+        rule.waitUntil(30000) { rule.onAllNodes(hasText("Play") and isEnabled()).fetchSemanticsNodes().isNotEmpty() }
+        assertEquals(3, api.preparedHeads); assertEquals(0, api.originalVideoReads)
+        val reader = store.state.value.video!!
+        rule.runOnUiThread { store.logout() }; rule.waitForIdle()
         assertTrue(reader.isClosed); assertNull(store.state.value.video)
     }
     @Test fun unconfiguredAppDisablesAdmissionAndKeepsSecureWindow() {

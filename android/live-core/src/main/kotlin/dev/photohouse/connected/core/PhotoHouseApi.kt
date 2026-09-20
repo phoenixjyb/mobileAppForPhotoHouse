@@ -24,6 +24,9 @@ class ApiFailure(val kind: FailureKind, val status: Int? = null, val retryAfterM
 interface PhotoHouseApi {
     /** Protected family stories are opt-in until the integration owner enables the route. */
     val protectedNativeV2Enabled: Boolean get() = false
+    val preparedVideoEnabled: Boolean get() = false
+    suspend fun preparedVideoInfo(token: Bearer, library: String, assetId: String): PreparedVideoInfo = throw ApiFailure(FailureKind.INVALID_INPUT)
+    suspend fun preparedVideoRange(token: Bearer, library: String, assetId: String, info: PreparedVideoInfo, start: Long, length: Int): VideoChunk = throw ApiFailure(FailureKind.INVALID_INPUT)
     val photoDeliveryEnabled: Boolean get() = false
     suspend fun displayPhoto(token: Bearer, library: String, assetId: String): ByteArray = throw ApiFailure(FailureKind.INVALID_INPUT)
     val discoveryEnabled: Boolean get() = false
@@ -89,3 +92,8 @@ fun retryAfterMillis(value: String?, nowMillis: Long = System.currentTimeMillis(
 
 /** Internal transport result, not a new wire DTO. */
 data class VideoChunk(val start: Long, val total: Long, val bytes: ByteArray)
+
+/** HEAD-derived identity, retained only for the current playback generation. */
+data class PreparedVideoInfo(val bytes: Long, val etag: String) {
+    init { require(bytes in 1..HttpsPhotoHouseApi.VIDEO_FILE_LIMIT && etag.matches(Regex("\"[0-9a-f]{64}\""))) }
+}

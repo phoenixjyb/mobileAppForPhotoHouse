@@ -13,6 +13,7 @@ class VideoReader internal constructor(
     fetch: suspend (Long, Int) -> VideoChunk,
     private val expiresAt: Long,
     private val now: () -> Long,
+    initialSize: Long = -1L,
     failed: (Exception) -> Unit,
 ) : Closeable {
     @Volatile private var loader: (suspend (Long, Int) -> VideoChunk)? = fetch
@@ -23,8 +24,10 @@ class VideoReader internal constructor(
     private val notified = AtomicBoolean(false)
     private val listeners = CopyOnWriteArrayList<() -> Unit>()
     private val readLock = Any()
-    private var total = -1L
+    private var total = initialSize
+    init { require(initialSize == -1L || initialSize in 1..HttpsPhotoHouseApi.VIDEO_FILE_LIMIT) }
     val isClosed get() = closed.get()
+    val hasReadFailure get() = notified.get()
     override fun toString() = "VideoReader([private])"
     fun onClose(listener: () -> Unit) {
         listeners += listener
@@ -60,8 +63,9 @@ class VideoReader internal constructor(
         catch (e: Exception) {
             val report = !closed.get() && e !is CancellationException
             val callback = failureCallback
+            val notify = report && notified.compareAndSet(false, true)
             close()
-            if (report && notified.compareAndSet(false, true)) callback?.invoke(e)
+            if (notify) callback?.invoke(e)
             throw IOException("Video read unavailable")
         }
     }

@@ -13,6 +13,9 @@ val discoveryEnabled = providers.gradleProperty("photohousePhoneDiscoveryEnabled
 require(discoveryEnabled in listOf("true", "false")) { "Invalid phone discovery switch" }
 val photoDeliveryEnabled = providers.gradleProperty("photohousePhonePhotoDeliveryEnabled").orElse("false").get()
 require(photoDeliveryEnabled in listOf("true", "false"))
+val preparedVideoEnabled = providers.gradleProperty("photohousePhonePreparedVideoEnabled").orElse("false").get()
+require(preparedVideoEnabled in listOf("true", "false"))
+require(preparedVideoEnabled != "true" || protectedNativeV2Enabled == "true")
 // Home mode has independent routing. Neither field can carry account credentials.
 val homeOrigin = providers.gradleProperty("photohousePhoneHomeOrigin").orElse(localConfig.getProperty("photohousePhoneHomeOrigin", "")).get()
 val homeAddress = providers.gradleProperty("photohousePhoneHomeLanAddress").orElse(localConfig.getProperty("photohousePhoneHomeLanAddress", "")).get()
@@ -44,14 +47,15 @@ android {
         minSdk = 26
         targetSdk = 34
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
-        versionCode = 12
-        versionName = "0.13-protected-account"
+        versionCode = 13
+        versionName = "0.14-prepared-video"
         buildConfigField("boolean", "PHOTOHOUSE_HOME_DISCOVERY_ENABLED", homeDiscoveryEnabled)
         buildConfigField("String", "PHOTOHOUSE_HOME_ORIGIN", "\"$homeOrigin\"")
         buildConfigField("String", "PHOTOHOUSE_HOME_LAN_ADDRESS", "\"$homeAddress\"")
         buildConfigField("boolean", "PHOTOHOUSE_PROTECTED_NATIVE_V2_ENABLED", protectedNativeV2Enabled)
         buildConfigField("boolean", "PHOTOHOUSE_DISCOVERY_ENABLED", discoveryEnabled)
         buildConfigField("boolean", "PHOTOHOUSE_PHOTO_DELIVERY_ENABLED", photoDeliveryEnabled)
+        buildConfigField("boolean", "PHOTOHOUSE_PREPARED_VIDEO_ENABLED", preparedVideoEnabled)
         buildConfigField("String", "PHOTOHOUSE_ORIGIN", "\"$configuredOrigin\"")
     }
     androidComponents { beforeVariants(selector().withBuildType("release")) { it.enable = false } }

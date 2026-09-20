@@ -1,0 +1,6 @@
+
+dev.photohouse.connected.ConnectedUiTest:..
+
+Time: 9.055
+
+OK (2 tests)

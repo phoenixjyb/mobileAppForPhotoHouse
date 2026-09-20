@@ -1,32 +1,23 @@
 # Protected native v2 adoption snapshot
 
-Android-owned, byte-for-byte copy of the backend candidate.12 pack. The frozen
-shared `contracts/v1` stays unchanged.
+Android-owned exact copy of candidate.13. Frozen contracts/v1 stays unchanged.
 
-- Manifest SHA-256: `f942db21ff6ce11f348ecaf4698dbeaab953e74107e72e3445c0ce175c2495d2`
-- Backend source: `45f2123ad3447213aad68010154a6d14ff3613f9`
-- Pack checkout: `0789cabea29c1faa4a67bf7ac9f9a9d12abcbf34`
-- Contract: `2.0.0-candidate.12`, 61 synthetic captures
-- Schema: `f2a6d8b4c915`
+Backend source: `1d9248e577947c4b8fea1a1551f11b2f78bc2781`.
+Pack commit: `7af4498e6a55b4c17f7223e815d145e4a595ce0c`.
+Contract: `2.0.0-candidate.13`, 70 cases; schema `f2a6d8b4c915`.
+See manifest.json and android/verify-protected-native-contract.py for exact hashes.
+The verifier checks all 115 source and seven payload hashes against the backend.
+PREPARED_MEDIA.md is an exact copy of the additional backend-owned streaming contract,
+verified against its source hash rather than altering the original pack documents.
 
-Phone v12 adopts the current required registration `name` and nullable session
-`display_name`. A separate protected decoder preserves the strict frozen legacy
-wire format. Name whitespace is collapsed and limited to 64 Unicode code points;
-passwords remain unchanged. Registration still requires an owner-issued invitation,
-with viewer membership only and no automatic original-media permission.
+Phone v13 retains v12 named registration/session compatibility and adds explicit
+protected prepared-video playback. Its separate switch defaults false and requires
+the protected profile. A configured candidate can use library-read playback without
+original permission; the original action remains separate and permission-gated.
+HEAD establishes size/strong ETag. Each bounded range authenticates and must match
+that identity; changed bytes, denial or invalid responses close playback. There is
+no automatic retry, original fallback, anonymous Home fallback or persistent cache.
 
-Existing login, library/gallery/detail/caption reads, preview viewing and read-only
-Family Stories remain in scope. This adoption does not implement the newer people,
-tags, duplicates, caption writes, album or upload client features. Those routes
-are not covered by the 61 captures and require their own client tests.
-
-The protected native profile and photo delivery remain off by default. The private
-configured APK enables the protected profile but leaves display delivery and
-protected discovery off, retaining existing Home-mode configuration. Preview zoom
-uses delivered preview pixels; original quality requires an explicit grant and action.
-Protected prepared-video streaming without an original grant is a backend gap.
-
-Run `python3 android/verify-protected-native-contract.py`. With `--backend-root`,
-the verifier also checks the pinned checkout identity and all 109 source and seven
-payload hashes. The Android HTTPS tests replay captured registration and sessions;
-backend ASGI replay is separate from real authenticated/device acceptance.
+This pack does not enable a live backend, discovery, uploads or high-quality photo
+rendering. Those services still need separate runtime qualification. Emulator/local
+TLS checks and APK packaging do not establish physical device acceptance.

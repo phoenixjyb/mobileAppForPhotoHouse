@@ -24,7 +24,8 @@ class MainActivity : ComponentActivity() {
                     detailPreviewSize = if (BuildConfig.PHOTOHOUSE_PROTECTED_NATIVE_V2_ENABLED) 1024 else 256,
                     protectedNativeV2Enabled = BuildConfig.PHOTOHOUSE_PROTECTED_NATIVE_V2_ENABLED,
                     discoveryEnabled = BuildConfig.PHOTOHOUSE_DISCOVERY_ENABLED,
-                    photoDeliveryEnabled = BuildConfig.PHOTOHOUSE_PHOTO_DELIVERY_ENABLED) }) as T
+                    photoDeliveryEnabled = BuildConfig.PHOTOHOUSE_PHOTO_DELIVERY_ENABLED,
+                    preparedVideoEnabled = BuildConfig.PHOTOHOUSE_PREPARED_VIDEO_ENABLED) }) as T
             }
         }
     }
