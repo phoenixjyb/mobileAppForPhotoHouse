@@ -108,6 +108,33 @@ class ConnectedStoreTest {
     private fun TestScope.store(api: FakeApi) = ConnectedStore(api, backgroundScope) { testScheduler.currentTime }
     private fun TestScope.signIn(store: ConnectedStore) { store.authenticate("+12025550123", "synthetic-password-only"); runCurrent(); assertNotNull(store.state.value.session) }
 
+    @Test fun directLookupFetchesAuthorizedDetailOutsideCurrentPageAndReturnsToPage() = runTest {
+        val api = FakeApi()
+        val store = store(api); signIn(store); store.selectLibrary("family"); runCurrent()
+        store.loadPage(31); runCurrent()
+        api.assets = listOf(asset.copy(id = "901", kind = "video"))
+        store.openAssetById("901"); runCurrent()
+        assertEquals(listOf("901"), api.detailReads)
+        assertEquals("901", store.state.value.detail?.asset?.id)
+        assertNull(store.state.value.video) // Opening details does not autoplay.
+        store.backToPhotos(); runCurrent()
+        assertEquals(31, store.state.value.gallery?.page)
+    }
+    @Test fun directLookupRejectsMalformedIdsAndPreservesAuthorization() = runTest {
+        val api = FakeApi()
+        val store = store(api)
+        store.openAssetById("1"); runCurrent(); assertTrue(api.detailReads.isEmpty())
+        signIn(store); store.selectLibrary("family"); runCurrent()
+        for (id in listOf("", "0", "-1", "01", "1/thumbnail", "9223372036854775808")) store.openAssetById(id)
+        runCurrent(); assertTrue(api.detailReads.isEmpty())
+        api.detailError = ApiFailure(FailureKind.HTTP, 403)
+        store.openAssetById("1"); runCurrent()
+        assertEquals(listOf("1"), api.detailReads)
+        assertNull(store.state.value.detail)
+        assertNull(store.state.value.video)
+        assertEquals(0, api.preparedHeads)
+    }
+
     @Test fun preparedViewerOpensAndSeeksWithoutOriginalGrant() = runTest {
         val api = FakeApi().apply { protectedNativeV2Enabled=true; preparedVideoEnabled=true; assets=listOf(asset.copy(kind="video")) }
         val store=store(api); signIn(store); store.selectLibrary("family"); runCurrent()

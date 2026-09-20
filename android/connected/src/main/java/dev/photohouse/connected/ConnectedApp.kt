@@ -75,12 +75,15 @@ private class Words(val zh: Boolean) {
     val t = words::t
     val state = store?.state?.collectAsState()?.value ?: LiveState()
     var jumpPage by remember(state.generation) { mutableStateOf(false) }
+    var lookupAsset by remember(state.generation) { mutableStateOf(false) }
     val scroll = rememberLazyListState()
     LaunchedEffect(state.generation) { scroll.scrollToItem(0) }
     PhotoHouseTheme {
         if (!state.covered && store != null) state.storyEditor?.let { editor ->
             ProtectedStoryEditorDialog(editor, onDismiss = store::closeStoryEditor, zh = words.zh)
         }
+        if (lookupAsset && state.library != null && !state.covered && store != null) AssetLookupDialog(
+            words.zh, { lookupAsset = false }, { id -> lookupAsset = false; store.openAssetById(id) })
         val galleryForJump = state.gallery
         if (jumpPage && galleryForJump != null && !state.covered && store != null) PhonePageJump(
             galleryForJump.page, galleryForJump.page_size, galleryForJump.total, words.zh,
@@ -185,6 +188,7 @@ private class Words(val zh: Boolean) {
                                 state.detail != null || state.photoNavigation != null -> {
                                     item { TextButton(onClick = store::backToPhotos) { Text(if (state.photoNavigation?.discovery != null) t("Back to results", "返回结果") else t("Back to Photos", "返回照片")) } }
                                     state.detail?.let { detail ->
+                                        item { Text(t("No. ${detail.asset.id}", "编号 ${detail.asset.id}"), style = MaterialTheme.typography.titleMedium) }
                                         item { Preview(detail.asset, state.previews[detail.asset.id], words, detail = true) }
                                     }
                                     state.photoNavigation?.let { navigation ->
@@ -262,6 +266,13 @@ private class Words(val zh: Boolean) {
                                                 }) })
                                         }
                                     }
+                                    item { Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
+                                        state.gallery?.let { gallery -> Text(t("Page ${gallery.page} · ${gallery.total} items", "第 ${gallery.page} 页 · ${gallery.total} 项")) }
+                                        FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                                            OutlinedButton(onClick = { lookupAsset = true }, modifier = Modifier.testTag("open-asset-lookup")) { Text(t("Open by number", "按编号打开")) }
+                                            if (state.gallery != null) OutlinedButton(onClick = { jumpPage = true }) { Text(t("Go to page", "跳转页面")) }
+                                        }
+                                    } }
                                     if (store.discoveryEnabled) item { FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                                         Button(onClick = { if (state.discovery == null) store.openDiscovery() else store.editDiscovery() }, enabled = !state.busy,
                                             modifier = Modifier.testTag("open-discovery")) { Text(if (state.discovery == null) t("Find a memory", "寻找回忆") else t("Edit filters", "修改条件")) }
@@ -274,6 +285,7 @@ private class Words(val zh: Boolean) {
                                             row.forEach { asset -> Card(onClick = { store.openMedia(asset) }, modifier = Modifier.weight(1f).testTag("media-${asset.id}")) {
                                                 Preview(asset, state.previews[asset.id], words)
                                                 Column(Modifier.padding(14.dp), verticalArrangement = Arrangement.spacedBy(4.dp)) {
+                                                    Text(t("No. ${asset.id}", "编号 ${asset.id}"), style = MaterialTheme.typography.labelMedium)
                                                     Text(asset.taken_at ?: t("Date unknown", "日期未知"), style = MaterialTheme.typography.titleSmall)
                                                     Text(t(if (asset.kind == "video") "Video" else "Photo", if (asset.kind == "video") "视频" else "照片"),
                                                         style = MaterialTheme.typography.labelMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)

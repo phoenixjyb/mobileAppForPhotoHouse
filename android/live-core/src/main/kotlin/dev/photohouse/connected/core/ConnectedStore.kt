@@ -342,6 +342,14 @@ class ConnectedStore(private val api: PhotoHouseApi, private val scope: Coroutin
                 mutable.value = state.value.copy(problem = LiveProblem(Message.DISCOVERY_INPUT))
         }
     }
+    fun openAssetById(input: String) {
+        val id = input.trim()
+        if (!validAssetLookupId(id) || !allowed() || coolingDown()) return
+        val current = state.value
+        val navigation = current.gallery?.let { PhotoNavigation(it.page, listOf(id), 0, current.discovery, current.media) }
+        // Detail, captions and media keep the same library/session authorization as a card tap.
+        openPhoto(id, navigation)
+    }
     fun openMedia(asset: Asset) = openAsset(asset, viewMedia = true)
     fun openAsset(asset: Asset, viewMedia: Boolean = false) {
         val gallery = state.value.gallery
@@ -668,3 +676,5 @@ class ConnectedStore(private val api: PhotoHouseApi, private val scope: Coroutin
     private fun validResponse(condition: Boolean) { if (!condition) throw ApiFailure(FailureKind.INVALID_RESPONSE) }
     companion object { const val CACHE_LIMIT = 8 * 1024 * 1024 }
 }
+
+fun validAssetLookupId(value: String): Boolean = value.matches(Regex("[1-9][0-9]{0,18}")) && value.toLongOrNull() != null
