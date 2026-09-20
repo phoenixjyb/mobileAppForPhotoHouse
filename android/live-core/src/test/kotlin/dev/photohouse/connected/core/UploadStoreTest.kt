@@ -16,8 +16,9 @@ class UploadStoreTest {
         override val protectedNativeV2Enabled = true
         override val uploadEnabled = true
         var calls = 0
+        var failure: Exception? = null
         override suspend fun uploadPhoto(token: Bearer, source: UploadSource, batch: String, onProgress: (Long) -> Unit): UploadReceipt {
-            calls++; onProgress(source.bytes)
+            calls++; failure?.let { throw it }; onProgress(source.bytes)
             return UploadReceipt("7", null, "member", batch, "image", 1, 1, "a".repeat(64), source.bytes, 5)
         }
         override suspend fun login(phone: String, password: String) = SessionToken(86400, "T".repeat(43), "Bearer")
@@ -48,5 +49,15 @@ class UploadStoreTest {
         var active = false; val api = Api(); val store = UploadStore(api, token, this, { active })
         assertFalse(store.start(UploadSource("x.jpg", 1) { ByteArrayInputStream(byteArrayOf(1)) }, batch, UploadNetwork.UNMETERED))
         store.cancel(); assertEquals(UploadState.Cancelled, store.state.value)
+    }
+
+    @Test fun accessDeniedDoesNotOfferRetry() = runTest {
+        val api = Api().apply { failure = ApiFailure(FailureKind.HTTP, 403) }
+        val store = UploadStore(api, token, this, { true }, { UploadNetwork.UNMETERED })
+        assertTrue(store.start(UploadSource("photo.jpg", 1) { ByteArrayInputStream(byteArrayOf(1)) }, batch, UploadNetwork.UNMETERED))
+        advanceUntilIdle()
+        val failed = store.state.value as UploadState.Failed
+        assertFalse(failed.retryAvailable)
+        assertFalse(store.retry())
     }
 }

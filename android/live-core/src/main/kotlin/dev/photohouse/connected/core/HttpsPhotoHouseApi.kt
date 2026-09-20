@@ -3,6 +3,7 @@ package dev.photohouse.connected.core
 import dev.photohouse.protocol.*
 import kotlinx.coroutines.suspendCancellableCoroutine
 import kotlinx.serialization.KSerializer
+import kotlinx.serialization.Serializable
 import kotlinx.serialization.json.*
 import okhttp3.*
 import okhttp3.HttpUrl.Companion.toHttpUrl
@@ -11,6 +12,8 @@ import okhttp3.RequestBody.Companion.toRequestBody
 import java.io.ByteArrayOutputStream
 import java.io.IOException
 import java.io.InputStream
+import java.security.MessageDigest
+import java.util.concurrent.atomic.AtomicReference
 import java.util.concurrent.TimeUnit
 import javax.net.ssl.SSLException
 import kotlin.coroutines.resume
@@ -51,11 +54,13 @@ class HttpsPhotoHouseApi internal constructor(private val origin: TrustedOrigin,
         require(source.bytes in 1..MAX_UPLOAD_BYTES)
         require(source.displayName.isNotEmpty() && source.displayName.length <= MAX_UPLOAD_NAME &&
             source.displayName.none { it == '\u0000' || it == '\r' || it == '\n' })
+        val streamedDigest = AtomicReference<String?>(null)
         val requestBody = object : RequestBody() {
             override fun contentType() = "application/octet-stream".toMediaType()
             override fun contentLength() = source.bytes
             override fun writeTo(sink: okio.BufferedSink) {
                 var sent = 0L
+                val digest = MessageDigest.getInstance("SHA-256")
                 source.open().use { input ->
                     val buffer = ByteArray(32 * 1024)
                     while (true) {
@@ -65,10 +70,12 @@ class HttpsPhotoHouseApi internal constructor(private val origin: TrustedOrigin,
                         sent += n
                         if (sent > source.bytes) throw IOException("source exceeded declared length")
                         sink.write(buffer, 0, n)
+                        digest.update(buffer, 0, n)
                         onProgress(sent)
                     }
                 }
                 if (sent != source.bytes) throw IOException("source length changed")
+                streamedDigest.set(digest.digest().joinToString("") { "%02x".format(it) })
             }
         }
         val request = Request.Builder().url(url("/uploads"))
@@ -86,12 +93,14 @@ class HttpsPhotoHouseApi internal constructor(private val origin: TrustedOrigin,
                 override fun onResponse(call: Call, response: Response) {
                     try {
                         response.use {
-                            if (it.code !in 200..299) throw ApiFailure(FailureKind.HTTP, it.code)
+                            if (it.code != 201) throw ApiFailure(FailureKind.HTTP, it.code)
                             if (it.header("Content-Type")?.substringBefore(';')?.trim()?.lowercase() != "application/json") throw ApiFailure(FailureKind.INVALID_RESPONSE)
                             val body = it.body ?: throw ApiFailure(FailureKind.INVALID_RESPONSE)
                             if (body.contentLength() !in 1..UPLOAD_JSON_LIMIT) throw ApiFailure(FailureKind.INVALID_RESPONSE)
                             val bytes = readBody(body, UPLOAD_JSON_LIMIT)
                             val receipt = parseUploadReceipt(bytes)
+                            if (receipt.libraryId != null || receipt.bytes != source.bytes || receipt.sha256 != streamedDigest.get())
+                                throw ApiFailure(FailureKind.INVALID_RESPONSE)
                             if (continuation.isActive) continuation.resume(receipt)
                         }
                     } catch (e: Exception) {
@@ -103,21 +112,17 @@ class HttpsPhotoHouseApi internal constructor(private val origin: TrustedOrigin,
     }
 
     private fun parseUploadReceipt(bytes: ByteArray): UploadReceipt {
-        val obj = try { Wire.json.parseToJsonElement(bytes.toString(Charsets.UTF_8)).jsonObject } catch (_: Exception) { throw ApiFailure(FailureKind.INVALID_RESPONSE) }
-        val expected = setOf("asset_id", "library_id", "incoming", "batch", "kind", "width", "height", "sha256", "bytes", "tasks_enqueued")
-        if (obj.keys != expected) throw ApiFailure(FailureKind.INVALID_RESPONSE)
-        fun str(name: String): String = (obj[name] as? JsonPrimitive)?.takeIf { it.isString }?.content ?: throw ApiFailure(FailureKind.INVALID_RESPONSE)
-        fun decimal(name: String): Long = (obj[name] as? JsonPrimitive)?.takeIf { !it.isString }?.content?.toLongOrNull() ?: throw ApiFailure(FailureKind.INVALID_RESPONSE)
-        val assetId = str("asset_id").also { require(it.matches(Regex("[1-9][0-9]{0,18}"))) }
-        val library = obj["library_id"].let { if (it == JsonNull) null else str("library_id") }
-        val incoming = str("incoming"); val batch = str("batch"); val kind = str("kind"); val sha = str("sha256")
-        val width = decimal("width").also { require(it in 1..64 * 1024 * 1024) }.toInt()
-        val height = decimal("height").also { require(it in 1..64 * 1024 * 1024) }.toInt()
-        val size = decimal("bytes").also { require(it in 1..MAX_UPLOAD_BYTES) }
-        val tasks = decimal("tasks_enqueued").also { require(it in 0..16) }.toInt()
-        require(batch.matches(Regex("[0-9a-f]{32}")) && kind == "image" && sha.matches(Regex("[0-9a-f]{64}")))
-        return UploadReceipt(assetId, library, incoming, batch, kind, width, height, sha, size, tasks)
+        val wire = try { Wire.json.decodeFromString<UploadWireReceipt>(bytes.toString(Charsets.UTF_8)) } catch (_: Exception) { throw ApiFailure(FailureKind.INVALID_RESPONSE) }
+        val assetId = wire.asset_id.also { require(it.matches(Regex("[1-9][0-9]{0,18}"))) }
+        require(wire.batch.matches(Regex("[0-9a-f]{32}")) && wire.kind == "image" && wire.sha256.matches(Regex("[0-9a-f]{64}")))
+        require(wire.width in 1..64 * 1024 * 1024 && wire.height in 1..64 * 1024 * 1024 && wire.width.toLong() * wire.height <= 64L * 1024 * 1024)
+        require(wire.bytes in 1..MAX_UPLOAD_BYTES && wire.tasks_enqueued in 0..16)
+        return UploadReceipt(assetId, wire.library_id, wire.incoming, wire.batch, wire.kind, wire.width, wire.height, wire.sha256, wire.bytes, wire.tasks_enqueued)
     }
+
+    @Serializable private data class UploadWireReceipt(val asset_id: String, val library_id: String?, val incoming: String,
+        val batch: String, val kind: String, val width: Int, val height: Int, val sha256: String,
+        val bytes: Long, val tasks_enqueued: Int)
 
     private fun url(path: String, library: String? = null, page: Int? = null): HttpUrl {
         require(path.startsWith('/') && !path.startsWith("//"))

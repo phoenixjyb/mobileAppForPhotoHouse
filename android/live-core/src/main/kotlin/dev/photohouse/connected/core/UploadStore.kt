@@ -7,6 +7,7 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
 import java.util.UUID
+import java.util.concurrent.atomic.AtomicLong
 
 enum class UploadNetwork { UNMETERED, METERED, UNKNOWN }
 
@@ -25,11 +26,14 @@ class UploadStore(
     private val token: Bearer,
     private val scope: CoroutineScope,
     private val valid: () -> Boolean,
+    private val network: () -> UploadNetwork = { UploadNetwork.UNKNOWN },
+    private val now: () -> Long = System::currentTimeMillis,
 ) {
     private val mutable = MutableStateFlow<UploadState>(UploadState.Idle)
     val state = mutable.asStateFlow()
     private var job: Job? = null
     private var pending: Pending? = null
+    private val epoch = AtomicLong(0)
 
     private data class Pending(val source: UploadSource, val batch: String)
 
@@ -53,11 +57,18 @@ class UploadStore(
 
     /** Retry is always explicit; an interrupted request may already have created the receipt. */
     fun retry(): Boolean {
-        if (mutable.value !is UploadState.Failed || job?.isActive == true || !valid()) return false
+        val failed = mutable.value as? UploadState.Failed ?: return false
+        if (!failed.retryAvailable || failed.problem.retryAtMillis > now() || job?.isActive == true || !valid()) return false
+        val currentNetwork = network()
+        if (currentNetwork != UploadNetwork.UNMETERED) {
+            mutable.value = UploadState.AwaitingNetwork(currentNetwork)
+            return true
+        }
         launchPending(); return true
     }
 
     fun cancel() {
+        epoch.incrementAndGet()
         job?.cancel()
         job = null
         pending = null
@@ -65,6 +76,7 @@ class UploadStore(
     }
 
     fun close() {
+        epoch.incrementAndGet()
         job?.cancel()
         job = null
         pending = null
@@ -73,24 +85,28 @@ class UploadStore(
 
     private fun launchPending() {
         val request = pending ?: return
+        val attempt = epoch.incrementAndGet()
         job?.cancel()
         mutable.value = UploadState.Uploading(0, request.source.bytes)
         job = scope.launch {
             try {
                 if (!valid()) throw ApiFailure(FailureKind.HTTP, 401)
                 val receipt = api.uploadPhoto(token, request.source, request.batch) { sent ->
-                    if (valid()) mutable.value = UploadState.Uploading(sent, request.source.bytes)
+                    scope.launch { if (attempt == epoch.get() && valid()) mutable.value = UploadState.Uploading(sent, request.source.bytes) }
                 }
-                if (valid()) mutable.value = UploadState.Succeeded(receipt)
+                if (attempt == epoch.get() && valid()) { epoch.incrementAndGet(); mutable.value = UploadState.Succeeded(receipt) }
             } catch (cancelled: CancellationException) {
                 throw cancelled
             } catch (error: Exception) {
-                    if (valid()) mutable.value = UploadState.Failed(problem(error), retryAvailable = true)
-            } finally {
-                job = null
+                    if (attempt == epoch.get() && valid()) { epoch.incrementAndGet(); mutable.value = UploadState.Failed(problem(error), retryAvailable = retryable(error)) }
+                } finally {
+                if (attempt == epoch.get()) job = null
             }
         }
     }
+
+    private fun retryable(error: Exception) = error is ApiFailure &&
+        error.kind in setOf(FailureKind.OFFLINE, FailureKind.HTTP) && error.status !in setOf(401, 403)
 
     private fun problem(error: Exception): LiveProblem = when (error) {
         is ApiFailure -> when (error.kind) {

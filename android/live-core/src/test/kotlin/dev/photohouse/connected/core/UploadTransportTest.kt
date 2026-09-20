@@ -20,7 +20,7 @@ class UploadTransportTest {
         val cert = HeldCertificate.Builder().addSubjectAlternativeName("localhost").build()
         val server = MockWebServer().apply { useHttps(HandshakeCertificates.Builder().heldCertificate(cert).build().sslSocketFactory(), false) }
         server.enqueue(MockResponse().setResponseCode(201).setHeader("Content-Type", "application/json")
-            .setBody("""{"asset_id":"17","library_id":null,"incoming":"Yanbo-a1","batch":"$batch","kind":"image","width":640,"height":480,"sha256":"${"a".repeat(64)}","bytes":4,"tasks_enqueued":5}"""))
+            .setBody("""{"asset_id":"17","library_id":null,"incoming":"Yanbo-a1","batch":"$batch","kind":"image","width":640,"height":480,"sha256":"9f64a747e1b97f131fabb6b447296c9b6f0201e79fb3c5356e6c77e89b6a806a","bytes":4,"tasks_enqueued":5}"""))
         server.start(java.net.InetAddress.getByName("127.0.0.1"), 0)
         try {
             val trust = HandshakeCertificates.Builder().addTrustedCertificate(cert.certificate).build()
