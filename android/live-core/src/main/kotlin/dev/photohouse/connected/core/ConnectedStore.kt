@@ -386,7 +386,7 @@ class ConnectedStore(private val api: PhotoHouseApi, private val scope: Coroutin
             val reader = VideoReader({ start, length ->
                 if (info != null) api.preparedVideoRange(credential, detail.library_id, detail.asset.id, info, start, length)
                 else api.videoRange(credential, detail.library_id, detail.asset.id, start, length)
-            }, deadline, now, initialSize = info?.bytes ?: -1L) { error ->
+            }, deadline, now, initialSize = info?.bytes ?: -1L, readAhead = prepared, retryTransientRead = prepared) { error ->
                 scope.launch {
                     if (active(generation)) {
                         if (prepared) preparedPlaybackFailure(error, generation, credential)

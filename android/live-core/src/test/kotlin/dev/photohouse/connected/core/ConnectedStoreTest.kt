@@ -178,7 +178,9 @@ class ConnectedStoreTest {
             val reader=store.state.value.video!!
             assertEquals(4, reader.readAt(0, ByteArray(4), 0, 4))
             api.preparedError=ApiFailure(FailureKind.HTTP, code, 2000)
-            try { reader.readAt(4, ByteArray(4), 0, 4); fail("Read must fail") } catch (_: java.io.IOException) { }
+            // A repeated consumed range must authorize again, even with an admitted suffix.
+            try { reader.readAt(0, ByteArray(4), 0, 4); fail("Read must fail") } catch (_: java.io.IOException) { }
+            assertEquals(2, api.preparedReads)
             assertTrue(reader.isClosed)
             // Native player error can arrive before the queued transport callback.
             store.videoPlaybackFailed(reader, nativeFailure=true)

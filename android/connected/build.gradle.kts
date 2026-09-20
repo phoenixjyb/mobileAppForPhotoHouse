@@ -55,8 +55,8 @@ android {
         minSdk = 26
         targetSdk = 34
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
-        versionCode = 16
-        versionName = "0.17-media-navigation"
+        versionCode = 18
+        versionName = "0.19-progressive-video"
         buildConfigField("boolean", "PHOTOHOUSE_HOME_DISCOVERY_ENABLED", homeDiscoveryEnabled)
         buildConfigField("String", "PHOTOHOUSE_HOME_ORIGIN", "\"$homeOrigin\"")
         buildConfigField("String", "PHOTOHOUSE_HOME_LAN_ADDRESS", "\"$homeAddress\"")
@@ -76,6 +76,7 @@ android {
     packaging { resources.excludes += "/META-INF/{AL2.0,LGPL2.1}" }
 }
 dependencies {
+    implementation("androidx.media3:media3-exoplayer:1.3.1")
     if (storyFixtureEnabled) debugImplementation(project(":story-fixture-core"))
     implementation(project(":live-core"))
     implementation(project(":home-core"))

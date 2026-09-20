@@ -81,6 +81,27 @@ class HomeVideoReaderTest {
             assertArrayEquals(ByteArray(4) { 77 }, buffer); assertEquals(0, failures.get())
         } finally { reader.close(); worker.shutdownNow() }
     }
+
+    @Test fun interruptedSeekCancelsOnlyTheFetchAndNextReadSucceeds() {
+        val entered = CountDownLatch(1); val cancelled = CountDownLatch(1)
+        val calls = AtomicInteger(); val failures = AtomicInteger()
+        val reader = HomeVideoReader(1000, 256, { _, length ->
+            if (calls.incrementAndGet() == 1) {
+                entered.countDown()
+                try { awaitCancellation() } finally { cancelled.countDown() }
+            }
+            ByteArray(length) { 6 }
+        }, { failures.incrementAndGet() })
+        val thrown = java.util.concurrent.atomic.AtomicReference<Throwable?>()
+        val worker = Thread { try { reader.readAt(0, ByteArray(4), 0, 4) } catch (e: Throwable) { thrown.set(e) } }
+        worker.start(); assertTrue(entered.await(3, TimeUnit.SECONDS)); worker.interrupt(); worker.join(3000)
+        assertFalse(worker.isAlive); assertTrue(thrown.get() is java.io.InterruptedIOException)
+        assertTrue(cancelled.await(3, TimeUnit.SECONDS)); assertFalse(reader.isClosed)
+        val target = ByteArray(4); assertEquals(4, reader.readAt(500, target, 0, 4))
+        assertArrayEquals(ByteArray(4) { 6 }, target); assertEquals(0, failures.get())
+        reader.close()
+    }
+
     @Test fun shortAndOversizedChunksCloseAndReportOnlyOnce() {
         for (returned in listOf(3, 5)) {
             var failures = 0; var closed = 0

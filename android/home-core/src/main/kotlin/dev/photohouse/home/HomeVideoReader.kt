@@ -3,6 +3,7 @@ package dev.photohouse.home
 import kotlinx.coroutines.*
 import java.io.Closeable
 import java.io.IOException
+import java.io.InterruptedIOException
 import java.util.concurrent.CopyOnWriteArrayList
 import java.util.concurrent.atomic.AtomicBoolean
 
@@ -56,6 +57,7 @@ class HomeVideoReader(
     private fun checkOpen() { if (closed.get()) throw IOException("Video closed") }
     private fun <T> read(action: () -> T): T = synchronized(readLock) {
         try { checkOpen(); action() }
+        catch (e: InterruptedIOException) { throw e }
         catch (e: Exception) {
             val report = !closed.get() && e !is CancellationException
             val callback = failureCallback
@@ -81,7 +83,12 @@ class HomeVideoReader(
         if (cached) return@read length
         val fetchLength = minOf(chunkBytes.toLong(), totalBytes - position).toInt()
         val task = scope.async { (loader ?: throw CancellationException())(position, fetchLength) }
-        val bytes = runBlocking { task.await() }
+        val bytes = try { runBlocking { task.await() } }
+        catch (_: InterruptedException) {
+            // Media3 interrupts its loader during seek. Cancel this fetch, not the owner.
+            task.cancel()
+            throw InterruptedIOException("Video read interrupted")
+        }
         checkOpen()
         if (bytes.size != fetchLength) throw IOException("Invalid video chunk")
         synchronized(lifetimeLock) {
