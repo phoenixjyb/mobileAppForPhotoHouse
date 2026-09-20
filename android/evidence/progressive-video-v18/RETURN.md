@@ -72,3 +72,11 @@ Configured APK installation and exact SHA-256 were verified on the phone.
 The final nine-test physical synthetic suite was rerun after the interrupt and
 refill fixes and passed. CI, TV APK/device requalification, low-bandwidth WAN
 acceptance and subjective family viewing quality are not claimed.
+
+Publication replay: the combined CI build, lint and 357 JVM tests passed, then
+the APK permission gate correctly detected Media3's merged
+`ACCESS_NETWORK_STATE` permission. The connected APK allowlist now includes that
+normal connectivity-observation permission explicitly. It remains an exact
+allowlist; the fixture and TV permission gates are unchanged. This verification
+script correction does not change the installed v18 artifact. The subsequent
+GitHub run is the authority for final CI completion.

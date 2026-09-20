@@ -89,8 +89,10 @@ from pathlib import Path
 import re
 text = Path('android/connected/build/outputs/apk/debug/permissions.txt').read_text()
 permissions = set(re.findall(r"uses-permission: name='([^']+)'", text))
-assert permissions == {'android.permission.INTERNET', 'dev.photohouse.connected.DYNAMIC_RECEIVER_NOT_EXPORTED_PERMISSION'}, permissions
-print('PASS connected APK has only Internet and AndroidX app-internal permission; no fixture assets')
+# Media3 merges the normal network-state permission for connectivity observation.
+# Keep an exact allowlist so other dependency permissions still fail this gate.
+assert permissions == {'android.permission.INTERNET', 'android.permission.ACCESS_NETWORK_STATE', 'dev.photohouse.connected.DYNAMIC_RECEIVER_NOT_EXPORTED_PERMISSION'}, permissions
+print('PASS connected APK has only Internet, network-state and AndroidX app-internal permissions; no fixture assets')
 PY_CONNECTED_PERMISSIONS
 
 "$sdk_dir/build-tools/34.0.0/aapt" dump permissions android/tv/build/outputs/apk/debug/tv-debug.apk > android/tv/build/outputs/apk/debug/permissions.txt
