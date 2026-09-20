@@ -9,6 +9,9 @@ val configuredOrigin = providers.gradleProperty("photohouseOrigin").orElse(local
 require(configuredOrigin.none { it == '\n' || it == '\r' || it == '"' || it == '\\' }) { "Invalid configured origin" }
 val protectedNativeV2Enabled = providers.gradleProperty("photohouseProtectedNativeV2Enabled").orElse("false").get()
 require(protectedNativeV2Enabled in listOf("true", "false"))
+val uploadEnabled = providers.gradleProperty("photohousePhoneUploadEnabled").orElse("false").get()
+require(uploadEnabled in listOf("true", "false"))
+require(uploadEnabled != "true" || protectedNativeV2Enabled == "true")
 val discoveryEnabled = providers.gradleProperty("photohousePhoneDiscoveryEnabled").orElse("false").get()
 require(discoveryEnabled in listOf("true", "false")) { "Invalid phone discovery switch" }
 val photoDeliveryEnabled = providers.gradleProperty("photohousePhonePhotoDeliveryEnabled").orElse("false").get()
@@ -64,6 +67,7 @@ android {
         buildConfigField("String", "PHOTOHOUSE_HOME_ORIGIN", "\"$homeOrigin\"")
         buildConfigField("String", "PHOTOHOUSE_HOME_LAN_ADDRESS", "\"$homeAddress\"")
         buildConfigField("boolean", "PHOTOHOUSE_PROTECTED_NATIVE_V2_ENABLED", protectedNativeV2Enabled)
+        buildConfigField("boolean", "PHOTOHOUSE_UPLOAD_ENABLED", uploadEnabled)
         buildConfigField("boolean", "PHOTOHOUSE_DISCOVERY_ENABLED", discoveryEnabled)
         buildConfigField("boolean", "PHOTOHOUSE_PHOTO_DELIVERY_ENABLED", photoDeliveryEnabled)
         buildConfigField("boolean", "PHOTOHOUSE_PREPARED_VIDEO_ENABLED", preparedVideoEnabled)
