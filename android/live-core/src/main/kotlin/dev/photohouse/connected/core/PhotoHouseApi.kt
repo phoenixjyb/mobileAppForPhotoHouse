@@ -25,6 +25,7 @@ interface PhotoHouseApi {
     /** Protected family stories are opt-in until the integration owner enables the route. */
     val protectedNativeV2Enabled: Boolean get() = false
     val mediaFilterEnabled: Boolean get() = false
+    val preparedBrowseEnabled: Boolean get() = false
     val preparedVideoEnabled: Boolean get() = false
     suspend fun preparedVideoInfo(token: Bearer, library: String, assetId: String): PreparedVideoInfo = throw ApiFailure(FailureKind.INVALID_INPUT)
     suspend fun preparedVideoRange(token: Bearer, library: String, assetId: String, info: PreparedVideoInfo, start: Long, length: Int): VideoChunk = throw ApiFailure(FailureKind.INVALID_INPUT)

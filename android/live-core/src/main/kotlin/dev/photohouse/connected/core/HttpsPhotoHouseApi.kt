@@ -30,9 +30,9 @@ class TrustedOrigin private constructor(internal val url: HttpUrl) {
 /** Application construction always uses platform trust and hostname validation.
  * The internal overload is visible only to this module's JVM test friend source set.
  */
-class HttpsPhotoHouseApi internal constructor(private val origin: TrustedOrigin, client: OkHttpClient, private val detailPreviewSize: Int = 256, override val discoveryEnabled: Boolean = false, override val photoDeliveryEnabled: Boolean = false, override val protectedNativeV2Enabled: Boolean = false, override val preparedVideoEnabled: Boolean = false, override val mediaFilterEnabled: Boolean = false) : PhotoHouseApi {
-    constructor(origin: TrustedOrigin, detailPreviewSize: Int = 256, discoveryEnabled: Boolean = false, photoDeliveryEnabled: Boolean = false, protectedNativeV2Enabled: Boolean = false, preparedVideoEnabled: Boolean = false, mediaFilterEnabled: Boolean = false) : this(origin, OkHttpClient(), detailPreviewSize, discoveryEnabled, photoDeliveryEnabled, protectedNativeV2Enabled, preparedVideoEnabled, mediaFilterEnabled)
-    init { require(detailPreviewSize in 64..1024); require(!preparedVideoEnabled || protectedNativeV2Enabled); require(!mediaFilterEnabled || protectedNativeV2Enabled) }
+class HttpsPhotoHouseApi internal constructor(private val origin: TrustedOrigin, client: OkHttpClient, private val detailPreviewSize: Int = 256, override val discoveryEnabled: Boolean = false, override val photoDeliveryEnabled: Boolean = false, override val protectedNativeV2Enabled: Boolean = false, override val preparedVideoEnabled: Boolean = false, override val mediaFilterEnabled: Boolean = false, override val preparedBrowseEnabled: Boolean = false) : PhotoHouseApi {
+    constructor(origin: TrustedOrigin, detailPreviewSize: Int = 256, discoveryEnabled: Boolean = false, photoDeliveryEnabled: Boolean = false, protectedNativeV2Enabled: Boolean = false, preparedVideoEnabled: Boolean = false, mediaFilterEnabled: Boolean = false, preparedBrowseEnabled: Boolean = false) : this(origin, OkHttpClient(), detailPreviewSize, discoveryEnabled, photoDeliveryEnabled, protectedNativeV2Enabled, preparedVideoEnabled, mediaFilterEnabled, preparedBrowseEnabled)
+    init { require(detailPreviewSize in 64..1024); require(!preparedVideoEnabled || protectedNativeV2Enabled); require(!mediaFilterEnabled || protectedNativeV2Enabled); require(!preparedBrowseEnabled || mediaFilterEnabled && preparedVideoEnabled) }
     private val client = client.newBuilder()
         .followRedirects(false).followSslRedirects(false).retryOnConnectionFailure(false)
         .cookieJar(CookieJar.NO_COOKIES).cache(null)
@@ -223,6 +223,7 @@ class HttpsPhotoHouseApi internal constructor(private val origin: TrustedOrigin,
     override suspend fun gallery(token: Bearer, library: String, page: Int, media: GalleryMedia): Gallery {
         if (media == GalleryMedia.ALL) return gallery(token, library, page)
         require(mediaFilterEnabled)
+        require(media != GalleryMedia.PREPARED_VIDEOS || preparedBrowseEnabled)
         return json(url("/assets", library, page).newBuilder().addQueryParameter("media", media.wire).build(), Gallery.serializer(), token)
     }
     override suspend fun detail(token: Bearer, library: String, assetId: String) = json(url("/assets/detail/${assetId(assetId)}", library), Detail.serializer(), token)

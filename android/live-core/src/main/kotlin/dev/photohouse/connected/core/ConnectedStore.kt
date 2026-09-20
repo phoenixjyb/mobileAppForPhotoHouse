@@ -5,7 +5,9 @@ import kotlinx.coroutines.*
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.asStateFlow
 
-enum class GalleryMedia(val wire: String) { ALL("all"), PHOTOS("image"), VIDEOS("video") }
+enum class GalleryMedia(val wire: String) { ALL("all"), PHOTOS("image"), VIDEOS("video"), PREPARED_VIDEOS("prepared_video");
+    val assetKind get() = if (this == PREPARED_VIDEOS) "video" else wire
+}
 enum class Message { SESSION_STORAGE_UNAVAILABLE, SIGNED_OUT_LOCAL, SIGNED_OUT_CONFIRMED, SESSION_ENDED, ACCESS_DENIED, UNAVAILABLE, TLS_ERROR, CLOSED, RATE_LIMITED, INVALID_INPUT, INVALID_RESPONSE, TOO_LARGE, MEDIA_UNAVAILABLE, DISCOVERY_CHANGED, DISCOVERY_INPUT, VIDEO_NOT_READY, VIDEO_CHANGED, VIDEO_BUSY, PLAYBACK_UNAVAILABLE }
 data class LiveProblem(val message: Message, val retryAtMillis: Long = 0)
 /** Only the current page's IDs, never a persistent or cross-library history. */
@@ -42,6 +44,7 @@ class ConnectedStore(private val api: PhotoHouseApi, private val scope: Coroutin
     private var retry: (() -> Unit)? = null
     val protectedNativeV2Enabled get() = api.protectedNativeV2Enabled
     val mediaFilterEnabled get() = api.mediaFilterEnabled
+    val preparedBrowseEnabled get() = api.preparedBrowseEnabled
     val canRememberSession get() = persistence != null
     val preparedVideoEnabled get() = api.preparedVideoEnabled
     val photoDeliveryEnabled get() = api.photoDeliveryEnabled
@@ -217,27 +220,37 @@ class ConnectedStore(private val api: PhotoHouseApi, private val scope: Coroutin
         loadPage(1)
     }
     fun selectMedia(media: GalleryMedia) {
-        if (!mediaFilterEnabled) return
+        if (!mediaFilterEnabled || media == GalleryMedia.PREPARED_VIDEOS && !preparedBrowseEnabled) return
         loadPage(1, media)
     }
     fun loadPage(page: Int = 1, media: GalleryMedia = state.value.media) {
         if (!allowed() || coolingDown()) return
         require(page in 1..100000 && (media == GalleryMedia.ALL || mediaFilterEnabled))
+        require(media != GalleryMedia.PREPARED_VIDEOS || preparedBrowseEnabled)
         val library = state.value.library!!; val credential = token!!
         invalidate(keepIdentity = true)
         mutable.value = state.value.copy(library = library, busy = true, media = media)
         launch { generation ->
             try {
-                val gallery = api.gallery(credential, library, page, media)
+                // The first gallery read can lose a freshly established connection. Retry
+                // exactly once, only for a transport-level OFFLINE result. The retry stays
+                // inside this generation so logout/background/expiry cancellation wins.
+                val gallery = galleryReadWithOfflineRecovery(credential, library, page, media, generation)
                 if (!active(generation)) return@launch
                 validResponse(gallery.library_id == library && gallery.page == page && gallery.page_size in 1..100 && gallery.total >= 0 && gallery.items.size <= gallery.page_size)
-                validResponse(media == GalleryMedia.ALL || gallery.items.all { it.kind == media.wire })
+                validResponse(media == GalleryMedia.ALL || gallery.items.all { it.kind == media.assetKind })
                 val unique = gallery.copy(items = gallery.items.distinctBy { it.id })
                 mutable.value = state.value.copy(gallery = unique)
                 var byteCount = 0
                 val images = mutableMapOf<String, ByteArray>()
                 for (asset in unique.items) {
-                    val bytes = api.thumbnail(credential, library, asset)
+                    val bytes = try { api.thumbnail(credential, library, asset) }
+                    catch (e: ApiFailure) {
+                        // A missing preview must not discard an already authorized page.
+                        // Denials, TLS, invalid data and rate limits still close the view.
+                        if (e.kind == FailureKind.OFFLINE || e.kind == FailureKind.HTTP &&
+                            e.status in 502..504 && e.retryAfterMillis == 0L) null else throw e
+                    }
                     if (!active(generation)) return@launch
                     if (bytes != null && bytes.size <= HttpsPhotoHouseApi.IMAGE_LIMIT && byteCount + bytes.size <= CACHE_LIMIT) {
                         images[asset.id] = bytes; byteCount += bytes.size
@@ -247,6 +260,22 @@ class ConnectedStore(private val api: PhotoHouseApi, private val scope: Coroutin
                 mutable.value = state.value.copy(busy = false)
             } catch (e: CancellationException) { throw e }
             catch (e: Exception) { readFailure(e, generation, credential) { loadPage(page, media) } }
+        }
+    }
+    private suspend fun galleryReadWithOfflineRecovery(
+        credential: Bearer,
+        library: String,
+        page: Int,
+        media: GalleryMedia,
+        generation: Long,
+    ): Gallery {
+        try {
+            return api.gallery(credential, library, page, media)
+        } catch (e: ApiFailure) {
+            if (e.kind != FailureKind.OFFLINE) throw e
+            delay(GALLERY_RECOVERY_DELAY_MILLIS)
+            if (!active(generation)) throw CancellationException("Gallery read is no longer active")
+            return api.gallery(credential, library, page, media)
         }
     }
     fun navigatePage(page: Int) { if (state.value.discovery != null) searchDiscoveryPage(page) else loadPage(page) }
@@ -318,7 +347,13 @@ class ConnectedStore(private val api: PhotoHouseApi, private val scope: Coroutin
                 mutable.value = state.value.copy(gallery = result.gallery, discovery = previous.copy(result = result, editing = false))
                 val images = mutableMapOf<String, ByteArray>(); var byteCount = 0
                 for (asset in result.gallery.items) {
-                    val bytes = api.thumbnail(credential, library, asset)
+                    val bytes = try { api.thumbnail(credential, library, asset) }
+                    catch (e: ApiFailure) {
+                        // A missing preview must not discard an already authorized page.
+                        // Denials, TLS, invalid data and rate limits still close the view.
+                        if (e.kind == FailureKind.OFFLINE || e.kind == FailureKind.HTTP &&
+                            e.status in 502..504 && e.retryAfterMillis == 0L) null else throw e
+                    }
                     if (!active(generation)) return@launch
                     if (bytes != null && bytes.size <= HttpsPhotoHouseApi.IMAGE_LIMIT && byteCount + bytes.size <= CACHE_LIMIT) {
                         images[asset.id] = bytes; byteCount += bytes.size
@@ -674,7 +709,10 @@ class ConnectedStore(private val api: PhotoHouseApi, private val scope: Coroutin
         validResponse(session.memberships.map { it.library_id }.distinct().size == session.memberships.size)
     }
     private fun validResponse(condition: Boolean) { if (!condition) throw ApiFailure(FailureKind.INVALID_RESPONSE) }
-    companion object { const val CACHE_LIMIT = 8 * 1024 * 1024 }
+    companion object {
+        const val CACHE_LIMIT = 8 * 1024 * 1024
+        private const val GALLERY_RECOVERY_DELAY_MILLIS = 350L
+    }
 }
 
 fun validAssetLookupId(value: String): Boolean = value.matches(Regex("[1-9][0-9]{0,18}")) && value.toLongOrNull() != null

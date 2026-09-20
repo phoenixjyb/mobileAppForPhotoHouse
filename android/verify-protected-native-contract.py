@@ -10,15 +10,15 @@ from pathlib import Path
 
 ANDROID = Path(__file__).resolve().parent
 SNAPSHOT = ANDROID / "protected-native-contract"
-MANIFEST_SHA256 = "cbe8fa7bebb769a9e779f34fceb6a7452ce32739a93e71b44dd9373b0bbacdf6"
+MANIFEST_SHA256 = "0836dc8b632254e9c92e471a2a07b0a72e4687c53353c8b100c0834e8731e385"
 BACKEND_PACK = Path("docs/contracts/protected-native-v2")
-BACKEND_COMMIT = "4d1de0f06bae4f2e5342134db6a4b847657d2484"
-SOURCE_COMMIT = "1ee1af8d6efb1fac0546bf9013ad4e044aa554e5"
+BACKEND_COMMIT = "98d87f3df7cbfdb78367e60fcfa8fa0a117a2e25"
+SOURCE_COMMIT = "789bdf0ca9f69787fa3e5d13db3d666f4931e0a3"
 SNAPSHOT_PAYLOADS = {
-    "CONTRACT.md": "af5d0853fe67c0106777200a2bdb6ec58cf3bbe00a9e5e2ab78d780d3403853c",
+    "CONTRACT.md": "f73308b0dd086b6c2f3debb23319e40c60ab75d8f791564096604d7fe98de1ef",
     "UPLOAD_NEXT.md": "81b72802c2b2ea1ed0795bd0fc335323110853016acf75958e520f85a11d0936",
-    "VALIDATION.md": "bb3f74714c7a37f9961c79e4d5aa17af186209c1858c373e44be340292461755",
-    "cases.json": "7e45c49722d32312b68f9ead200ccb2f3f21f38252b9c4d268936c8762bba3d0"
+    "VALIDATION.md": "fff66c65c2a6d7106aa38c48b02a741218c8c042eeb31ad6f8398908f7bacf5a",
+    "cases.json": "8440fc84e64685f333d2137006279bdd4824a9e89b22333d29acd3fa882ab597"
 }
 
 def digest(path: Path) -> str:
@@ -32,7 +32,7 @@ def verify_snapshot() -> dict:
     manifest = json.loads(manifest_path.read_text())
     if manifest["backend_source_commit"] != SOURCE_COMMIT:
         raise ValueError("unexpected backend source commit")
-    if manifest["case_count"] != 78:
+    if manifest["case_count"] != 86:
         raise ValueError("unexpected case metadata")
     if manifest["client_profile_defaults"] != {
         "protected_native_v2": False,

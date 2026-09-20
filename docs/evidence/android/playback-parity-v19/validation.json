@@ -1,0 +1,54 @@
+{
+  "base_commit": "8d5221c94d20f6863942e2b994d15414c4d9c076",
+  "branch": "codex/android-playback-parity-v19",
+  "backend_contract_pack": "98d87f3df7cbfdb78367e60fcfa8fa0a117a2e25",
+  "contract": "2.0.0-candidate.15",
+  "jvm": {
+    "live-core": {
+      "tests": 211,
+      "failures": 0,
+      "errors": 0,
+      "skipped": 0
+    },
+    "home-core": {
+      "tests": 118,
+      "failures": 0,
+      "errors": 0,
+      "skipped": 0
+    },
+    "tv": {
+      "tests": 2,
+      "failures": 0,
+      "errors": 0,
+      "skipped": 0
+    }
+  },
+  "emulator": {
+    "api": 36,
+    "phone_prepared_browse": {
+      "passed": 2
+    },
+    "tv": {
+      "discovered": 42,
+      "passed": 38,
+      "live_skipped": 4
+    },
+    "synthetic_only": true
+  },
+  "physical_device_tested": false,
+  "backend_activated": false,
+  "apks": {
+    "PhotoHouse-Phone-v19-candidate15.apk": {
+      "bytes": 13342574,
+      "sha256": "47c80f9db4c4966909d9f398198ada5eb9e38a9659cdfe99c96d3a5c799b22eb",
+      "version_code": 19,
+      "signing": "local debug"
+    },
+    "PhotoHouse-TV-v19-home.apk1": {
+      "bytes": 12937630,
+      "sha256": "cd75d54d83ba9709383dcb4d12427468cadb51c397bea870521f08eab650526e",
+      "version_code": 19,
+      "signing": "local debug"
+    }
+  }
+}

@@ -1,7 +1,7 @@
 # Long-video playback and cache policy
 
-The phone uses Media3 progressive extraction over its authorized range reader;
-the TV retains its native random-access player. Each network
+Both phone and TV use Media3 progressive extraction over their scoped range readers.
+Each network
 fetch uses an authenticated HTTP byte range (at most 256 KiB). Protected prepared
 phone playback may retain the unconsumed suffix of one such response for contiguous
 forward decoder reads; consumed bytes are zeroed immediately. A repeated or
@@ -109,3 +109,23 @@ not close the scoped protected/Home reader; the new cursor can fetch the sought
 position. Viewer exit still cancels and closes the owner. This distinction is
 covered by blocked-fetch thread-interruption tests, because instant synthetic
 responses alone do not exercise a seek during network I/O.
+
+## TV progressive player v19
+
+TV now uses the same Media3 version and load-control targets as the phone, while
+retaining its revision-bound Home reader and separate anonymous selected-media
+contract. The custom data source owns only its cursor; viewer exit closes the
+reader and player. No HTTP URL, credential, alternate transport or disk cache is
+given to Media3. Existing bounded Home transport recovery remains in the reader;
+Media3 retries are disabled. Remote controls, explicit Play, fit/fullscreen,
+audio-focus handling, completion/replay and background closure remain available.
+
+LAN bandwidth does not eliminate Wi-Fi stalls, decoder input starvation or seek
+cost. Progressive buffering helps absorb short pauses without lowering the TV
+rendition quality. A 12 MiB sample target is not a process-memory ceiling, and
+synthetic emulator playback is not proof of projector hardware decoding or 4K.
+
+The backend also offers an opt-in offline `phone-sdr-v1` preparation profile:
+maximum 1280×720, 2 Mbps target/3 Mbps cap H.264 and 96 kbps AAC. It requires a new
+qualified preparation job and publication; it does not automatically replace
+existing TV copies, originals or live phone delivery, and is not adaptive bitrate.

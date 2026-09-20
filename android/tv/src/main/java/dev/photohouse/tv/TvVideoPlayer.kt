@@ -2,7 +2,9 @@ package dev.photohouse.tv
 
 import android.content.*
 import android.graphics.SurfaceTexture
-import android.media.*
+import android.media.AudioAttributes
+import android.media.AudioFocusRequest
+import android.media.AudioManager
 import android.os.*
 import android.view.Surface
 import android.view.TextureView
@@ -27,23 +29,60 @@ import androidx.compose.ui.draw.clipToBounds
 import androidx.compose.ui.input.key.onPreviewKeyEvent
 import androidx.compose.ui.platform.LocalView
 import android.view.KeyEvent
+import androidx.media3.common.C
+import androidx.media3.common.MediaItem
+import androidx.media3.common.PlaybackException
+import androidx.media3.common.Player
+import androidx.media3.common.VideoSize
+import androidx.media3.common.util.UnstableApi
+import androidx.media3.exoplayer.DefaultLoadControl
+import androidx.media3.exoplayer.ExoPlayer
+import androidx.media3.exoplayer.source.ProgressiveMediaSource
+import androidx.media3.exoplayer.upstream.DefaultLoadErrorHandlingPolicy
+import androidx.media3.exoplayer.upstream.LoadErrorHandlingPolicy
+import androidx.media3.datasource.BaseDataSource
+import androidx.media3.datasource.DataSpec
+import android.net.Uri
+import java.io.IOException
 import dev.photohouse.home.HomeVideoSource
 import kotlinx.coroutines.delay
 import java.util.concurrent.atomic.AtomicBoolean
 
-internal class VideoDataSource(private val reader: HomeVideoSource) : MediaDataSource() {
-    override fun getSize() = reader.size()
-    override fun readAt(position: Long, buffer: ByteArray, offset: Int, size: Int) = reader.readAt(position, buffer, offset, size)
-    // Borrowed reader: Store/NativeVideoPlayer own cancellation and final release.
-    // MediaPlayer may close this adapter while rejecting setDataSource; closing
-    // the owner here would suppress the error callback and leave a stuck viewer.
-    override fun close() { }
+/** Media3 sees an inert URI; all bytes still come from the authorized HomeVideoSource. */
+@androidx.annotation.OptIn(UnstableApi::class)
+internal class ProgressiveVideoDataSource(private val reader: HomeVideoSource) : BaseDataSource(true) {
+    companion object { val PRIVATE_URI: Uri = Uri.parse("photohouse-memory:///video") }
+    private var opened = false
+    private var position = 0L
+    private var remaining = 0L
+    override fun open(dataSpec: DataSpec): Long {
+        if (opened || dataSpec.uri != PRIVATE_URI || dataSpec.httpMethod != DataSpec.HTTP_METHOD_GET || dataSpec.httpBody != null) throw IOException("Invalid video request")
+        transferInitializing(dataSpec)
+        val size = reader.size()
+        if (dataSpec.position > size) throw IOException("Invalid video position")
+        position = dataSpec.position
+        remaining = size - position
+        if (dataSpec.length != C.LENGTH_UNSET.toLong()) remaining = minOf(remaining, dataSpec.length)
+        opened = true; transferStarted(dataSpec); return remaining
+    }
+    override fun read(buffer: ByteArray, offset: Int, length: Int): Int {
+        if (!opened) throw IOException("Video source closed")
+        require(offset >= 0 && length >= 0 && offset <= buffer.size && length <= buffer.size - offset)
+        if (length == 0) return 0
+        if (remaining == 0L) return C.RESULT_END_OF_INPUT
+        val count = reader.readAt(position, buffer, offset, minOf(remaining, length.toLong()).toInt())
+        if (count <= 0 || count > length || count > remaining) throw IOException("Incomplete video read")
+        position += count; remaining -= count; bytesTransferred(count); return count
+    }
+    override fun getUri(): Uri? = if (opened) PRIVATE_URI else null
+    override fun close() { if (opened) { opened = false; transferEnded() } }
 }
 internal data class Playback(val ready: Boolean = false, val playing: Boolean = false, val position: Int = 0,
     val duration: Int = 0, val width: Int = 16, val height: Int = 9, val seeking: Boolean = false,
-    val audioFocusDenied: Boolean = false)
+    val buffering: Boolean = false, val audioFocusDenied: Boolean = false)
 
-/** Every platform-player operation runs on one looper; close cancels HTTP before release. */
+/** Every player operation runs on one looper; HomeVideoReader owns cancellation. */
+@androidx.annotation.OptIn(UnstableApi::class)
 internal class NativeVideoPlayer(context: Context, private val reader: HomeVideoSource,
     private val changed: (Playback) -> Unit, private val failed: (TvPlaybackFailure) -> Unit,
     private val prepareTimeoutMs: Long = 30000) {
@@ -56,17 +95,14 @@ internal class NativeVideoPlayer(context: Context, private val reader: HomeVideo
     private val attributes = AudioAttributes.Builder().setUsage(AudioAttributes.USAGE_MEDIA).setContentType(AudioAttributes.CONTENT_TYPE_MOVIE).build()
     private val focus = AudioFocusRequest.Builder(AudioManager.AUDIOFOCUS_GAIN).setAudioAttributes(attributes)
         .setOnAudioFocusChangeListener({ if (it != AudioManager.AUDIOFOCUS_GAIN) pause() }, handler).build()
-    private var player: MediaPlayer? = null
+    private var player: ExoPlayer? = null
     private var surface: Surface? = null
     private var state = Playback()
     private val noisy = object : BroadcastReceiver() { override fun onReceive(context: Context?, intent: Intent?) { pause() } }
     private val app = context.applicationContext
     private val failureSent = AtomicBoolean(false)
     private val prepared = AtomicBoolean(false)
-    private val setupStarted = AtomicBoolean(false)
-    private val prepareWatchdog = Runnable {
-        if (!closed.get() && !prepared.get()) error(TvPlaybackFailure(TvPlaybackFailure.Stage.PREPARE_TIMEOUT))
-    }
+    private val prepareWatchdog = Runnable { if (!closed.get() && !prepared.get()) error(TvPlaybackFailure(TvPlaybackFailure.Stage.PREPARE_TIMEOUT)) }
     init {
         try {
             if (Build.VERSION.SDK_INT >= 33) app.registerReceiver(noisy, IntentFilter(AudioManager.ACTION_AUDIO_BECOMING_NOISY), Context.RECEIVER_NOT_EXPORTED)
@@ -85,44 +121,39 @@ internal class NativeVideoPlayer(context: Context, private val reader: HomeVideo
         }
     }
     fun attach(texture: SurfaceTexture) {
-        if (closed.get() || !setupStarted.compareAndSet(false, true)) return
-        // Start before setDataSource: vendor extractors can block that call.
-        // A watchdog on the player looper cannot interrupt its own blocked setup.
+        if (closed.get()) return
         main.postDelayed(prepareWatchdog, prepareTimeoutMs)
         command(TvPlaybackFailure.Stage.SETUP) {
         if (player != null) return@command
         surface = Surface(texture)
-        val p = MediaPlayer()
+        val loadControl = DefaultLoadControl.Builder().setBufferDurationsMs(8000, 12000, 1500, 3000)
+            .setTargetBufferBytes(12 * 1024 * 1024).setPrioritizeTimeOverSizeThresholds(false).setBackBuffer(0, false).build()
+        val p = ExoPlayer.Builder(app).setLooper(thread.looper).setLoadControl(loadControl).build()
         player = p
-        p.also {
-            p.setAudioAttributes(attributes)
-            p.setSurface(surface)
-            p.setOnVideoSizeChangedListener { _, width, height ->
-                if (width > 0 && height > 0 && !closed.get()) {
-                    state = state.copy(width = width, height = height); publish()
-                }
-            }
-            p.setOnPreparedListener {
-                if (!closed.get()) {
-                    prepared.set(true); main.removeCallbacks(prepareWatchdog)
-                    state = state.copy(ready = true, duration = p.duration.coerceAtLeast(0),
-                        width = p.videoWidth.takeIf { it > 0 } ?: state.width, height = p.videoHeight.takeIf { it > 0 } ?: state.height)
-                    publish() // Explicit Play; never autoplay audio after preparation.
-                }
-            }
-            p.setOnCompletionListener { state = state.copy(playing = false, position = state.duration); audio.abandonAudioFocusRequest(focus); publish() }
-            p.setOnSeekCompleteListener { state = state.copy(seeking = false, position = p.currentPosition); publish() }
-            p.setOnErrorListener { _, what, extra -> error(TvPlaybackFailure(TvPlaybackFailure.Stage.NATIVE, what, extra)); true }
-            p.setDataSource(VideoDataSource(reader))
-            p.prepareAsync()
-        }
+        p.setVideoSurface(surface)
+        p.setAudioAttributes(androidx.media3.common.AudioAttributes.Builder().setUsage(C.USAGE_MEDIA).setContentType(C.AUDIO_CONTENT_TYPE_MOVIE).build(), false)
+        p.addListener(object : Player.Listener {
+            override fun onVideoSizeChanged(videoSize: VideoSize) { if (videoSize.width > 0 && videoSize.height > 0) { state = state.copy(width = videoSize.width, height = videoSize.height); publish() } }
+            override fun onPlaybackStateChanged(playbackState: Int) { when (playbackState) {
+                Player.STATE_READY -> { prepared.set(true); main.removeCallbacks(prepareWatchdog); state = state.copy(ready = true, buffering = false, seeking = false, duration = p.duration.coerceIn(0, Int.MAX_VALUE.toLong()).toInt()) }
+                Player.STATE_BUFFERING -> state = state.copy(buffering = true)
+                Player.STATE_ENDED -> { p.pause(); state = state.copy(playing = false, buffering = false, seeking = false, position = state.duration); audio.abandonAudioFocusRequest(focus) }
+            }; publish() }
+            override fun onPositionDiscontinuity(oldPosition: Player.PositionInfo, newPosition: Player.PositionInfo, reason: Int) { if (p.playbackState == Player.STATE_READY) { state = state.copy(seeking = false, position = p.currentPosition.toInt()); publish() } }
+            override fun onPlayerError(ex: PlaybackException) { error(TvPlaybackFailure(TvPlaybackFailure.Stage.NATIVE, ex.errorCode, ex.errorCode)) }
+        })
+        val media = ProgressiveMediaSource.Factory { ProgressiveVideoDataSource(reader) }.setContinueLoadingCheckIntervalBytes(64 * 1024)
+            .setLoadErrorHandlingPolicy(object : DefaultLoadErrorHandlingPolicy(0) { override fun getRetryDelayMsFor(loadErrorInfo: LoadErrorHandlingPolicy.LoadErrorInfo) = C.TIME_UNSET })
+            .createMediaSource(MediaItem.fromUri(ProgressiveVideoDataSource.PRIVATE_URI))
+        p.setMediaSource(media); p.prepare()
         }
     }
     fun playPause() = command {
         if (!state.ready || state.seeking) return@command
         if (state.playing) pauseNow()
         else if (audio.requestAudioFocus(focus) == AudioManager.AUDIOFOCUS_REQUEST_GRANTED) {
-            player?.start(); state = state.copy(playing = true, audioFocusDenied = false); publish()
+            if (player?.playbackState == Player.STATE_ENDED) player?.seekTo(0)
+            player?.play(); state = state.copy(playing = true, audioFocusDenied = false); publish()
         } else {
             state = state.copy(audioFocusDenied = true); publish()
         }
@@ -135,10 +166,10 @@ internal class NativeVideoPlayer(context: Context, private val reader: HomeVideo
     fun seek(milliseconds: Int) = command {
         if (!state.ready || state.seeking) return@command
         state = state.copy(seeking = true); publish()
-        player?.seekTo(milliseconds.coerceIn(0, state.duration).toLong(), MediaPlayer.SEEK_CLOSEST)
+        player?.seekTo(milliseconds.coerceIn(0, state.duration).toLong())
     }
     fun poll() = command {
-        if (state.ready && !state.seeking) { state = state.copy(position = player?.currentPosition ?: 0); publish() }
+        if (state.ready && !state.seeking) { state = state.copy(position = (player?.currentPosition ?: 0).coerceIn(0, Int.MAX_VALUE.toLong()).toInt()); publish() }
     }
     fun close() {
         if (!closed.compareAndSet(false, true)) return

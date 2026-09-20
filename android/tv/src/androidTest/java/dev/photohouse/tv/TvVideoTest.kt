@@ -89,6 +89,11 @@ class TvVideoTest {
         rule.onNodeWithText("Play", substring = false).assertExists()
         rule.onNodeWithTag("video-forward").performScrollTo().performClick()
         rule.waitUntil(10000) { rule.onAllNodes(hasTestTag("video-play") and isEnabled()).fetchSemanticsNodes().size == 1 }
+        // A fast Media3 seek may finish before Compose observes the disabled
+        // button frame. Wait for the visible position, not an old enabled node.
+        rule.waitUntil(10000) {
+            rule.onNodeWithTag("video-position").fetchSemanticsNode().config[androidx.compose.ui.semantics.SemanticsProperties.Text].first().text.startsWith("0:1")
+        }
         val position = rule.onNodeWithTag("video-position").fetchSemanticsNode().config[androidx.compose.ui.semantics.SemanticsProperties.Text].first().text
         assertTrue(position, position.startsWith("0:1"))
         rule.runOnUiThread {
@@ -143,6 +148,26 @@ class TvVideoTest {
     @Test fun malformedVideoClosesSourceAndReportsFailure() {
         val source = install(byteArrayOf(1, 2, 3))
         rule.waitUntil(15000) { rule.onAllNodesWithText("Playback unavailable").fetchSemanticsNodes().size == 1 }
+        assertTrue(source.isClosed)
+    }
+
+    @Test fun media3CompletionUpdatesStateAndReplayStartsAtZero() {
+        // Use the real TextureView consumer: an unattached SurfaceTexture fills its
+        // buffer queue and stalls decoding, which is not a playback completion test.
+        val source = install(); ready()
+        rule.onNodeWithTag("video-forward").performScrollTo().performClick()
+        ready()
+        rule.onNodeWithTag("video-play").performScrollTo().performClick()
+        rule.waitUntil(20000) {
+            rule.onAllNodes(hasTestTag("video-position") and hasText("0:20 / 0:20")).fetchSemanticsNodes().size == 1 &&
+                rule.onAllNodesWithText("Play", substring = false).fetchSemanticsNodes().size == 1
+        }
+        rule.onNodeWithTag("video-play").performClick()
+        rule.onNodeWithText("Pause", substring = false).assertExists()
+        rule.waitUntil(5000) {
+            rule.onAllNodes(hasTestTag("video-position") and hasText("0:20 / 0:20")).fetchSemanticsNodes().isEmpty()
+        }
+        key(KeyEvent.KEYCODE_BACK)
         assertTrue(source.isClosed)
     }
 }

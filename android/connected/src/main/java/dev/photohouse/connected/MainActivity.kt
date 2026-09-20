@@ -26,7 +26,8 @@ class MainActivity : ComponentActivity() {
                     discoveryEnabled = BuildConfig.PHOTOHOUSE_DISCOVERY_ENABLED,
                     photoDeliveryEnabled = BuildConfig.PHOTOHOUSE_PHOTO_DELIVERY_ENABLED,
                     preparedVideoEnabled = BuildConfig.PHOTOHOUSE_PREPARED_VIDEO_ENABLED,
-                    mediaFilterEnabled = BuildConfig.PHOTOHOUSE_MEDIA_FILTER_ENABLED) },
+                    mediaFilterEnabled = BuildConfig.PHOTOHOUSE_MEDIA_FILTER_ENABLED,
+                    preparedBrowseEnabled = BuildConfig.PHOTOHOUSE_PREPARED_BROWSE_ENABLED) },
                     origin?.let { KeystoreSessionPersistence(applicationContext, BuildConfig.PHOTOHOUSE_ORIGIN) }) as T
             }
         }

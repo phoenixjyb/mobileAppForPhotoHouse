@@ -28,6 +28,8 @@ class MemoryFeaturesUiTest {
     private class SyntheticApi : PhotoHouseApi {
         override val protectedNativeV2Enabled = true
         override val mediaFilterEnabled = true
+        override val preparedBrowseEnabled = true
+        override val preparedVideoEnabled = true
         var saves = 0
         var saved: ProtectedStory? = null
         private val image = Asset("1", "image", 800, 600, null, "2026-01-01", "/assets/1/thumbnail?library=family")
@@ -40,7 +42,7 @@ class MemoryFeaturesUiTest {
         override suspend fun acceptInvitation(token: Bearer, code: String) = Unit
         override suspend fun registerNamed(phone: String, password: String, code: String, name: String) = login(phone, password)
         override suspend fun gallery(token: Bearer, library: String, page: Int) = Gallery(library, page, 50, 2, false, listOf(image, video))
-        override suspend fun gallery(token: Bearer, library: String, page: Int, media: GalleryMedia) = Gallery(library, page, 50, 1, false, listOf(if (media == GalleryMedia.VIDEOS) video else image))
+        override suspend fun gallery(token: Bearer, library: String, page: Int, media: GalleryMedia) = Gallery(library, page, 50, 1, false, listOf(if (media in listOf(GalleryMedia.VIDEOS, GalleryMedia.PREPARED_VIDEOS)) video else image))
         override suspend fun detail(token: Bearer, library: String, assetId: String) = Detail(library, false, if (assetId == "2") video else image)
         override suspend fun captions(token: Bearer, library: String, assetId: String) = Captions(library, assetId, false, emptyList())
         override suspend fun thumbnail(token: Bearer, library: String, asset: Asset): ByteArray? = null
@@ -79,7 +81,10 @@ class MemoryFeaturesUiTest {
     @Test fun videoGalleryToAddReviewConfirmSavedMemoryAndBackgroundDismissal() = journey(false)
     @Test fun englishVideoMemoryReviewAndSave() = journey(true)
 
-    private fun journey(english: Boolean) {
+    @Test fun preparedVideoFilterChinese() = journey(false, true)
+    @Test fun preparedVideoFilterEnglish() = journey(true, true)
+
+    private fun journey(english: Boolean, prepared: Boolean = false) {
         val api = SyntheticApi()
         val store = ConnectedStore(api, scope)
         rule.setContent {
@@ -98,6 +103,13 @@ class MemoryFeaturesUiTest {
         rule.runOnIdle { store.selectLibrary("family") }
         rule.waitUntil(5000) { store.state.value.gallery != null }
 
+        if (prepared) {
+            click("gallery-media-prepared_video")
+            rule.waitUntil(5000) { store.state.value.gallery?.items?.singleOrNull()?.id == "2" }
+            rule.onNodeWithText(if (english) "Prepared videos" else "已准备视频").assertIsDisplayed()
+            capture("connected-screen", "prepared-v19-${if (english) "en" else "zh"}.png")
+            return
+        }
         click("gallery-media-video")
         rule.waitUntil(5000) { store.state.value.gallery?.items?.singleOrNull()?.id == "2" }
         capture("connected-screen", "memory-v15-videos-${if (english) "en" else "zh"}.png")

@@ -7,7 +7,7 @@ root = Path(__file__).resolve().parent
 main = root / 'tv/src/main'
 a = '{http://schemas.android.com/apk/res/android}'
 manifest = ET.parse(main / 'AndroidManifest.xml').getroot()
-assert [p.get(a+'name') for p in manifest.findall('uses-permission')] == ['android.permission.INTERNET']
+assert [p.get(a+'name') for p in manifest.findall('uses-permission')] == ['android.permission.INTERNET', 'android.permission.ACCESS_NETWORK_STATE']
 features = {e.get(a+'name'): e.get(a+'required') for e in manifest.findall('uses-feature')}
 assert features == {'android.software.leanback': 'false', 'android.hardware.touchscreen': 'false', 'android.hardware.faketouch': 'false'}
 app = manifest.find('application')

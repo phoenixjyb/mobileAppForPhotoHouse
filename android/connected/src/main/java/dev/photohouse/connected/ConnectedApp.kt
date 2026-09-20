@@ -257,12 +257,13 @@ private class Words(val zh: Boolean) {
                                     } }
                                     if (store.mediaFilterEnabled && state.discovery == null) item {
                                         FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                                            for (media in GalleryMedia.entries) FilterChip(
+                                            for (media in GalleryMedia.entries.filter { it != GalleryMedia.PREPARED_VIDEOS || store.preparedBrowseEnabled }) FilterChip(
                                                 selected = state.media == media, onClick = { store.selectMedia(media) },
                                                 modifier = Modifier.testTag("gallery-media-${media.wire}"), label = { Text(when(media) {
                                                     GalleryMedia.ALL -> t("All", "全部")
                                                     GalleryMedia.PHOTOS -> t("Photos", "照片")
                                                     GalleryMedia.VIDEOS -> t("Videos", "视频")
+                                                    GalleryMedia.PREPARED_VIDEOS -> t("Prepared videos", "已准备视频")
                                                 }) })
                                         }
                                     }

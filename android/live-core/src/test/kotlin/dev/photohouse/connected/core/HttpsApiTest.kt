@@ -35,6 +35,23 @@ class HttpsApiTest {
     }
     private fun range(body: String = "abcd", header: String = "bytes 0-3/10") = MockResponse().setResponseCode(206)
         .setHeader("Content-Type", "video/mp4").setHeader("Content-Range", header).setBody(body)
+    @Test fun preparedBrowseSendsOnlyTheOptInScopedFilter() = runBlocking {
+        TlsFixture().use { f ->
+            val disabled = HttpsPhotoHouseApi(f.origin, f.client, protectedNativeV2Enabled = true, mediaFilterEnabled = true)
+            assertTrue(runCatching { disabled.gallery(token, "family", 1, GalleryMedia.PREPARED_VIDEOS) }.isFailure)
+            assertEquals(0, f.server.requestCount)
+            val api = HttpsPhotoHouseApi(f.origin, f.client, protectedNativeV2Enabled = true,
+                mediaFilterEnabled = true, preparedVideoEnabled = true, preparedBrowseEnabled = true)
+            f.server.enqueue(json("""{"library_id":"family","page":1,"page_size":50,"total":0,"originals_allowed":false,"items":[]}"""))
+            assertEquals(0, api.gallery(token, "family", 1, GalleryMedia.PREPARED_VIDEOS).total)
+            val request = f.server.takeRequest()
+            assertEquals("prepared_video", request.requestUrl!!.queryParameter("media"))
+            assertEquals("family", request.requestUrl!!.queryParameter("library"))
+            assertEquals("Bearer " + "T".repeat(43), request.getHeader("Authorization"))
+            assertEquals(1, f.server.requestCount)
+        }
+    }
+
     @Test fun absentRetryAfterAllowsTransientReadRecoveryButRetainsRateLimitDefault() = runBlocking {
         TlsFixture().use { f ->
             for (status in listOf(502, 503, 504, 429)) {

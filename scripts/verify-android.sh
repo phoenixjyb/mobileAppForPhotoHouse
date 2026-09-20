@@ -101,6 +101,6 @@ from pathlib import Path
 import re
 text = Path('android/tv/build/outputs/apk/debug/permissions.txt').read_text()
 permissions = set(re.findall(r"uses-permission: name='([^']+)'", text))
-assert permissions == {'android.permission.INTERNET', 'dev.photohouse.tv.DYNAMIC_RECEIVER_NOT_EXPORTED_PERMISSION'}, permissions
-print('PASS TV APK has only Internet and AndroidX app-internal permission; no fixture assets')
+assert permissions == {'android.permission.INTERNET', 'android.permission.ACCESS_NETWORK_STATE', 'dev.photohouse.tv.DYNAMIC_RECEIVER_NOT_EXPORTED_PERMISSION'}, permissions
+print('PASS TV APK has only Internet, network-state and AndroidX app-internal permissions; no fixture assets')
 PY_TV_PERMISSIONS

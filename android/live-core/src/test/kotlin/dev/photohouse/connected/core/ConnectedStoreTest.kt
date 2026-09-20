@@ -40,6 +40,8 @@ class ConnectedStoreTest {
         var thumbnailGate: CompletableDeferred<Unit>? = null
         var sessionError: Exception? = null
         var galleryError: Exception? = null
+        var galleryFailures: Int? = null
+        var galleryResult: Gallery? = null
         var detailError: Exception? = null
         var detailFailures: Int? = null
         var detailGate: CompletableDeferred<Unit>? = null
@@ -56,6 +58,8 @@ class ConnectedStoreTest {
         var sessionGate: CompletableDeferred<Unit>? = null
         var logoutGate: CompletableDeferred<Unit>? = null
         var images: ByteArray? = byteArrayOf(1, 2, 3)
+        var thumbnailFailureAsset: String? = null
+        var thumbnailFailure: Exception? = null
         var assets = listOf(asset)
         var lastRegistration: String? = null
         var registrationName: String? = null
@@ -77,9 +81,15 @@ class ConnectedStoreTest {
         override suspend fun acceptInvitation(token: Bearer, code: String) { accepts++ }
         override suspend fun logout(token: Bearer) { logouts++; logoutGate?.let { withContext(NonCancellable) { it.await() } }; logoutError?.let { throw it } }
         override suspend fun gallery(token: Bearer, library: String, page: Int): Gallery {
-            galleryReads++; val response = Gallery(library, page, 50, 100, false, assets)
+            galleryReads++; val response = galleryResult ?: Gallery(library, page, 50, 100, false, assets)
             galleryGate?.let { withContext(NonCancellable) { it.await() } }
-            galleryError?.let { throw it }; return response
+            if (galleryFailures != null) {
+                if (galleryFailures!! > 0) {
+                    galleryFailures = galleryFailures!! - 1
+                    galleryError?.let { throw it }
+                }
+            } else galleryError?.let { throw it }
+            return response
         }
         override suspend fun detail(token: Bearer, library: String, assetId: String): Detail {
             detailReads += assetId
@@ -94,7 +104,13 @@ class ConnectedStoreTest {
             return response
         }
         override suspend fun captions(token: Bearer, library: String, assetId: String) = Captions(library, assetId, false, listOf(Caption("c1", "<b>原文 literal</b>", false, false, null, null)))
-        override suspend fun thumbnail(token: Bearer, library: String, asset: Asset): ByteArray? { imageReads++; val response = images; thumbnailGate?.let { withContext(NonCancellable) { it.await() } }; return response }
+        override suspend fun thumbnail(token: Bearer, library: String, asset: Asset): ByteArray? {
+            imageReads++
+            val response = images
+            thumbnailGate?.let { withContext(NonCancellable) { it.await() } }
+            if (asset.id == thumbnailFailureAsset) thumbnailFailure?.let { throw it }
+            return response
+        }
         override suspend fun videoRange(token: Bearer, library: String, assetId: String, start: Long, length: Int): VideoChunk {
             originalVideoReads++; videoError?.let { throw it }
             return VideoChunk(start, 100, ByteArray(minOf(length, 100 - start.toInt())))
@@ -796,6 +812,145 @@ class ConnectedStoreTest {
         store.adjacentPhoto(1); runCurrent(); store.background(); advanceTimeBy(350); runCurrent()
         assertEquals(listOf("1", "2"), api.detailReads)
         assertNull(store.state.value.detail); assertTrue(store.state.value.covered)
+    }
+
+    @Test fun firstGalleryOfflineReadRecoversOnceWithoutShowingUnavailable() = runTest {
+        val api = FakeApi().apply {
+            galleryError = ApiFailure(FailureKind.OFFLINE)
+            galleryFailures = 1
+        }
+        val store = store(api); signIn(store); store.selectLibrary("family"); runCurrent()
+        // selectLibrary performs the first gallery load; recovery completes after one delay.
+        advanceTimeBy(350); runCurrent()
+        assertEquals(2, api.galleryReads)
+        assertNotNull(store.state.value.gallery)
+        assertNull(store.state.value.problem)
+        assertFalse(store.canRetry())
+    }
+
+    @Test fun firstGalleryOfflineReadIsBoundedToOneRetry() = runTest {
+        val api = FakeApi().apply {
+            galleryError = ApiFailure(FailureKind.OFFLINE)
+            galleryFailures = 2
+        }
+        val store = store(api); signIn(store); store.selectLibrary("family"); runCurrent()
+        advanceTimeBy(350); runCurrent()
+        assertEquals(2, api.galleryReads)
+        assertNull(store.state.value.gallery)
+        assertEquals(Message.UNAVAILABLE, store.state.value.problem?.message)
+        assertTrue(store.canRetry())
+    }
+
+    @Test fun firstGalleryOfflineRecoveryIsCancelledByBackground() = runTest {
+        val api = FakeApi().apply {
+            galleryError = ApiFailure(FailureKind.OFFLINE)
+            galleryFailures = 1
+        }
+        val store = store(api); signIn(store)
+        store.selectLibrary("family"); runCurrent()
+        store.background(); advanceTimeBy(350); runCurrent()
+        assertEquals(1, api.galleryReads)
+        assertNull(store.state.value.gallery)
+        assertTrue(store.state.value.covered)
+    }
+
+    @Test fun firstGalleryOfflineRecoveryIsCancelledByLogout() = runTest {
+        val api = FakeApi().apply {
+            galleryError = ApiFailure(FailureKind.OFFLINE)
+            galleryFailures = 1
+        }
+        val store = store(api); signIn(store)
+        store.selectLibrary("family"); runCurrent()
+        store.logout(); advanceTimeBy(350); runCurrent()
+        assertEquals(1, api.galleryReads)
+        assertNull(store.state.value.gallery)
+        assertFalse(store.hasSession)
+    }
+
+    @Test fun firstGalleryOfflineRecoveryIsCancelledWhenSessionExpires() = runTest {
+        val api = FakeApi().apply {
+            galleryError = ApiFailure(FailureKind.OFFLINE)
+            galleryFailures = 1
+        }
+        var clock = 0L
+        val store = ConnectedStore(api, backgroundScope) { clock }
+        store.authenticate("+12025550123", "synthetic-password-only"); runCurrent()
+        store.selectLibrary("family"); runCurrent()
+        clock = 86_400_000L
+        advanceTimeBy(350); runCurrent()
+        assertEquals(1, api.galleryReads)
+        assertFalse(store.hasSession)
+        assertEquals(Message.SESSION_ENDED, store.state.value.problem?.message)
+    }
+
+    @Test fun firstGalleryOfflineRecoveryIsCancelledWhenSelectionStartsAnotherGeneration() = runTest {
+        val api = FakeApi().apply {
+            galleryError = ApiFailure(FailureKind.OFFLINE)
+            galleryFailures = 1
+        }
+        val store = store(api); signIn(store)
+        store.selectLibrary("family"); runCurrent()
+        store.loadPage(2); runCurrent(); advanceTimeBy(350); runCurrent()
+        assertEquals(2, api.galleryReads)
+        assertEquals(2, store.state.value.gallery?.page)
+    }
+
+    @Test fun galleryRecoveryDoesNotRetryTlsAuthRateLimitServerOrInvalidFailures() = runTest {
+        val failures = listOf(
+            ApiFailure(FailureKind.TLS),
+            ApiFailure(FailureKind.HTTP, 401),
+            ApiFailure(FailureKind.HTTP, 429),
+            ApiFailure(FailureKind.HTTP, 503),
+            ApiFailure(FailureKind.INVALID_RESPONSE),
+        )
+        for (failure in failures) {
+            val api = FakeApi().apply { galleryError = failure }
+            val store = store(api); signIn(store)
+            store.selectLibrary("family"); runCurrent(); advanceTimeBy(350); runCurrent()
+            assertEquals(failure.toString(), 1, api.galleryReads)
+            assertNull(store.state.value.gallery)
+            store.logout(); runCurrent()
+        }
+    }
+
+    @Test fun malformedGalleryResponseIsNotRetried() = runTest {
+        val api = FakeApi().apply {
+            galleryResult = Gallery("family", 2, 50, 1, false, assets)
+        }
+        val store = store(api); signIn(store)
+        store.selectLibrary("family"); runCurrent(); advanceTimeBy(350); runCurrent()
+        assertEquals(1, api.galleryReads)
+        assertEquals(Message.INVALID_RESPONSE, store.state.value.problem?.message)
+        assertNull(store.state.value.gallery)
+    }
+
+    @Test fun recoverableThumbnailFailureKeepsGalleryAndContinuesLaterThumbnails() = runTest {
+        val first = asset
+        val second = asset.copy(id = "2", thumbnail_url = "/assets/2/thumbnail?library=family")
+        val api = FakeApi().apply {
+            assets = listOf(first, second)
+            thumbnailFailureAsset = first.id
+            thumbnailFailure = ApiFailure(FailureKind.OFFLINE)
+        }
+        val store = store(api); signIn(store); store.selectLibrary("family"); runCurrent()
+        assertEquals(listOf("1", "2"), store.state.value.gallery?.items?.map { it.id })
+        assertNull(store.state.value.previews[first.id])
+        assertArrayEquals(byteArrayOf(1, 2, 3), store.state.value.previews[second.id])
+        assertNull(store.state.value.problem)
+        assertEquals(2, api.imageReads)
+    }
+
+    @Test fun thumbnailAuthorizationFailureClearsGalleryAndDoesNotContinue() = runTest {
+        val second = asset.copy(id = "2", thumbnail_url = "/assets/2/thumbnail?library=family")
+        val api = FakeApi().apply {
+            assets = listOf(asset, second)
+            thumbnailFailureAsset = asset.id
+            thumbnailFailure = ApiFailure(FailureKind.HTTP, 403)
+        }
+        val store = store(api); signIn(store); store.selectLibrary("family"); runCurrent()
+        assertNull(store.state.value.gallery)
+        assertEquals(Message.CLOSED, store.state.value.problem?.message)
+        assertEquals(1, api.imageReads)
     }
 
     @Test fun retryAfterOnTransientServerReadPreventsEarlyAutomaticRetry() = runTest {

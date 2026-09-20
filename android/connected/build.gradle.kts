@@ -19,6 +19,9 @@ require(preparedVideoEnabled != "true" || protectedNativeV2Enabled == "true")
 val mediaFilterEnabled = providers.gradleProperty("photohousePhoneMediaFilterEnabled").orElse("false").get()
 require(mediaFilterEnabled in listOf("true", "false"))
 require(mediaFilterEnabled != "true" || protectedNativeV2Enabled == "true")
+val preparedBrowseEnabled = providers.gradleProperty("photohousePhonePreparedBrowseEnabled").orElse("false").get()
+require(preparedBrowseEnabled in listOf("true", "false"))
+require(preparedBrowseEnabled != "true" || mediaFilterEnabled == "true" && preparedVideoEnabled == "true")
 // Home mode has independent routing. Neither field can carry account credentials.
 val homeOrigin = providers.gradleProperty("photohousePhoneHomeOrigin").orElse(localConfig.getProperty("photohousePhoneHomeOrigin", "")).get()
 val homeAddress = providers.gradleProperty("photohousePhoneHomeLanAddress").orElse(localConfig.getProperty("photohousePhoneHomeLanAddress", "")).get()
@@ -55,8 +58,8 @@ android {
         minSdk = 26
         targetSdk = 34
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
-        versionCode = 18
-        versionName = "0.19-progressive-video"
+        versionCode = 19
+        versionName = "0.20-gallery-prepared"
         buildConfigField("boolean", "PHOTOHOUSE_HOME_DISCOVERY_ENABLED", homeDiscoveryEnabled)
         buildConfigField("String", "PHOTOHOUSE_HOME_ORIGIN", "\"$homeOrigin\"")
         buildConfigField("String", "PHOTOHOUSE_HOME_LAN_ADDRESS", "\"$homeAddress\"")
@@ -65,6 +68,7 @@ android {
         buildConfigField("boolean", "PHOTOHOUSE_PHOTO_DELIVERY_ENABLED", photoDeliveryEnabled)
         buildConfigField("boolean", "PHOTOHOUSE_PREPARED_VIDEO_ENABLED", preparedVideoEnabled)
         buildConfigField("boolean", "PHOTOHOUSE_MEDIA_FILTER_ENABLED", mediaFilterEnabled)
+        buildConfigField("boolean", "PHOTOHOUSE_PREPARED_BROWSE_ENABLED", preparedBrowseEnabled)
         buildConfigField("String", "PHOTOHOUSE_ORIGIN", "\"$configuredOrigin\"")
     }
     androidComponents { beforeVariants(selector().withBuildType("release")) { it.enable = false } }
