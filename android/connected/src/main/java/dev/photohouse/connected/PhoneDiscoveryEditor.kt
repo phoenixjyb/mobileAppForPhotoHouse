@@ -61,6 +61,61 @@ internal fun LazyListScope.phoneDiscoveryEditor(store: ConnectedStore, state: Li
         } }
     }
     item {
+        val placeCoverage = snapshot.coverage["locations"]
+        val placesEnabled = "locations" in enabled
+        Card(Modifier.fillMaxWidth().testTag("discovery-places-entry")) {
+            Column(Modifier.padding(18.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                Text(t("Browse by place", "按地点浏览"), style = MaterialTheme.typography.titleLarge)
+                if (!placesEnabled) {
+                    Text(t("Places are not available in this library yet.", "此媒体库暂未提供地点筛选。"),
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        modifier = Modifier.testTag("discovery-places-unavailable"))
+                } else if (placeCoverage == null || placeCoverage.withValues == 0) {
+                    Text(t("No named places are available yet. Unnamed places are kept distinct.", "暂无已命名地点。未命名地点会明确区分。"),
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        modifier = Modifier.testTag("discovery-places-empty"))
+                } else {
+                    Text(t("${placeCoverage.withValues} memories have a named place; ${placeCoverage.withoutValues} have no named place.",
+                        "${placeCoverage.withValues} 条回忆有已命名地点；${placeCoverage.withoutValues} 条没有已命名地点。"),
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        modifier = Modifier.testTag("discovery-places-coverage"))
+                }
+                OutlinedButton(onClick = { store.loadDiscoveryFacet(PhoneFacet.PLACES) },
+                    enabled = !state.busy && placesEnabled,
+                    modifier = Modifier.fillMaxWidth().testTag("browse-places")) {
+                    Text(t("Choose a place", "选择地点"))
+                }
+            }
+        }
+    }
+    current.facetPage?.let { page ->
+        item {
+            Text(t("${page.facet.name.lowercase().replaceFirstChar { it.uppercase() }} choices", "${page.facet.name}选项"),
+                style = MaterialTheme.typography.titleLarge, modifier = Modifier.testTag("facet-choices-heading"))
+        }
+        if (page.items.isEmpty()) item { Text(t("No choices available in this category.", "此类别暂无可选项。")) }
+        items(page.items, key = { "choice-${page.facet.wire}-${it.id}" }) { choice ->
+            val selected = when (page.facet) { PhoneFacet.PEOPLE -> f.people; PhoneFacet.TAGS -> f.tags; PhoneFacet.PLACES -> f.places }
+            OutlinedCard(onClick = { choose(page.facet, choice) }, enabled = !state.busy,
+                modifier = Modifier.fillMaxWidth().testTag("choice-${page.facet.wire}-${choice.id}")) {
+                Row(Modifier.padding(12.dp), horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+                    Checkbox(checked = selected.any { it.id == choice.id }, onCheckedChange = null)
+                    Column(Modifier.weight(1f)) {
+                        Text(choice.label, style = MaterialTheme.typography.titleMedium)
+                        if (choice.aliases.isNotEmpty()) Text(choice.aliases.joinToString(" / "))
+                        Text(t("${choice.count} memories", "${choice.count} 条回忆"), style = MaterialTheme.typography.bodySmall)
+                    }
+                }
+            }
+        }
+        item { FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+            OutlinedButton(onClick = { store.loadDiscoveryFacet(page.facet, page.page - 1) }, enabled = !state.busy && page.page > 1,
+                modifier = Modifier.testTag("facet-previous")) { Text(t("Previous choices", "上一页选项")) }
+            OutlinedButton(onClick = { store.loadDiscoveryFacet(page.facet, page.page + 1) }, enabled = !state.busy && page.more && page.page < 5000,
+                modifier = Modifier.testTag("facet-next")) { Text(t("More choices", "更多选项")) }
+        } }
+    }
+    item {
         Card(Modifier.fillMaxWidth()) { Column(Modifier.padding(18.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
             Text(t("Moment & date", "时光与日期"), style = MaterialTheme.typography.titleLarge)
             if ("caption" in enabled) OutlinedTextField(f.caption, { if (it.toByteArray(Charsets.UTF_8).size <= 512) store.updateDiscoveryFilters(f.copy(caption = it)) },
@@ -135,29 +190,6 @@ internal fun LazyListScope.phoneDiscoveryEditor(store: ConnectedStore, state: Li
                 }
             }
         }
-    }
-    current.facetPage?.let { page ->
-        if (page.items.isEmpty()) item { Text(t("No choices available in this category.", "此类别暂无可选项。")) }
-        items(page.items, key = { "choice-${page.facet.wire}-${it.id}" }) { choice ->
-            val selected = when (page.facet) { PhoneFacet.PEOPLE -> f.people; PhoneFacet.TAGS -> f.tags; PhoneFacet.PLACES -> f.places }
-            OutlinedCard(onClick = { choose(page.facet, choice) }, enabled = !state.busy,
-                modifier = Modifier.fillMaxWidth().testTag("choice-${page.facet.wire}-${choice.id}")) {
-                Row(Modifier.padding(12.dp), horizontalArrangement = Arrangement.spacedBy(12.dp)) {
-                    Checkbox(checked = selected.any { it.id == choice.id }, onCheckedChange = null)
-                    Column(Modifier.weight(1f)) {
-                        Text(choice.label, style = MaterialTheme.typography.titleMedium)
-                        if (choice.aliases.isNotEmpty()) Text(choice.aliases.joinToString(" / "))
-                        Text(t("${choice.count} memories", "${choice.count} 条回忆"), style = MaterialTheme.typography.bodySmall)
-                    }
-                }
-            }
-        }
-        item { FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-            OutlinedButton(onClick = { store.loadDiscoveryFacet(page.facet, page.page - 1) }, enabled = !state.busy && page.page > 1,
-                modifier = Modifier.testTag("facet-previous")) { Text(t("Previous choices", "上一页选项")) }
-            OutlinedButton(onClick = { store.loadDiscoveryFacet(page.facet, page.page + 1) }, enabled = !state.busy && page.more && page.page < 5000,
-                modifier = Modifier.testTag("facet-next")) { Text(t("More choices", "更多选项")) }
-        } }
     }
     item {
         Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {

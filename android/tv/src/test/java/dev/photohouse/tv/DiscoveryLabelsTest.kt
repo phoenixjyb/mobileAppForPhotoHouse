@@ -1,11 +1,22 @@
 package dev.photohouse.tv
 
 import dev.photohouse.home.DiscoveryChoice
+import dev.photohouse.home.DiscoveryCoverage
+import dev.photohouse.home.DiscoveryField
+import dev.photohouse.home.DiscoveryOptions
 import org.junit.Assert.assertEquals
 import org.junit.Test
 
 /** Checks the actual text consumed by ChoiceRow, including provenance, aliases and counts. */
 class DiscoveryLabelsTest {
+    @Test fun placeEntryKeepsCoverageAndUnavailableMeaning() {
+        val available = DiscoveryOptions(setOf(DiscoveryField.PLACES), coverage = mapOf(
+            DiscoveryField.PLACES to DiscoveryCoverage(withValues = 7, withoutValues = 3)))
+        assertEquals("7 with named places · 3 without a named place", placeEntryHint(available, false))
+        assertEquals("7 条有命名地点 · 3 条无命名地点", placeEntryHint(available, true))
+        assertEquals("Places are not available yet", placeEntryHint(DiscoveryOptions(emptySet()), false))
+    }
+
     @Test fun reviewedPeopleAndRegionsKeepTheirMeaningInBothLanguages() {
         val person = DiscoveryChoice("1", "Sample person", listOf("示例人物"), 3,
             mapOf("reviewed_assignments" to 3))

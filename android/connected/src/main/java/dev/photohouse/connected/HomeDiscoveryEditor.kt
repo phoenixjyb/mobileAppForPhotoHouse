@@ -35,6 +35,22 @@ import dev.photohouse.home.*
         } }
         if (options != null) {
             if (options.partialIndex) item { Text(t("Some memories have missing metadata. Results may be incomplete.", "部分回忆的信息尚未完善，搜索结果可能不完整。")) }
+            if (DiscoveryField.PLACES in options.fields) item {
+                val coverage = options.coverage[DiscoveryField.PLACES]
+                Card(Modifier.fillMaxWidth().testTag("home-places-entry")) {
+                    Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {
+                        Text(t("Browse by place", "按地点浏览"), style = MaterialTheme.typography.titleMedium)
+                        Text(if (coverage == null || coverage.withValues == 0)
+                            t("No named places yet; unnamed places are explicit.", "暂无已命名地点；未命名地点会明确区分。")
+                        else t("${coverage.withValues} memories have named places; ${coverage.withoutValues} have no named place.",
+                            "${coverage.withValues} 条回忆有已命名地点；${coverage.withoutValues} 条没有已命名地点。"),
+                            style = MaterialTheme.typography.bodySmall)
+                    }
+                }
+            } else item {
+                Text(t("Places are not available in this library yet.", "此媒体库暂未提供地点筛选。"),
+                    modifier = Modifier.testTag("home-places-unavailable"), style = MaterialTheme.typography.bodySmall)
+            }
             if (DiscoveryField.PEOPLE in options.fields && options.pinnedPeople.isNotEmpty()) item {
                 Text(t("Your people", "想念的人"), style = MaterialTheme.typography.titleMedium)
                 Row(Modifier.horizontalScroll(rememberScrollState()), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
@@ -92,7 +108,7 @@ import dev.photohouse.home.*
             item {
                 val issue = draft.issue(options)
                 if (issue != null) Text(t("Check dates, text length and selected filters.", "请检查日期、文字长度和已选条件。"), modifier = Modifier.testTag("home-search-invalid"), color = MaterialTheme.colorScheme.error)
-                Text(t("All filter categories must match. Places use recorded regions.", "不同类别的条件须同时满足。地点按已记录的区域筛选。"), style = MaterialTheme.typography.bodySmall)
+                Text(t("All filter categories must match. Places use named regions.", "不同类别的条件须同时满足。地点按已命名区域筛选。"), style = MaterialTheme.typography.bodySmall)
                 Button(onClick = { apply(draft) }, enabled = ready && issue == null, modifier = Modifier.fillMaxWidth().testTag("home-search-apply")) { Text(t("Find memories", "查找回忆")) }
                 TextButton(onClick = { draft = DiscoveryDraft() }, enabled = ready, modifier = Modifier.testTag("home-search-reset")) { Text(t("Clear filters", "清空条件")) }
             }
