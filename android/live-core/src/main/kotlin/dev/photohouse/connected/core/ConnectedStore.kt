@@ -321,6 +321,19 @@ class ConnectedStore(private val api: PhotoHouseApi, private val scope: Coroutin
         invalidate(keepIdentity = true)
         mutable.value = state.value.copy(library = library, discovery = current.copy(editing = true, result = null))
     }
+    fun updatePlaceQuery(query: String) {
+        if (!allowed() || state.value.discovery == null || !PhoneDiscoveryWire.validPlaceQuery(query)) return
+        val current = state.value.discovery ?: return
+        if (current.placeQuery == query) return
+        val library = state.value.library
+        invalidate(keepIdentity = true)
+        mutable.value = state.value.copy(library = library, busy = false,
+            discovery = current.copy(placeQuery = query, facetPage = null, editing = true, result = null, inputInvalid = false))
+    }
+    fun searchPlaces() {
+        val current = state.value.discovery ?: return
+        loadDiscoveryFacet(PhoneFacet.PLACES, 1, current)
+    }
     fun updateDiscoveryFilters(filters: PhoneFilters) {
         if (!allowed() || state.value.busy) return
         val current = state.value.discovery ?: return
@@ -344,7 +357,9 @@ class ConnectedStore(private val api: PhotoHouseApi, private val scope: Coroutin
         mutable.value = state.value.copy(library = library, busy = true, discovery = previous.copy(editing = true, facetPage = null))
         launch { generation ->
             try {
-                val response = api.facets(credential, library, facet, page, snapshot?.binding)
+                val response = if (facet == PhoneFacet.PLACES) {
+                    api.placeFacets(credential, library, page, previous.placeQuery, snapshot?.binding)
+                } else api.facets(credential, library, facet, page, snapshot?.binding)
                 if (!active(generation)) return@launch
                 validResponse(response.snapshot.library == library && response.facet == facet && response.page == page && response.size == 50)
                 validResponse(snapshot == null || response.snapshot == snapshot)

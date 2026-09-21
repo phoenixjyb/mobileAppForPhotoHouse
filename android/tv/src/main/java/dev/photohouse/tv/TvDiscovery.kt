@@ -121,9 +121,10 @@ import dev.photohouse.home.*
                 Text(t("A different way to remember", "换个方式，重温回忆"), style = MaterialTheme.typography.titleLarge)
                 Spacer(Modifier.height(8.dp))
                 Row(Modifier.horizontalScroll(rememberScrollState()), horizontalArrangement = Arrangement.spacedBy(12.dp)) {
-                    for (field in listOf(DiscoveryField.DATES, DiscoveryField.THEMES, DiscoveryField.TOPICS, DiscoveryField.TAGS, DiscoveryField.PLACES)) {
+                    for (field in listOf(DiscoveryField.PLACES, DiscoveryField.DATES, DiscoveryField.THEMES, DiscoveryField.TOPICS, DiscoveryField.TAGS)) {
                         val tag = "explore-${field.name.lowercase()}"
-                        DiscoveryCard(fieldLabel(field, zh), fieldHint(field, zh), false,
+                        val hint = if (field == DiscoveryField.PLACES) placeEntryHint(options, zh) else fieldHint(field, zh)
+                        DiscoveryCard(fieldLabel(field, zh), hint, false,
                             Modifier.width(200.dp).heightIn(min = 104.dp).testTag(tag).then(if (returnTag == tag) Modifier.focusRequester(first) else Modifier)) { open(field, tag) }
                     }
                 }
@@ -193,7 +194,7 @@ import dev.photohouse.home.*
                         }
                         DiscoveryField.PLACES -> {
                             ChoiceRow(options.places, setOfNotNull(draft.place), "place", zh) { draft = draft.copy(place = if (draft.place == it) null else it) }
-                            Text(t("Only recorded places are shown. Missing location is never guessed.", "仅显示已记录的地点，不推测缺失的位置。"), color = Muted, style = MaterialTheme.typography.bodySmall)
+                            Text(t("Only named places are shown. Unnamed places are never guessed.", "仅显示已命名地点，不推测未命名地点。"), color = Muted, style = MaterialTheme.typography.bodySmall)
                         }
                         DiscoveryField.MEDIA -> Row(Modifier.horizontalScroll(rememberScrollState()), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                             for (kind in listOf(null, AssetKind.PHOTO, AssetKind.VIDEO)) {
@@ -297,6 +298,19 @@ private fun fieldHint(field: DiscoveryField, zh: Boolean): String = when (field)
     DiscoveryField.TAGS -> if (zh) "从细节发现回忆" else "Discover the little details"
     DiscoveryField.PLACES -> if (zh) "记忆走过的地方" else "Somewhere worth remembering"
     else -> ""
+}
+internal fun placeEntryHint(options: DiscoveryOptions?, zh: Boolean): String {
+    if (options == null || DiscoveryField.PLACES !in options.fields) {
+        return if (zh) "媒体库暂未提供地点筛选" else "Places are not available yet"
+    }
+    val coverage = options.coverage[DiscoveryField.PLACES]
+    return if (coverage == null || coverage.withValues == 0) {
+        if (zh) "暂无已命名地点；未命名地点会明确区分" else "No named places yet; unnamed places are explicit"
+    } else if (zh) {
+        "${coverage.withValues} 条有命名地点 · ${coverage.withoutValues} 条无命名地点"
+    } else {
+        "${coverage.withValues} with named places · ${coverage.withoutValues} without a named place"
+    }
 }
 private fun issueText(issue: DraftIssue, zh: Boolean) = when (issue) {
     DraftIssue.TOO_LONG -> if (zh) "请缩短文字或减少选项（每类最多 10 项）。" else "Use shorter text or fewer choices (up to 10 per category)."

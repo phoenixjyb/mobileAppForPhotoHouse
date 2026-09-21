@@ -276,6 +276,17 @@ class HttpsPhotoHouseApi internal constructor(private val origin: TrustedOrigin,
         if (result.code != 200 || result.contentType?.substringBefore(';')?.trim()?.lowercase() != "application/json") throw ApiFailure(FailureKind.INVALID_RESPONSE)
         return PhoneDiscoveryWire.facets(result.bytes, library, facet, page, binding = binding)
     }
+    override suspend fun placeFacets(token: Bearer, library: String, page: Int, query: String, binding: String?): PhoneFacetPage {
+        require(PhoneDiscoveryWire.validPlaceQuery(query))
+        require(page in 1..5000 && (binding == null || PhoneDiscoveryWire.validHash(binding)) && (page == 1 || binding != null))
+        val target = discoveryUrl(library, "facets").newBuilder().addQueryParameter("facet", PhoneFacet.PLACES.wire)
+            .addQueryParameter("page", page.toString()).addQueryParameter("page_size", "50")
+            .apply { if (query.isNotEmpty()) addQueryParameter("q", query) }
+            .apply { binding?.let { addQueryParameter("binding", it) } }.build()
+        val result = packet(target, token)
+        if (result.code != 200 || result.contentType?.substringBefore(';')?.trim()?.lowercase() != "application/json") throw ApiFailure(FailureKind.INVALID_RESPONSE)
+        return PhoneDiscoveryWire.facets(result.bytes, library, PhoneFacet.PLACES, page, binding = binding)
+    }
     override suspend fun search(token: Bearer, library: String, binding: String, filters: PhoneFilters, page: Int, fingerprint: String?): PhoneSearchPage {
         val target = discoveryUrl(library, "search")
         val body = PhoneDiscoveryWire.request(binding, filters, page, fingerprint = fingerprint)

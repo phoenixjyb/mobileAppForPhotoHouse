@@ -4,12 +4,20 @@ import dev.photohouse.protocol.*
 import kotlinx.serialization.json.*
 import okhttp3.HttpUrl.Companion.toHttpUrl
 import java.time.LocalDate
+import java.nio.CharBuffer
+import java.nio.charset.CodingErrorAction
 
 /** Separate opt-in protected contract. Decimal IDs never pass through Int or Double. */
 object PhoneDiscoveryWire {
     val fields = setOf("people", "date", "caption", "tags", "locations", "media")
     fun validId(s: String) = s.matches(Regex("[1-9][0-9]{0,18}")) && s.toLongOrNull() != null
     fun validHash(s: String) = s.matches(Regex("[0-9a-f]{64}"))
+    fun validPlaceQuery(s: String): Boolean = runCatching {
+        require(s.none { it < ' ' || it == '\u007f' })
+        val bytes = Charsets.UTF_8.newEncoder().onMalformedInput(CodingErrorAction.REPORT)
+            .onUnmappableCharacter(CodingErrorAction.REPORT).encode(CharBuffer.wrap(s)).remaining()
+        require(bytes <= 128)
+    }.isSuccess
     fun validLibrary(s: String) = s.isNotBlank() && s.codePointCount(0, s.length) <= 128 && s.none { it < ' ' || it == '\u007f' } && s !in setOf(".", "..")
     private fun bad(): Nothing = throw ApiFailure(FailureKind.INVALID_RESPONSE)
     private fun check(ok: Boolean) { if (!ok) bad() }

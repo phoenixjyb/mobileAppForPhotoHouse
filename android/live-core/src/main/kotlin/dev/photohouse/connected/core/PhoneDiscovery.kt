@@ -51,4 +51,4 @@ data class PhoneFilters(val people: List<PhoneChoice> = emptyList(), val peopleA
 data class PhoneDiscoveryState(val snapshot: PhoneSnapshot? = null,
     val facetPage: PhoneFacetPage? = null, val filters: PhoneFilters = PhoneFilters(),
     val result: PhoneSearchPage? = null, val editing: Boolean = true, val changed: Boolean = false,
-    val inputInvalid: Boolean = false)
+    val inputInvalid: Boolean = false, val placeQuery: String = "")
