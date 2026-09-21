@@ -3,7 +3,7 @@
 Android-owned exact copy of candidate.16. Frozen contracts/v1 stays unchanged.
 
 Backend source: `7321f3c3b4c9fd534d5555efa27636fcff3c132f`.
-Pack commit: `c04c5a09b3948fd4117584d3f64ec0723a0604a6`.
+Pack commit: `4d92504881efa5c7aba55861b521c9d4daaf6387`.
 Contract: `2.0.0-candidate.16`, 89 cases; schema `f2a6d8b4c915`.
 See manifest.json and android/verify-protected-native-contract.py for exact hashes.
 The verifier checks all 116 source and seven payload hashes against the backend.
