@@ -1,6 +1,6 @@
-# Protected native profile 2.0.0-candidate.14
+# Protected native profile 2.0.0-candidate.16
 
-Backend source: `1ee1af8d6efb1fac0546bf9013ad4e044aa554e5`.
+Backend source: `808abfe134273d4fa208c14199422dd81ea45d38`.
 Database migration head: `f2a6d8b4c915`. This is a backend-owned candidate
 handoff, not an adopted replacement for the mobile repository's frozen
 `contracts/v1` (`1.0.0-fixture.1`, backend `87a60b475b37b1d6873cd977bcb6e7254472da7e`).
@@ -8,6 +8,35 @@ The later merged backend `a42147c63cf6a9628899735aa64b18cff1ec619d` also predate
 this source. The manifest pins source bytes and all pack payloads independently
 of later documentation/test commits. Hashes detect drift; they are not signatures.
 
+
+## Candidate.16 maintenance — existing Windows job schema
+
+Upload task insertion explicitly supplies `retry_count=0` and `cancel_requested=0`.
+Existing ORM-created databases require these fields without SQL defaults, whereas
+fresh migration fixtures provide defaults. No schema migration or wire change.
+The same 89 captures remain authoritative; source and payload pins are reissued together.
+
+## Reissue — 2.0.0-candidate.16 (September 21)
+
+Incoming upload retries now reuse the original account-scoped file and provenance,
+including its stored label and batch. Files are staged completely before a SQLite
+writer reservation serializes publication with promotion and its compensation.
+An existing corrupt or redirected destination is refused without overwriting it.
+Failed DB writes may leave a reviewable final orphan; process/storage failure still
+requires operator reconciliation. Uploads remain JPEG/PNG whole-file requests,
+25 MiB maximum, invisible to libraries until reviewed promotion. No migration or
+implicit runtime opt-in. The 86 previous captures are unchanged; three new cases
+cover an accepted upload, a different-batch retry and denial of library access.
+
+## Reissue — 2.0.0-candidate.15 (September 20)
+
+Adds opt-in `media=prepared_video` gallery filtering against the configured pinned
+prepared index, after library authorization and before count/pagination. Existing
+78 captures are unchanged; eight new captures cover scope, pagination, missing
+provider and invalid queries. Responses retain video asset kind and original
+grants. This is catalog membership, not a fresh decode or source-integrity proof;
+playback revalidates every existing boundary. See the prepared media contract.
+No index is automatically enabled and no schema migration is required.
 
 ## Reissue — 2.0.0-candidate.14 (September 20)
 

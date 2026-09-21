@@ -1,4 +1,38 @@
-# Validation receipt — 2026-09-20
+# Validation receipt — 2026-09-21
+
+## Candidate.16 maintenance — existing task-table defaults
+
+Source `808abfe134273d4fa208c14199422dd81ea45d38`. A real phone attempt left
+complete incoming bytes but rolled back database registration: the live legacy
+`tasks` table has required `retry_count` and `cancel_requested` without SQL defaults.
+The new synthetic regression reproduces the NOT NULL failure before the fix and
+passes after both fields are explicitly initialized. Upload/promotion suites: 80
+passed. No user files were removed or production rows manually repaired. Wire
+replay remains 89 byte-identical cases. Runtime activation and phone acceptance
+are recorded separately from these source checks.
+
+## 2.0.0-candidate.16 — atomic upload retries
+
+Source `7321f3c3b4c9fd534d5555efa27636fcff3c132f`. Local upload/promotion suites: 79 tests pass,
+including concurrent same/different batches, canonical receipt after rename,
+missing/corrupt files, orphan adoption, revocation after staging, symlink refusal,
+and promotion commit/compensation locking. Related authorization, provisioning,
+launcher/package, discovery wiring and gallery suites: 135 tests pass.
+
+The native ASGI probe captures 89 cases; all 86 prior cases are byte-identical.
+No schema migration is needed. This source receipt is not live upload acceptance;
+Windows qualification and explicit activation are recorded separately.
+
+
+## 2.0.0-candidate.15 — prepared-video browsing
+
+Source `789bdf0ca9f69787fa3e5d13db3d666f4931e0a3`. Thirteen focused gallery tests pass, covering
+prepared pagination/counting, authorization before catalog access, missing and
+changed providers, hidden/foreign assets, and unchanged media filters. The native
+probe captures 86 ASGI exchanges; all 78 prior exchanges are byte-identical.
+Prepared browsing introduces no migration, encoding or original-media permission.
+Runtime activation, expanded index qualification and physical devices remain
+separate gates. Client prepared browsing is opt-in and defaults off.
 
 ## 2.0.0-candidate.14 — protected gallery media filter (2026-09-20)
 

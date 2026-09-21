@@ -1,15 +1,19 @@
 package dev.photohouse.connected.core
 
 import dev.photohouse.protocol.*
+import dev.photohouse.playback.PlaybackProgress
+import dev.photohouse.playback.PlaybackBookmark
 import kotlinx.coroutines.*
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.asStateFlow
 
-enum class GalleryMedia(val wire: String) { ALL("all"), PHOTOS("image"), VIDEOS("video") }
+enum class GalleryMedia(val wire: String) { ALL("all"), PHOTOS("image"), VIDEOS("video"), PREPARED_VIDEOS("prepared_video");
+    val assetKind get() = if (this == PREPARED_VIDEOS) "video" else wire
+}
 enum class Message { SESSION_STORAGE_UNAVAILABLE, SIGNED_OUT_LOCAL, SIGNED_OUT_CONFIRMED, SESSION_ENDED, ACCESS_DENIED, UNAVAILABLE, TLS_ERROR, CLOSED, RATE_LIMITED, INVALID_INPUT, INVALID_RESPONSE, TOO_LARGE, MEDIA_UNAVAILABLE, DISCOVERY_CHANGED, DISCOVERY_INPUT, VIDEO_NOT_READY, VIDEO_CHANGED, VIDEO_BUSY, PLAYBACK_UNAVAILABLE }
-data class LiveProblem(val message: Message, val retryAtMillis: Long = 0)
+data class LiveProblem(val message: Message, val retryAtMillis: Long = 0, val playbackFailure: VideoPlaybackFailure? = null)
 /** Only the current page's IDs, never a persistent or cross-library history. */
-data class PhotoNavigation(val page: Int, val assetIds: List<String>, val index: Int, val discovery: PhoneDiscoveryState? = null, val media: GalleryMedia = GalleryMedia.ALL)
+data class PhotoNavigation(val page: Int, val assetIds: List<String>, val index: Int, val discovery: PhoneDiscoveryState? = null, val media: GalleryMedia = GalleryMedia.ALL, val videoIds: Set<String> = emptySet())
 data class StoryReading(val page: Int = 1, val result: ProtectedStoryPage? = null, val busy: Boolean = false, val problem: LiveProblem? = null)
 data class LiveState(
     val generation: Long = 0, val session: Session? = null, val library: String? = null,
@@ -18,6 +22,7 @@ data class LiveState(
     val covered: Boolean = false, val problem: LiveProblem? = null,
     val photoNavigation: PhotoNavigation? = null,
     val video: VideoReader? = null,
+    val videoBookmark: PlaybackBookmark? = null,
     val viewingOriginal: Boolean = false, val originalPhoto: ByteArray? = null,
     val photoSlideshow: Boolean = false, val photoOriginalQuality: Boolean = false,
     val photoPreviewOnly: Boolean = false,
@@ -25,12 +30,14 @@ data class LiveState(
     val stories: StoryReading? = null,
     val media: GalleryMedia = GalleryMedia.ALL,
     val storyEditor: ProtectedStoryEditorStore? = null,
+    val upload: UploadStore? = null,
 )
 
 /** UI-dispatcher-confined; only the wire DTO module is shared with fixture code. */
-class ConnectedStore(private val api: PhotoHouseApi, private val scope: CoroutineScope, private val persistence: SessionPersistence? = null, private val now: () -> Long = System::currentTimeMillis) {
+class ConnectedStore(private val api: PhotoHouseApi, private val scope: CoroutineScope, private val persistence: SessionPersistence? = null, private val uploadNetwork: () -> UploadNetwork = { UploadNetwork.UNKNOWN }, private val now: () -> Long = System::currentTimeMillis) {
     private val mutable = MutableStateFlow(LiveState())
     val state = mutable.asStateFlow()
+    private val playbackProgress = PlaybackProgress()
     private var restorationAttempted = false
     private var token: Bearer? = null
     private var identity: Session? = null
@@ -42,19 +49,24 @@ class ConnectedStore(private val api: PhotoHouseApi, private val scope: Coroutin
     private var retry: (() -> Unit)? = null
     val protectedNativeV2Enabled get() = api.protectedNativeV2Enabled
     val mediaFilterEnabled get() = api.mediaFilterEnabled
+    val preparedBrowseEnabled get() = api.preparedBrowseEnabled
     val canRememberSession get() = persistence != null
     val preparedVideoEnabled get() = api.preparedVideoEnabled
     val photoDeliveryEnabled get() = api.photoDeliveryEnabled
     val discoveryEnabled get() = api.discoveryEnabled
+    val uploadEnabled get() = api.uploadEnabled
     val hasSession get() = token != null
     val cachedBytes get() = state.value.previews.values.sumOf { it.size }
 
     private fun invalidate(keepIdentity: Boolean, cover: Boolean = false) {
+        state.value.videoBookmark?.close()
         state.value.video?.close()
         state.value.storyEditor?.close()
+        state.value.upload?.close()
         requests.toList().forEach { it.cancel() }; requests.clear(); retry = null
         var storageFailed = false
         if (!keepIdentity) {
+            playbackProgress.clear()
             storageFailed = runCatching { persistence?.clear() }.isFailure
             token = null; identity = null; deadline = 0; expiryJob?.cancel(); expiryJob = null }
         mutable.value = LiveState(generation = state.value.generation + 1, session = if (cover) null else identity, covered = cover,
@@ -206,8 +218,30 @@ class ConnectedStore(private val api: PhotoHouseApi, private val scope: Coroutin
         mutable.value = state.value.copy(storyEditor = null)
         loadStories(1)
     }
-    fun libraries() { if (usable()) invalidate(keepIdentity = true) }
+    /** Incoming contribution is account scoped and never grants library visibility. */
+    fun openUpload(): UploadStore? {
+        if (!api.uploadEnabled || !api.protectedNativeV2Enabled || !usable() || state.value.busy ||
+            identity?.memberships?.none { it.available } != false) return null
+        state.value.upload?.let { return it }
+        val generation = state.value.generation
+        val account = identity?.account_id
+        val upload = UploadStore(api, token!!, scope, valid = {
+            active(generation) && !state.value.covered && identity?.account_id == account &&
+                identity?.memberships?.any { it.available } == true
+        }, network = uploadNetwork, now = now, onDenied = {
+            invalidate(keepIdentity = false)
+            mutable.value = state.value.copy(problem = LiveProblem(Message.ACCESS_DENIED))
+        })
+        mutable.value = state.value.copy(upload = upload)
+        return upload
+    }
+    fun closeUpload() {
+        state.value.upload?.close()
+        mutable.value = state.value.copy(upload = null)
+    }
+    fun libraries() { if (usable()) { playbackProgress.clear(); invalidate(keepIdentity = true) } }
     fun selectLibrary(library: String) {
+        if (state.value.library != null && state.value.library != library) playbackProgress.clear()
         if (!usable() || coolingDown()) return
         invalidate(keepIdentity = true)
         if (identity?.memberships?.none { it.library_id == library && it.available } != false) {
@@ -217,27 +251,37 @@ class ConnectedStore(private val api: PhotoHouseApi, private val scope: Coroutin
         loadPage(1)
     }
     fun selectMedia(media: GalleryMedia) {
-        if (!mediaFilterEnabled) return
+        if (!mediaFilterEnabled || media == GalleryMedia.PREPARED_VIDEOS && !preparedBrowseEnabled) return
         loadPage(1, media)
     }
     fun loadPage(page: Int = 1, media: GalleryMedia = state.value.media) {
         if (!allowed() || coolingDown()) return
         require(page in 1..100000 && (media == GalleryMedia.ALL || mediaFilterEnabled))
+        require(media != GalleryMedia.PREPARED_VIDEOS || preparedBrowseEnabled)
         val library = state.value.library!!; val credential = token!!
         invalidate(keepIdentity = true)
         mutable.value = state.value.copy(library = library, busy = true, media = media)
         launch { generation ->
             try {
-                val gallery = api.gallery(credential, library, page, media)
+                // The first gallery read can lose a freshly established connection. Retry
+                // exactly once, only for a transport-level OFFLINE result. The retry stays
+                // inside this generation so logout/background/expiry cancellation wins.
+                val gallery = galleryReadWithOfflineRecovery(credential, library, page, media, generation)
                 if (!active(generation)) return@launch
                 validResponse(gallery.library_id == library && gallery.page == page && gallery.page_size in 1..100 && gallery.total >= 0 && gallery.items.size <= gallery.page_size)
-                validResponse(media == GalleryMedia.ALL || gallery.items.all { it.kind == media.wire })
+                validResponse(media == GalleryMedia.ALL || gallery.items.all { it.kind == media.assetKind })
                 val unique = gallery.copy(items = gallery.items.distinctBy { it.id })
                 mutable.value = state.value.copy(gallery = unique)
                 var byteCount = 0
                 val images = mutableMapOf<String, ByteArray>()
                 for (asset in unique.items) {
-                    val bytes = api.thumbnail(credential, library, asset)
+                    val bytes = try { api.thumbnail(credential, library, asset) }
+                    catch (e: ApiFailure) {
+                        // A missing preview must not discard an already authorized page.
+                        // Denials, TLS, invalid data and rate limits still close the view.
+                        if (e.kind == FailureKind.OFFLINE || e.kind == FailureKind.HTTP &&
+                            e.status in 502..504 && e.retryAfterMillis == 0L) null else throw e
+                    }
                     if (!active(generation)) return@launch
                     if (bytes != null && bytes.size <= HttpsPhotoHouseApi.IMAGE_LIMIT && byteCount + bytes.size <= CACHE_LIMIT) {
                         images[asset.id] = bytes; byteCount += bytes.size
@@ -247,6 +291,22 @@ class ConnectedStore(private val api: PhotoHouseApi, private val scope: Coroutin
                 mutable.value = state.value.copy(busy = false)
             } catch (e: CancellationException) { throw e }
             catch (e: Exception) { readFailure(e, generation, credential) { loadPage(page, media) } }
+        }
+    }
+    private suspend fun galleryReadWithOfflineRecovery(
+        credential: Bearer,
+        library: String,
+        page: Int,
+        media: GalleryMedia,
+        generation: Long,
+    ): Gallery {
+        try {
+            return api.gallery(credential, library, page, media)
+        } catch (e: ApiFailure) {
+            if (e.kind != FailureKind.OFFLINE) throw e
+            delay(GALLERY_RECOVERY_DELAY_MILLIS)
+            if (!active(generation)) throw CancellationException("Gallery read is no longer active")
+            return api.gallery(credential, library, page, media)
         }
     }
     fun navigatePage(page: Int) { if (state.value.discovery != null) searchDiscoveryPage(page) else loadPage(page) }
@@ -318,7 +378,13 @@ class ConnectedStore(private val api: PhotoHouseApi, private val scope: Coroutin
                 mutable.value = state.value.copy(gallery = result.gallery, discovery = previous.copy(result = result, editing = false))
                 val images = mutableMapOf<String, ByteArray>(); var byteCount = 0
                 for (asset in result.gallery.items) {
-                    val bytes = api.thumbnail(credential, library, asset)
+                    val bytes = try { api.thumbnail(credential, library, asset) }
+                    catch (e: ApiFailure) {
+                        // A missing preview must not discard an already authorized page.
+                        // Denials, TLS, invalid data and rate limits still close the view.
+                        if (e.kind == FailureKind.OFFLINE || e.kind == FailureKind.HTTP &&
+                            e.status in 502..504 && e.retryAfterMillis == 0L) null else throw e
+                    }
                     if (!active(generation)) return@launch
                     if (bytes != null && bytes.size <= HttpsPhotoHouseApi.IMAGE_LIMIT && byteCount + bytes.size <= CACHE_LIMIT) {
                         images[asset.id] = bytes; byteCount += bytes.size
@@ -355,7 +421,7 @@ class ConnectedStore(private val api: PhotoHouseApi, private val scope: Coroutin
         val gallery = state.value.gallery
         val ids = gallery?.items?.map { it.id }.orEmpty()
         val index = ids.indexOf(asset.id)
-        val navigation = if (gallery != null && index >= 0) PhotoNavigation(gallery.page, ids, index, state.value.discovery, state.value.media) else null
+        val navigation = if (gallery != null && index >= 0) PhotoNavigation(gallery.page, ids, index, state.value.discovery, state.value.media, gallery.items.filter { it.kind == "video" }.map { it.id }.toSet()) else null
         openPhoto(asset.id, navigation, mediaAfterLoad = viewMedia)
     }
     fun adjacentPhoto(direction: Int) {
@@ -370,6 +436,19 @@ class ConnectedStore(private val api: PhotoHouseApi, private val scope: Coroutin
         val context = navigation?.discovery
         if (context != null) searchDiscoveryPage(navigation.page, context)
         else loadPage(navigation?.page ?: state.value.gallery?.page ?: 1, navigation?.media ?: state.value.media)
+    }
+    fun adjacentVideoId(direction: Int): String? {
+        if (direction !in listOf(-1, 1)) return null
+        val navigation = state.value.photoNavigation ?: return null
+        return generateSequence(navigation.index + direction) { it + direction }
+            .takeWhile { it in navigation.assetIds.indices }
+            .map { navigation.assetIds[it] }.firstOrNull { it in navigation.videoIds }
+    }
+    fun adjacentVideo(direction: Int) {
+        if (!allowed() || state.value.busy || state.value.video == null) return
+        val id = adjacentVideoId(direction) ?: return
+        val navigation = state.value.photoNavigation ?: return
+        openPhoto(id, navigation.copy(index = navigation.assetIds.indexOf(id)), mediaAfterLoad = true)
     }
     fun openVideo() = startVideo(prepared = api.preparedVideoEnabled)
     fun openOriginalVideo() = startVideo(prepared = false)
@@ -394,7 +473,10 @@ class ConnectedStore(private val api: PhotoHouseApi, private val scope: Coroutin
                     }
                 }
             }
-            mutable.value = state.value.copy(video = reader, busy = false)
+            val key = listOf(identity?.account_id, detail.library_id, detail.asset.id, info?.etag).joinToString("\u0000")
+            // Original playback has no representation identity, so never reuse a bookmark.
+            mutable.value = state.value.copy(video = reader, busy = false,
+                videoBookmark = if (info != null) playbackProgress.open(key) else null)
         }
         if (!prepared) attach(null)
         else launch {
@@ -428,14 +510,15 @@ class ConnectedStore(private val api: PhotoHouseApi, private val scope: Coroutin
         if (state.value.video !== reader) return
         if (usable() && state.value.video != null) retainDetail(viewingOriginal = false, busy = false)
     }
-    fun videoPlaybackFailed(reader: VideoReader, nativeFailure: Boolean = false) {
+    fun videoPlaybackFailed(reader: VideoReader, nativeFailure: Boolean = false, reason: VideoPlaybackFailure? = null) {
         if (state.value.video !== reader || !usable()) return
         // Transport failure owns its classified error and any session recheck. A native
         // failure may already have closed its source to stop reads/audio immediately.
         if (reader.hasReadFailure || reader.isClosed && !nativeFailure) return
         reader.close()
         retainDetail(viewingOriginal = false, busy = false)
-        mutable.value = state.value.copy(problem = LiveProblem(Message.MEDIA_UNAVAILABLE))
+        mutable.value = state.value.copy(problem = LiveProblem(Message.MEDIA_UNAVAILABLE, playbackFailure = reason))
+        if (reason?.canRetry == true) retry = { openVideo() }
     }
     fun openDisplayPhoto() {
         val detail = state.value.detail ?: return
@@ -556,6 +639,7 @@ class ConnectedStore(private val api: PhotoHouseApi, private val scope: Coroutin
     }
     private suspend fun readFailure(error: Exception, generation: Long, credential: Bearer, allowTransientRetry: Boolean = false, retryRead: () -> Unit) {
         if (!active(generation)) return
+        if (error is ApiFailure && error.status in listOf(401, 403)) playbackProgress.clear()
         // A protected photo transition is a read-only operation. Give a single
         // short-lived transport/5xx failure a bounded recovery attempt while
         // retaining the current generation and cancellation boundary. Auth
@@ -674,7 +758,10 @@ class ConnectedStore(private val api: PhotoHouseApi, private val scope: Coroutin
         validResponse(session.memberships.map { it.library_id }.distinct().size == session.memberships.size)
     }
     private fun validResponse(condition: Boolean) { if (!condition) throw ApiFailure(FailureKind.INVALID_RESPONSE) }
-    companion object { const val CACHE_LIMIT = 8 * 1024 * 1024 }
+    companion object {
+        const val CACHE_LIMIT = 8 * 1024 * 1024
+        private const val GALLERY_RECOVERY_DELAY_MILLIS = 350L
+    }
 }
 
 fun validAssetLookupId(value: String): Boolean = value.matches(Regex("[1-9][0-9]{0,18}")) && value.toLongOrNull() != null

@@ -137,7 +137,9 @@ internal val Edge = Color(0xFF496258)
             val video = state.video
             if (video != null && !state.covered && state.problem == null) {
                 TvVideoPlayer(video, zh, { if (store?.state?.value?.video === video) store.closeVideo() },
-                    { reason -> if (store?.state?.value?.video === video) { playbackFailure = reason; store.videoPlaybackFailed() } })
+                    { reason -> if (store?.state?.value?.video === video) { playbackFailure = reason; store.videoPlaybackFailed() } }, state.videoBookmark,
+                    previous = if (state.adjacentVideo(-1) != null) ({ store?.adjacentVideo(-1) }) else null,
+                    next = if (state.adjacentVideo(1) != null) ({ store?.adjacentVideo(1) }) else null)
                 return@Surface
             }
             if (immersive && viewer && !state.covered && state.feed != null) {

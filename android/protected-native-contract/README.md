@@ -1,10 +1,10 @@
 # Protected native v2 adoption snapshot
 
-Android-owned exact copy of candidate.14. Frozen contracts/v1 stays unchanged.
+Android-owned exact copy of candidate.16. Frozen contracts/v1 stays unchanged.
 
-Backend source: `1ee1af8d6efb1fac0546bf9013ad4e044aa554e5`.
-Pack commit: `4d1de0f06bae4f2e5342134db6a4b847657d2484`.
-Contract: `2.0.0-candidate.14`, 78 cases; schema `f2a6d8b4c915`.
+Backend source: `808abfe134273d4fa208c14199422dd81ea45d38`.
+Pack commit: `f09be487e38102c1718533d95783554aad26a741`.
+Contract: `2.0.0-candidate.16`, 89 cases; schema `f2a6d8b4c915`.
 See manifest.json and android/verify-protected-native-contract.py for exact hashes.
 The verifier checks all 116 source and seven payload hashes against the backend.
 PREPARED_MEDIA.md is an exact copy of the additional backend-owned streaming contract,
@@ -29,3 +29,9 @@ editor uses the existing POST/PUT revision and mutation-ID contract, with explic
 review/confirmation and manual exact-body retry. Story write access comes from
 server `can_create`/`can_edit`, never from local role inference. Keystore sign-in
 retains the existing 24-hour token only; no refresh route or lifetime extension.
+
+Prepared-video browsing is separately opt-in with `photohousePhonePreparedBrowseEnabled=true`; enable only against candidate 15 or later. Existing playback works with candidate 14.
+
+Candidate16 preserves the installed Phone v21 upload receipt shape. Local TLS upload
+transport and upload-store checks: eight passed. No APK rebuild or device acceptance
+is claimed by this contract-only update; server activation remains separate.

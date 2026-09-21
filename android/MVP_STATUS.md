@@ -1,6 +1,18 @@
+# Current development: family journey v21
+
+See [v21 scope and remaining gates](FAMILY_JOURNEY_V21.md) and
+[validation return](../docs/evidence/android/family-journey-v21/RETURN.md).
+Previous v20/v19 changes are preserved. Source/emulator checks do not activate
+upload or discovery on the server.
+
 # Android family browsing MVP — current status
 
-Current continuation: [Phone v15 evidence](evidence/family-memories-v15/RETURN.md).
+Current continuation: [Playback recovery v20](../docs/evidence/android/playback-recovery-v20/RETURN.md)
+and [gallery/prepared browsing v19](../docs/evidence/android/playback-parity-v19/RETURN.md).
+These are local source/build/emulator results; candidate15 server activation and
+physical phone/TV acceptance remain separate gates.
+
+Earlier continuation: [Phone v15 evidence](evidence/family-memories-v15/RETURN.md).
 Cold-start sign-in and story-editing statements below describe the earlier baseline.
 V15 adds optional Keystore persistence (same 24-hour limit), reviewed story writes
 and an opt-in server-side media filter; live rollout remains a separate gate.

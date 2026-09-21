@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """Offline TV contract/fixture and independent phone-pin checks."""
 from pathlib import Path
-import hashlib,json
+import hashlib,json,re
 root = Path(__file__).resolve().parent
 home = root/'home-core'
 inputs = json.loads((home/'contract/source-inputs.json').read_text())
@@ -21,5 +21,12 @@ for name in ['home-8x8.jpg','home-3840x2160.jpg']:
 for path in [home/'src/test/resources/feed.json',root/'tv/src/androidTest/assets/feed.json']:
     assert json.loads(path.read_text()) == value['feed_response_example']
 assert not (root/'tv/src/main/assets').exists()
-assert 'project(' not in (home/'build.gradle.kts').read_text()
+home_build = (home/'build.gradle.kts').read_text()
+assert re.findall(r'project\(\s*"([^"]+)"\s*\)', home_build) == [':playback-core']
+# The one shared module contains pure playback state only. Keep the anonymous
+# Home client independent of protected/fixture clients and their transports.
+playback = root/'playback-core'
+assert 'project(' not in (playback/'build.gradle.kts').read_text()
+for path in (playback/'src/main').rglob('*.kt'):
+    assert not re.search(r'\bimport\s+(?:android\.|okhttp3\.|java\.net\.|dev\.photohouse\.(?:connected|home|fixture)\.)', path.read_text()), path
 print('PASS independent home-feed pin, exact contract and synthetic fixtures; protected phone pin unchanged')

@@ -3,6 +3,7 @@ package dev.photohouse.connected.core
 import dev.photohouse.protocol.*
 import java.time.ZonedDateTime
 import java.time.format.DateTimeFormatter
+import java.io.InputStream
 
 /** Bearer credentials never appear in state, URLs, logs or toString. */
 class Bearer private constructor(private val value: String) {
@@ -24,7 +25,13 @@ class ApiFailure(val kind: FailureKind, val status: Int? = null, val retryAfterM
 interface PhotoHouseApi {
     /** Protected family stories are opt-in until the integration owner enables the route. */
     val protectedNativeV2Enabled: Boolean get() = false
+    /** Native whole-file photo contribution is separately opt-in and requires protected auth. */
+    val uploadEnabled: Boolean get() = false
+    suspend fun uploadPhoto(token: Bearer, source: UploadSource, batch: String,
+                            onProgress: (Long) -> Unit = {}): UploadReceipt =
+        throw ApiFailure(FailureKind.INVALID_INPUT)
     val mediaFilterEnabled: Boolean get() = false
+    val preparedBrowseEnabled: Boolean get() = false
     val preparedVideoEnabled: Boolean get() = false
     suspend fun preparedVideoInfo(token: Bearer, library: String, assetId: String): PreparedVideoInfo = throw ApiFailure(FailureKind.INVALID_INPUT)
     suspend fun preparedVideoRange(token: Bearer, library: String, assetId: String, info: PreparedVideoInfo, start: Long, length: Int): VideoChunk = throw ApiFailure(FailureKind.INVALID_INPUT)
@@ -55,6 +62,15 @@ interface PhotoHouseApi {
     suspend fun originalPhoto(token: Bearer, library: String, assetId: String): ByteArray
     suspend fun stories(token: Bearer, library: String, assetId: String, page: Int): ProtectedStoryPage = throw ApiFailure(FailureKind.INVALID_INPUT)
 }
+
+/** A caller-owned stream, normally backed by a persisted SAF URI. It is opened per attempt. */
+data class UploadSource(val displayName: String, val bytes: Long, val open: () -> InputStream)
+
+data class UploadReceipt(
+    val assetId: String, val libraryId: String?, val incoming: String, val batch: String,
+    val kind: String, val width: Int, val height: Int, val sha256: String,
+    val bytes: Long, val tasksEnqueued: Int
+)
 
 object Admission {
     fun phone(value: String): String {

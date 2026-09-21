@@ -43,8 +43,8 @@ android {
         minSdk = 26
         targetSdk = 34
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
-        versionCode = 18
-        versionName = "0.18-home-calendar"
+        versionCode = 21
+        versionName = "0.21-video-journey"
         buildConfigField("int", "PHOTOHOUSE_CATALOG_VERSION", configuredCatalogVersion)
         buildConfigField("boolean", "PHOTOHOUSE_BROWSE_ENABLED", configuredBrowse)
         buildConfigField("boolean", "PHOTOHOUSE_DISCOVERY_ENABLED", configuredDiscovery)
@@ -60,6 +60,7 @@ android {
     packaging { resources.excludes += "/META-INF/{AL2.0,LGPL2.1}" }
 }
 dependencies {
+    implementation("androidx.media3:media3-exoplayer:1.3.1")
     if (storyFixtureEnabled) debugImplementation(project(":story-fixture-core"))
     testImplementation("junit:junit:4.13.2")
     implementation(project(":home-core"))

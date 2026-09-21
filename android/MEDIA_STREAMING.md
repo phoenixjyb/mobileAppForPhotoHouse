@@ -1,7 +1,7 @@
 # Long-video playback and cache policy
 
-The phone uses Media3 progressive extraction over its authorized range reader;
-the TV retains its native random-access player. Each network
+Both phone and TV use Media3 progressive extraction over their scoped range readers.
+Each network
 fetch uses an authenticated HTTP byte range (at most 256 KiB). Protected prepared
 phone playback may retain the unconsumed suffix of one such response for contiguous
 forward decoder reads; consumed bytes are zeroed immediately. A repeated or
@@ -109,3 +109,47 @@ not close the scoped protected/Home reader; the new cursor can fetch the sought
 position. Viewer exit still cancels and closes the owner. This distinction is
 covered by blocked-fetch thread-interruption tests, because instant synthetic
 responses alone do not exercise a seek during network I/O.
+
+## TV progressive player v19
+
+TV now uses the same Media3 version and load-control targets as the phone, while
+retaining its revision-bound Home reader and separate anonymous selected-media
+contract. The custom data source owns only its cursor; viewer exit closes the
+reader and player. No HTTP URL, credential, alternate transport or disk cache is
+given to Media3. Existing bounded Home transport recovery remains in the reader;
+Media3 retries are disabled. Remote controls, explicit Play, fit/fullscreen,
+audio-focus handling, completion/replay and background closure remain available.
+
+LAN bandwidth does not eliminate Wi-Fi stalls, decoder input starvation or seek
+cost. Progressive buffering helps absorb short pauses without lowering the TV
+rendition quality. A 12 MiB sample target is not a process-memory ceiling, and
+synthetic emulator playback is not proof of projector hardware decoding or 4K.
+
+The backend also offers an opt-in offline `phone-sdr-v1` preparation profile:
+maximum 1280×720, 2 Mbps target/3 Mbps cap H.264 and 96 kbps AAC. It requires a new
+qualified preparation job and publication; it does not automatically replace
+existing TV copies, originals or live phone delivery, and is not adaptive bitrate.
+
+## Playback wait recovery v20
+
+Phone and TV share a monotonic deadline for a continuous wait: preparing, seeking,
+or buffering while Play is requested. Phase changes cannot extend a wait. At 30
+seconds (checked every 250 ms), a main-looper watchdog closes the scoped reader
+and requests player release before emitting one fixed timeout diagnosis. Keeping the timer separate
+from the player/loader avoids waiting for a blocked media read to return first.
+READY, completion and ordinary pause end the wait; a paused seek or unfinished
+initial preparation still has a deadline. Closing cancels it. A paused buffering
+state is preserved so Play can resume monitoring without a new Media3 transition.
+
+This bounds reported loading/seeking/buffering, not every possible decoder hang.
+The sample buffer targets, network retries, scope validation and no-disk-cache
+policy are unchanged. Phone and TV classify Media3 errors using constants from the
+pinned dependency, rather than legacy MediaPlayer codes. Only fixed bilingual
+messages/codes are displayed; exception messages, URLs and credentials are not.
+
+The protected phone keeps the selected detail after a native failure. A recoverable
+timeout/read interruption offers explicit Retry, which opens a new reader and,
+for prepared playback, repeats HEAD. It never automatically restarts or falls back
+to the original. Already-recorded transport denial, revision change and rate-limit
+failures take precedence over native diagnostics. Late old-reader callbacks cannot
+replace a new viewer. Source and synthetic evidence: [v20 return](../docs/evidence/android/playback-recovery-v20/RETURN.md).

@@ -75,6 +75,22 @@ class GalleryMediaStoreTest {
         assertFalse(store.mediaFilterEnabled)
     }
 
+    @Test fun preparedVideosAreOptInAndRetainSelectionAcrossNavigation() = runTest {
+        val api = Api().apply { mediaFilterEnabled = true }
+        val store = open(api)
+        val before = api.calls.size
+        store.selectMedia(GalleryMedia.PREPARED_VIDEOS); runCurrent()
+        assertEquals(before, api.calls.size)
+        assertThrows(IllegalArgumentException::class.java) { store.loadPage(1, GalleryMedia.PREPARED_VIDEOS) }
+        api.preparedBrowseEnabled = true
+        store.selectMedia(GalleryMedia.PREPARED_VIDEOS); runCurrent()
+        assertEquals("video", store.state.value.gallery!!.items.single().kind)
+        store.navigatePage(2); runCurrent()
+        store.openAsset(video); runCurrent(); store.backToPhotos(); runCurrent()
+        assertEquals(GalleryMedia.PREPARED_VIDEOS, api.calls.last().media)
+        assertEquals(2, api.calls.last().page)
+    }
+
     private fun TestScope.open(api: Api): ConnectedStore {
         val store = ConnectedStore(api, backgroundScope) { testScheduler.currentTime }
         store.authenticate("+12025550123", "12345678"); runCurrent()
@@ -88,6 +104,7 @@ class GalleryMediaStoreTest {
     private inner class Api : PhotoHouseApi {
         override val protectedNativeV2Enabled = true
         override var mediaFilterEnabled = false
+        override var preparedBrowseEnabled = false
         var gate: CompletableDeferred<Unit>? = null
         val calls = mutableListOf<Call>()
         override suspend fun login(phone: String, password: String) = SessionToken(86400, "T".repeat(43), "Bearer")
@@ -102,7 +119,7 @@ class GalleryMediaStoreTest {
             calls += Call(page, media)
             gate?.let { withContext(NonCancellable) { it.await() } }
             val items = when (media) {
-                GalleryMedia.VIDEOS -> listOf(video)
+                GalleryMedia.VIDEOS, GalleryMedia.PREPARED_VIDEOS -> listOf(video)
                 GalleryMedia.PHOTOS -> listOf(photo)
                 GalleryMedia.ALL -> listOf(photo, video)
             }

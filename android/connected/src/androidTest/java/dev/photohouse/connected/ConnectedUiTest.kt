@@ -23,6 +23,13 @@ class ConnectedUiTest {
     @After fun stop() { scope.cancel() }
     private class SyntheticApi : PhotoHouseApi {
         override var discoveryEnabled = false
+        override var uploadEnabled = false
+        override var protectedNativeV2Enabled = false
+        var uploadCalls = 0
+        override suspend fun uploadPhoto(token: Bearer, source: UploadSource, batch: String, onProgress: (Long) -> Unit): UploadReceipt {
+            uploadCalls++; onProgress(source.bytes)
+            return UploadReceipt("7", null, "synthetic-member", batch, "image", 1, 1, "a".repeat(64), source.bytes, 5)
+        }
         var discoveryError: ApiFailure? = null
         var discoverySearches = 0
         var discoveredFilters: PhoneFilters? = null
@@ -94,7 +101,8 @@ class ConnectedUiTest {
         if (text in listOf("简体中文", "English", "System", "系统", "Sign out", "退出登录")) {
             reveal(hasTestTag("app-settings")); rule.onNodeWithTag("app-settings").performClick()
         } else reveal(matcher)
-        rule.onNode(matcher).performClick(); rule.waitForIdle()
+        if (text in listOf("Go to page", "跳转页面")) rule.onAllNodes(matcher).onFirst().performClick() else rule.onNode(matcher).performClick()
+        rule.waitForIdle()
     }
     private fun details(id: String) {
         reveal(hasTestTag("details-$id")); rule.onNodeWithTag("details-$id").performClick(); rule.waitForIdle()
@@ -158,11 +166,17 @@ class ConnectedUiTest {
         assertEquals(listOf("7", "51"), store.state.value.discovery!!.filters.people.map { it.id })
         clickTag("facet-tags")
         clickTag("choice-tags-1")
+        clickTag("facet-locations")
+        clickTag("choice-locations-2")
         reveal(hasTestTag("discovery-caption")); rule.onNodeWithTag("discovery-caption").performTextInput("生日 birthday")
+        reveal(hasTestTag("discovery-from")); rule.onNodeWithTag("discovery-from").performTextInput("2026-01-01")
         clickTag("discovery-media-video")
+        reveal(hasTestTag("discovery-filter-summary")); rule.onNodeWithTag("discovery-filter-summary").assertTextContains("2026-01-01", substring = true)
         assertEquals(0, api.discoverySearches)
         clickTag("discovery-quick-apply")
         assertEquals(1, api.discoverySearches); assertEquals("生日 birthday", api.discoveredFilters!!.caption)
+        assertEquals("2026-01-01", api.discoveredFilters!!.from)
+        assertEquals(listOf("2"), api.discoveredFilters!!.places.map { it.id })
         click("Next")
         reveal(hasTestTag("media-1")); rule.onNodeWithTag("media-1").performClick(); rule.waitForIdle()
         assertNull(store.state.value.video) // Fresh detail denies originals; discovery does not grant them.
@@ -175,6 +189,20 @@ class ConnectedUiTest {
         rule.runOnUiThread { store.background() }
         rule.waitForIdle(); assertNull(store.state.value.discovery); assertTrue(store.state.value.previews.isEmpty())
     }
+    @Test fun discoveryDatePickerAppliesSelectedDayAndCancelsWithoutMutation() {
+        val api = SyntheticApi().apply { discoveryEnabled = true }
+        val store = ConnectedStore(api,scope)
+        rule.runOnUiThread { rule.activity.setContent { ConnectedApp(store) }; store.authenticate("+12025550123","synthetic-password-only") }
+        click("Open library"); clickTag("open-discovery")
+        reveal(hasTestTag("discovery-from")); rule.onNodeWithTag("discovery-from").performTextInput("2026-01-01")
+        clickTag("discovery-from-picker")
+        rule.onNodeWithText("Thursday, January 15, 2026").performClick()
+        rule.onNodeWithText("Apply",substring=false).performClick()
+        assertEquals("2026-01-15",store.state.value.discovery!!.filters.from)
+        clickTag("discovery-to-picker")
+        rule.onNodeWithText("Cancel",substring=false).performClick()
+        assertEquals("",store.state.value.discovery!!.filters.to)
+    }
     @Test fun discoveryInvalidDatesAndStaleBindingRequireExplicitReapply() {
         val api = SyntheticApi().apply { discoveryEnabled = true }
         val store = ConnectedStore(api, scope)
@@ -184,6 +212,7 @@ class ConnectedUiTest {
         clickTag("discovery-apply"); assertEquals(0, api.discoverySearches)
         reveal(hasTestTag("discovery-input-error")); rule.onNodeWithTag("discovery-input-error").assertIsDisplayed()
         clickTag("discovery-clear")
+        reveal(hasTestTag("discovery-filter-summary")); rule.onNodeWithTag("discovery-filter-summary").assertTextContains("No filters selected")
         api.discoveryError = ApiFailure(FailureKind.HTTP, 409)
         clickTag("discovery-apply")
         assertTrue(store.state.value.discovery!!.changed); assertEquals(1, api.discoverySearches)
@@ -202,7 +231,9 @@ class ConnectedUiTest {
         rule.waitUntil(5000) { rule.onAllNodesWithTag("original-image").fetchSemanticsNodes().size == 1 }
         if (rule.onAllNodesWithTag("photo-exit-fullscreen").fetchSemanticsNodes().isNotEmpty()) rule.onNodeWithTag("photo-exit-fullscreen").performClick()
         assertEquals(2, store.state.value.photoNavigation?.page)
+        rule.waitForIdle()
         rule.runOnUiThread { rule.activity.onBackPressedDispatcher.onBackPressed() }
+        rule.waitForIdle()
         assertNull(store.state.value.originalPhoto)
         click("Back to Photos"); details("1")
         assertFalse(store.state.value.viewingOriginal)
@@ -311,12 +342,12 @@ class ConnectedUiTest {
         reveal(hasText("Your libraries")); capture("libraries-en")
         click("Open library")
         rule.waitUntil(5000) { store.state.value.previews.size == 3 }
-        reveal(hasText("Photos")); capture("gallery-en")
+        reveal(hasText("Your memories")); capture("gallery-en")
         details("1")
         reveal(hasContentDescription("Photo 1")); rule.onNodeWithContentDescription("Photo 1").assertIsDisplayed(); capture("detail-en")
         click("简体中文")
         reveal(hasContentDescription("照片 1")); rule.onNodeWithContentDescription("照片 1").assertIsDisplayed(); capture("detail-zh")
-        click("返回照片"); reveal(hasText("照片", substring = false)); capture("gallery-zh")
+        click("返回照片"); reveal(hasText("家庭相册", substring = false)); capture("gallery-zh")
         click("资料库"); reveal(hasText("你的资料库")); capture("libraries-zh")
         reveal(hasTestTag("app-settings")); rule.onNodeWithTag("app-settings").performClick()
         rule.onNodeWithText("界面语言").assertIsDisplayed(); rule.onNodeWithText("退出登录").assertIsDisplayed(); capture("settings-zh")
@@ -334,6 +365,61 @@ class ConnectedUiTest {
         assertEquals("synthetic-invitation", api.registrationCode)
         assertNotNull(store.state.value.session)
         rule.onAllNodes(hasText("synthetic-invitation")).assertCountEquals(0)
+    }
+    @Test fun nativeUploadEntryWarnsBeforeTransferAndShowsIncomingReceipt() {
+        val api = SyntheticApi().apply { uploadEnabled = true; protectedNativeV2Enabled = true }
+        val store = ConnectedStore(api, scope)
+        rule.runOnUiThread {
+            rule.activity.setContent { ConnectedApp(store) }
+            store.authenticate("+12025550123", "synthetic-password-only")
+        }
+        clickTag("open-upload")
+        rule.onNodeWithTag("upload-pick").assertIsDisplayed()
+        capture("upload-choose")
+        rule.runOnUiThread {
+            store.state.value.upload!!.start(UploadSource("photo.jpg", 4) { java.io.ByteArrayInputStream(byteArrayOf(1,2,3,4)) }, network = UploadNetwork.METERED)
+        }
+        rule.onNodeWithTag("upload-network-warning").assertIsDisplayed()
+        assertEquals(0, api.uploadCalls)
+        capture("upload-warning")
+        rule.onNodeWithTag("upload-network-approve").performClick()
+        rule.waitUntil(5000) { store.state.value.upload?.state?.value is UploadState.Succeeded }
+        rule.onNodeWithTag("upload-received").assertIsDisplayed()
+        capture("upload-received")
+        assertEquals(1,api.uploadCalls)
+        rule.onNodeWithTag("upload-done").performClick()
+        rule.runOnUiThread { store.logout() }
+        rule.onNodeWithTag("upload-panel").assertDoesNotExist()
+    }
+    @Test fun preparedVideoNavigationAndExplicitResumeKeepAccessBoundaries() {
+        val api = SyntheticApi().apply {
+            preparedVideoEnabled = true
+            videoBytes = androidx.test.platform.app.InstrumentationRegistry.getInstrumentation().context.assets.open("synthetic-long-video.mp4").use { it.readBytes() }
+            photos = listOf(photo, photo.copy(id="2",kind="image"), photo.copy(id="3"))
+            total = 3
+        }
+        val store = ConnectedStore(api, scope)
+        rule.runOnUiThread {
+            rule.activity.setContent { ConnectedApp(store) }
+            store.authenticate("+12025550123", "synthetic-password-only")
+        }
+        click("Open library"); details("1"); click("Open video")
+        rule.waitUntil(30000) { rule.onAllNodes(hasText("Play") and isEnabled()).fetchSemanticsNodes().isNotEmpty() }
+        rule.onNodeWithTag("video-previous").performScrollTo().assertIsNotEnabled()
+        rule.onNodeWithTag("video-seek").performScrollTo().performSemanticsAction(androidx.compose.ui.semantics.SemanticsActions.SetProgress) { it(15000f) }
+        rule.waitUntil(15000) { positionSeconds() >= 14 }
+        val old = store.state.value.video!!
+        rule.onNodeWithTag("video-next").performScrollTo().performClick()
+        rule.waitUntil(30000) { store.state.value.detail?.asset?.id == "3" && store.state.value.video != null }
+        assertTrue(old.isClosed)
+        rule.onNodeWithTag("video-previous").performScrollTo().performClick()
+        rule.waitUntil(30000) { rule.onAllNodes(hasTestTag("video-resume")).fetchSemanticsNodes().isNotEmpty() }
+        rule.onNodeWithText("Play").assertExists() // offer does not autoplay
+        rule.onNodeWithTag("video-resume").performScrollTo().performClick()
+        rule.waitUntil(15000) { positionSeconds() >= 14 && rule.onAllNodes(hasText("Pause")).fetchSemanticsNodes().isNotEmpty() }
+        capture("video-journey-resume")
+        rule.onNodeWithText("Close video").performScrollTo().performClick()
+        assertTrue(api.preparedHeads >= 3); assertEquals(0, api.originalVideoReads)
     }
     @Test fun nativeVideoPlaysPausesSeeksAndClosesInBothLanguages() {
         val api = SyntheticApi().apply {
@@ -396,6 +482,15 @@ class ConnectedUiTest {
         rule.waitUntil(30000) { store.state.value.video == null && store.state.value.problem != null }
         assertEquals(Message.MEDIA_UNAVAILABLE, store.state.value.problem?.message)
         assertFalse(store.canRetry()); rule.onNodeWithTag("video-player").assertDoesNotExist()
+        val diagnosis = requireNotNull(store.state.value.problem?.playbackFailure)
+        assertTrue(diagnosis in listOf(VideoPlaybackFailure.UNSUPPORTED, VideoPlaybackFailure.INVALID_MEDIA))
+        reveal(hasText(diagnosis.message(false)))
+        rule.onNodeWithText(diagnosis.message(false)).assertIsDisplayed()
+        capture("playback-error-en")
+        click("简体中文")
+        reveal(hasText(diagnosis.message(true)))
+        rule.onNodeWithText(diagnosis.message(true)).assertIsDisplayed()
+        capture("playback-error-zh")
     }
     @Test fun failedPhotoSwitchRetriesBackIntoFullscreenWithoutRegistrationMessage() {
         val api = SyntheticApi().apply {
@@ -623,11 +718,11 @@ class ConnectedUiTest {
         rule.onNodeWithText("第 2 页 · 第 2/2 张").assertIsDisplayed()
         capture("photo-navigation-zh")
         click("上一张"); click("返回照片")
-        reveal(hasText("第 2 页 · 100 张照片")); rule.onNodeWithText("第 2 页 · 100 张照片").assertIsDisplayed()
+        reveal(hasText("第 2 页 · 100 项")); rule.onAllNodesWithText("第 2 页 · 100 项").onFirst().assertIsDisplayed()
         details("1")
         rule.runOnUiThread { rule.activity.onBackPressedDispatcher.onBackPressed() }
         rule.waitForIdle()
-        reveal(hasText("第 2 页 · 100 张照片")); rule.onNodeWithText("第 2 页 · 100 张照片").assertIsDisplayed()
+        reveal(hasText("第 2 页 · 100 项")); rule.onAllNodesWithText("第 2 页 · 100 项").onFirst().assertIsDisplayed()
         click("退出登录"); assertNull(store.state.value.photoNavigation)
         rule.onAllNodes(hasText("第 2 页 · 第 1/2 张")).assertCountEquals(0)
     }

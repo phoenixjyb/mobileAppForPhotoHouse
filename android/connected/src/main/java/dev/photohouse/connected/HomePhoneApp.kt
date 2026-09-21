@@ -19,6 +19,7 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import dev.photohouse.home.*
 import dev.photohouse.connected.core.PhotoNavigation
+import dev.photohouse.connected.core.VideoPlaybackFailure
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 
@@ -33,6 +34,7 @@ import kotlinx.coroutines.withContext
     val state = store?.state?.collectAsState()?.value ?: HomeState()
     val feed = state.feed
     val asset = state.asset
+    var playbackFailure by remember(store, asset?.id, feed?.revision, state.covered) { mutableStateOf<VideoPlaybackFailure?>(null) }
     var selection by remember(store) { mutableStateOf(store?.selection ?: BrowseSelection()) }
     var jump by remember(feed?.revision, feed?.page) { mutableStateOf(false) }
     var caption by remember(feed?.revision, feed?.page, state.covered) { mutableStateOf<HomeAsset?>(null) }
@@ -60,7 +62,9 @@ import kotlinx.coroutines.withContext
                 val video = requireNotNull(state.video)
                 val source = remember(video) { HomePlaybackSource(video) }
                 PhoneVideoPlayer(source, zh, { if (store?.state?.value?.video === video) store.closeVideo() },
-                    { if (store?.state?.value?.video === video) store.videoPlaybackFailed() })
+                    { reason -> if (store?.state?.value?.video === video) { playbackFailure = reason; store.videoPlaybackFailed() } }, state.videoBookmark,
+                    previous = if (state.adjacentVideo(-1) != null) ({ store?.adjacentVideo(-1) }) else null,
+                    next = if (state.adjacentVideo(1) != null) ({ store?.adjacentVideo(1) }) else null)
             }
             asset?.kind == AssetKind.PHOTO && (state.display != null || state.busy) && state.mediaProblem == null -> {
                 val items = feed?.items.orEmpty()
@@ -83,11 +87,11 @@ import kotlinx.coroutines.withContext
                 Text(if (asset.kind == AssetKind.VIDEO) t("Video", "视频") else t("Photo", "照片"), style = MaterialTheme.typography.headlineMedium)
                 Text(asset.caption.ifEmpty { t("A family memory", "一段家的回忆") })
                 if (state.videoFailed || state.mediaProblem != null) {
-                    Text(if (state.videoFailed) t("Video could not play. Retry or return to the album. [HOME-VIDEO]", "视频无法播放，请重试或返回相册。[HOME-VIDEO]") else homeProblem(state.mediaProblem!!, zh), Modifier.testTag("home-media-error"))
+                    Text(state.mediaProblem?.let { homeProblem(it, zh) } ?: playbackFailure?.message(zh) ?: t("Video could not play. Retry or return to the album. [HOME-VIDEO]", "视频无法播放，请重试或返回相册。[HOME-VIDEO]"), Modifier.testTag("home-media-error"))
                 } else if (asset.kind == AssetKind.VIDEO && asset.video == null || asset.kind != AssetKind.VIDEO && asset.display == null) {
                     Text(t("This media is not ready yet.", "此媒体尚未就绪。"))
                 }
-                if (asset.video != null) Button(onClick = { store?.openVideo() }, enabled = !state.busy, modifier = Modifier.testTag("home-video-retry")) { Text(t("Open video", "打开视频")) }
+                if (asset.video != null) Button(onClick = { playbackFailure = null; store?.openVideo() }, enabled = !state.busy, modifier = Modifier.testTag("home-video-retry")) { Text(t("Open video", "打开视频")) }
                 if (asset.display != null && asset.kind == AssetKind.PHOTO) Button(onClick = { store?.openAsset(asset) }, enabled = !state.busy) { Text(t("Retry photo", "重试照片")) }
                 if (asset.original != null) OutlinedButton(onClick = { store?.openOriginal() }, enabled = !state.busy) { Text(t("Original quality", "原图画质")) }
             }

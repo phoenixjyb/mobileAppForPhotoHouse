@@ -9,6 +9,9 @@ val configuredOrigin = providers.gradleProperty("photohouseOrigin").orElse(local
 require(configuredOrigin.none { it == '\n' || it == '\r' || it == '"' || it == '\\' }) { "Invalid configured origin" }
 val protectedNativeV2Enabled = providers.gradleProperty("photohouseProtectedNativeV2Enabled").orElse("false").get()
 require(protectedNativeV2Enabled in listOf("true", "false"))
+val uploadEnabled = providers.gradleProperty("photohousePhoneUploadEnabled").orElse("false").get()
+require(uploadEnabled in listOf("true", "false"))
+require(uploadEnabled != "true" || protectedNativeV2Enabled == "true")
 val discoveryEnabled = providers.gradleProperty("photohousePhoneDiscoveryEnabled").orElse("false").get()
 require(discoveryEnabled in listOf("true", "false")) { "Invalid phone discovery switch" }
 val photoDeliveryEnabled = providers.gradleProperty("photohousePhonePhotoDeliveryEnabled").orElse("false").get()
@@ -19,6 +22,9 @@ require(preparedVideoEnabled != "true" || protectedNativeV2Enabled == "true")
 val mediaFilterEnabled = providers.gradleProperty("photohousePhoneMediaFilterEnabled").orElse("false").get()
 require(mediaFilterEnabled in listOf("true", "false"))
 require(mediaFilterEnabled != "true" || protectedNativeV2Enabled == "true")
+val preparedBrowseEnabled = providers.gradleProperty("photohousePhonePreparedBrowseEnabled").orElse("false").get()
+require(preparedBrowseEnabled in listOf("true", "false"))
+require(preparedBrowseEnabled != "true" || mediaFilterEnabled == "true" && preparedVideoEnabled == "true")
 // Home mode has independent routing. Neither field can carry account credentials.
 val homeOrigin = providers.gradleProperty("photohousePhoneHomeOrigin").orElse(localConfig.getProperty("photohousePhoneHomeOrigin", "")).get()
 val homeAddress = providers.gradleProperty("photohousePhoneHomeLanAddress").orElse(localConfig.getProperty("photohousePhoneHomeLanAddress", "")).get()
@@ -55,16 +61,18 @@ android {
         minSdk = 26
         targetSdk = 34
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
-        versionCode = 18
-        versionName = "0.19-progressive-video"
+        versionCode = 21
+        versionName = "0.22-family-journey"
         buildConfigField("boolean", "PHOTOHOUSE_HOME_DISCOVERY_ENABLED", homeDiscoveryEnabled)
         buildConfigField("String", "PHOTOHOUSE_HOME_ORIGIN", "\"$homeOrigin\"")
         buildConfigField("String", "PHOTOHOUSE_HOME_LAN_ADDRESS", "\"$homeAddress\"")
         buildConfigField("boolean", "PHOTOHOUSE_PROTECTED_NATIVE_V2_ENABLED", protectedNativeV2Enabled)
+        buildConfigField("boolean", "PHOTOHOUSE_UPLOAD_ENABLED", uploadEnabled)
         buildConfigField("boolean", "PHOTOHOUSE_DISCOVERY_ENABLED", discoveryEnabled)
         buildConfigField("boolean", "PHOTOHOUSE_PHOTO_DELIVERY_ENABLED", photoDeliveryEnabled)
         buildConfigField("boolean", "PHOTOHOUSE_PREPARED_VIDEO_ENABLED", preparedVideoEnabled)
         buildConfigField("boolean", "PHOTOHOUSE_MEDIA_FILTER_ENABLED", mediaFilterEnabled)
+        buildConfigField("boolean", "PHOTOHOUSE_PREPARED_BROWSE_ENABLED", preparedBrowseEnabled)
         buildConfigField("String", "PHOTOHOUSE_ORIGIN", "\"$configuredOrigin\"")
     }
     androidComponents { beforeVariants(selector().withBuildType("release")) { it.enable = false } }

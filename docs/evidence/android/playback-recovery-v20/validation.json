@@ -1,0 +1,48 @@
+{
+  "base_commit": "a7fe26af14485850538497962a2af02080448e32",
+  "branch": "codex/android-playback-recovery-v20",
+  "contract": "2.0.0-candidate.15",
+  "jvm": {
+    "live-core": {
+      "tests": 212,
+      "failures": 0,
+      "errors": 0,
+      "skipped": 0
+    },
+    "home-core": {
+      "tests": 121,
+      "failures": 0,
+      "errors": 0,
+      "skipped": 0
+    },
+    "tv": {
+      "tests": 5,
+      "failures": 0,
+      "errors": 0,
+      "skipped": 0
+    }
+  },
+  "emulator": {
+    "api": 36,
+    "synthetic_only": true,
+    "phone_passed": 9,
+    "tv_passed": 39,
+    "tv_live_excluded": 4
+  },
+  "physical_devices_tested": false,
+  "backend_changed": false,
+  "apks": {
+    "PhotoHouse-TV-v20-home.apk1": {
+      "bytes": 12943025,
+      "sha256": "04ef85abbaab85939ef7b19e070b289dd4c8dc288ed7468d01eeb40b7ed6ab99",
+      "version_code": 20,
+      "signing": "local debug"
+    },
+    "PhotoHouse-Phone-v20-candidate15.apk": {
+      "bytes": 13350346,
+      "sha256": "334921e79a9502e5c867578ba6d0145bfd795a725d2445b8e406e59b27c38dd6",
+      "version_code": 20,
+      "signing": "local debug"
+    }
+  }
+}

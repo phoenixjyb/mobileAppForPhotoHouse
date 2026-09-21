@@ -6,7 +6,7 @@ import xml.etree.ElementTree as ET
 root = Path(__file__).resolve().parent
 ns = '{http://schemas.android.com/apk/res/android}'
 manifest = ET.parse(root / 'connected/src/main/AndroidManifest.xml').getroot()
-assert {p.get(ns + 'name') for p in manifest.findall('uses-permission')} == {'android.permission.INTERNET'}
+assert {p.get(ns + 'name') for p in manifest.findall('uses-permission')} == {'android.permission.INTERNET', 'android.permission.ACCESS_NETWORK_STATE'}
 app = manifest.find('application')
 for name in ('allowBackup', 'fullBackupContent', 'usesCleartextTraffic'):
     assert app.get(ns + name) == 'false'

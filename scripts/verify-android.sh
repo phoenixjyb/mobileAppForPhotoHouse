@@ -32,11 +32,11 @@ fi
 printf '%s\n' "$java_version"
 android/gradlew -p android --version
 # This verification lane always produces unconfigured, synthetic-test artifacts.
-android/gradlew -p android :core:test :story-fixture-core:test :live-core:test :home-core:test :tv:testDebugUnitTest \
+android/gradlew -p android :core:test :story-fixture-core:test :playback-core:test :live-core:test :home-core:test :tv:testDebugUnitTest \
   :app:lintDebug :app:assembleDebug :connected:lintDebug :connected:assembleDebug \
   :tv:lintDebug :tv:assembleDebug --console=plain "$@" \
   -PphotohouseOrigin= -PphotohousePhoneHomeOrigin= -PphotohousePhoneHomeLanAddress= -PphotohouseTvOrigin= -PphotohouseTvLanAddress= \
-  -PphotohouseStoryFixtureEnabled=false -PphotohouseHomeCalendarEnabled=false -PphotohouseHomeTagLookupEnabled=false -PphotohouseTvCatalogVersion=2 -PphotohouseTvBrowseEnabled=false -PphotohouseTvDiscoveryEnabled=false -PphotohousePhoneDiscoveryEnabled=false -PphotohousePhoneHomeDiscoveryEnabled=false
+  -PphotohousePhoneUploadEnabled=false -PphotohouseStoryFixtureEnabled=false -PphotohouseHomeCalendarEnabled=false -PphotohouseHomeTagLookupEnabled=false -PphotohouseTvCatalogVersion=2 -PphotohouseTvBrowseEnabled=false -PphotohouseTvDiscoveryEnabled=false -PphotohousePhoneDiscoveryEnabled=false -PphotohousePhoneHomeDiscoveryEnabled=false
 python3 - <<'PY'
 import hashlib, pathlib, zipfile, xml.etree.ElementTree as ET
 root = pathlib.Path('.')
@@ -48,7 +48,7 @@ with zipfile.ZipFile(apk) as z:
             assert z.read(name) == p.read_bytes(), f'Bundled fixture drift: {name}'
 print('PASS APK bundles the shared contract and media byte-for-byte')
 print('APK SHA-256:', hashlib.sha256(apk.read_bytes()).hexdigest())
-reports = [p for folder in ['core/build/test-results/test', 'story-fixture-core/build/test-results/test', 'live-core/build/test-results/test', 'home-core/build/test-results/test', 'tv/build/test-results/testDebugUnitTest'] for p in sorted((root/'android'/folder).glob('TEST-*.xml'))]
+reports = [p for folder in ['playback-core/build/test-results/test', 'core/build/test-results/test', 'story-fixture-core/build/test-results/test', 'live-core/build/test-results/test', 'home-core/build/test-results/test', 'tv/build/test-results/testDebugUnitTest'] for p in sorted((root/'android'/folder).glob('TEST-*.xml'))]
 assert reports, 'No JVM test reports'
 for p in reports:
     s = ET.parse(p).getroot()
@@ -101,6 +101,6 @@ from pathlib import Path
 import re
 text = Path('android/tv/build/outputs/apk/debug/permissions.txt').read_text()
 permissions = set(re.findall(r"uses-permission: name='([^']+)'", text))
-assert permissions == {'android.permission.INTERNET', 'dev.photohouse.tv.DYNAMIC_RECEIVER_NOT_EXPORTED_PERMISSION'}, permissions
-print('PASS TV APK has only Internet and AndroidX app-internal permission; no fixture assets')
+assert permissions == {'android.permission.INTERNET', 'android.permission.ACCESS_NETWORK_STATE', 'dev.photohouse.tv.DYNAMIC_RECEIVER_NOT_EXPORTED_PERMISSION'}, permissions
+print('PASS TV APK has only Internet, network-state and AndroidX app-internal permissions; no fixture assets')
 PY_TV_PERMISSIONS

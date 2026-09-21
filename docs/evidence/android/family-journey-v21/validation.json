@@ -1,0 +1,159 @@
+{
+  "scope": "Synthetic local validation; no live or device acceptance",
+  "android_jvm": {
+    "playback-core": {
+      "tests": 3,
+      "failures": 0,
+      "errors": 0,
+      "skipped": 0
+    },
+    "live-core": {
+      "tests": 223,
+      "failures": 0,
+      "errors": 0,
+      "skipped": 0
+    },
+    "home-core": {
+      "tests": 122,
+      "failures": 0,
+      "errors": 0,
+      "skipped": 0
+    },
+    "tv": {
+      "tests": 5,
+      "failures": 0,
+      "errors": 0,
+      "skipped": 0
+    }
+  },
+  "phone_emulator": {
+    "unique_tests": 28,
+    "latest_results": {
+      "dev.photohouse.connected.ConnectedUiTest#photoFitFillFullscreenAndSlideshowPreservePageAndClearOnBackground": {
+        "code": 0,
+        "run": "phone-final-ui"
+      },
+      "dev.photohouse.connected.ConnectedUiTest#syntheticLoginBrowsingAndLiteralCaptionComponents": {
+        "code": 0,
+        "run": "phone-final-ui"
+      },
+      "dev.photohouse.connected.ConnectedUiTest#syntheticInvitedRegistrationRequiresAllInputs": {
+        "code": 0,
+        "run": "phone-final-ui"
+      },
+      "dev.photohouse.connected.ConnectedUiTest#discoveryInvalidDatesAndStaleBindingRequireExplicitReapply": {
+        "code": 0,
+        "run": "phone-final-ui"
+      },
+      "dev.photohouse.connected.ConnectedUiTest#failedPhotoSwitchRetriesBackIntoFullscreenWithoutRegistrationMessage": {
+        "code": 0,
+        "run": "phone-final-ui"
+      },
+      "dev.photohouse.connected.ConnectedUiTest#pageJumpRejectsInvalidInputAndClearsOnPrivateLifecycleBoundary": {
+        "code": 0,
+        "run": "phone-recheck2"
+      },
+      "dev.photohouse.connected.ConnectedUiTest#longVideoStartsWithoutFullDownloadAndSeeksPastOneMinute": {
+        "code": 0,
+        "run": "phone-final-ui"
+      },
+      "dev.photohouse.connected.ConnectedUiTest#originalViewerZoomCloseAndPrivacyUseSyntheticImageBytes": {
+        "code": 0,
+        "run": "phone-final-ui"
+      },
+      "dev.photohouse.connected.ConnectedUiTest#nativeUploadEntryWarnsBeforeTransferAndShowsIncomingReceipt": {
+        "code": 0,
+        "run": "phone-recheck"
+      },
+      "dev.photohouse.connected.ConnectedUiTest#preparedViewerStreamsAndSeeksWithoutOriginalPermission": {
+        "code": 0,
+        "run": "phone-final-ui"
+      },
+      "dev.photohouse.connected.ConnectedUiTest#corruptVideoExitsPlayerWithoutRetryOrPrivateResidue": {
+        "code": 0,
+        "run": "phone-final-ui"
+      },
+      "dev.photohouse.connected.ConnectedUiTest#unconfiguredAppDisablesAdmissionAndKeepsSecureWindow": {
+        "code": 0,
+        "run": "phone-final-ui"
+      },
+      "dev.photohouse.connected.ConnectedUiTest#nativeVideoPlaysPausesSeeksAndClosesInBothLanguages": {
+        "code": 0,
+        "run": "phone-final-ui"
+      },
+      "dev.photohouse.connected.ConnectedUiTest#preparedReadinessShowsErrorsAndRequiresExplicitRetry": {
+        "code": 0,
+        "run": "phone-final-ui"
+      },
+      "dev.photohouse.connected.ConnectedUiTest#discoverySelectionPagingMediaReturnAndBilingualLayout": {
+        "code": 0,
+        "run": "phone-final-ui"
+      },
+      "dev.photohouse.connected.ConnectedUiTest#nativeVideoFitFillAndFullscreenKeepTheSameReaderAndRestoreControls": {
+        "code": 0,
+        "run": "phone-final-ui"
+      },
+      "dev.photohouse.connected.ConnectedUiTest#undecodablePhotoStopsSlideshowWithoutAdvancingOrKeepingScreenAwake": {
+        "code": 0,
+        "run": "phone-final-ui"
+      },
+      "dev.photohouse.connected.ConnectedUiTest#photoLedGalleryDetailAndSettingsRemainReachableInBothLanguages": {
+        "code": 0,
+        "run": "phone-recheck"
+      },
+      "dev.photohouse.connected.ConnectedUiTest#originalDecoderRejectsCorruptionBoundsPixelsAndHandlesAllExifOrientations": {
+        "code": 0,
+        "run": "phone-final-ui"
+      },
+      "dev.photohouse.connected.ConnectedUiTest#photoNavigationReturnsToSelectedPageAndSupportsBothLanguages": {
+        "code": 0,
+        "run": "phone-recheck2"
+      },
+      "dev.photohouse.connected.ConnectedUiTest#galleryTapOpensPhotoAndDetailsActionKeepsMetadataReachable": {
+        "code": 0,
+        "run": "phone-recheck"
+      },
+      "dev.photohouse.connected.ConnectedUiTest#preparedVideoNavigationAndExplicitResumeKeepAccessBoundaries": {
+        "code": 0,
+        "run": "phone-final-ui"
+      },
+      "dev.photohouse.connected.UploadScreenTest#receivedStateExplainsQueueAndPromotionBoundary": {
+        "code": 0,
+        "run": "phone-final-ui"
+      },
+      "dev.photohouse.connected.PlaybackRecoveryTest#viewerCloseCancelsWaitWithoutReportingAnError": {
+        "code": 0,
+        "run": "phone-final-ui"
+      },
+      "dev.photohouse.connected.PlaybackRecoveryTest#pausedSeekIntoBlockedReadTimesOutAndReleasesAttachedPlayer": {
+        "code": 0,
+        "run": "phone-final-ui"
+      },
+      "dev.photohouse.connected.PlaybackRecoveryTest#blockedPreparationTimesOutAndCancelsBeforeReportingExactlyOnce": {
+        "code": 0,
+        "run": "phone-final-ui"
+      },
+      "dev.photohouse.connected.PlaybackRecoveryTest#media3CodesYieldFixedBilingualDiagnosisWithoutExceptionText": {
+        "code": 0,
+        "run": "phone-final-ui"
+      },
+      "dev.photohouse.connected.ConnectedUiTest#discoveryDatePickerAppliesSelectedDayAndCancelsWithoutMutation": {
+        "code": 0,
+        "run": "calendar-ui"
+      }
+    }
+  },
+  "tv_emulator": {
+    "passed": 40,
+    "live_only_excluded": 4
+  },
+  "backend": {
+    "passed": 46
+  },
+  "lint": {
+    "phone_errors": 0,
+    "phone_warnings": 4,
+    "tv_errors": 0,
+    "tv_warnings": 5
+  }
+}

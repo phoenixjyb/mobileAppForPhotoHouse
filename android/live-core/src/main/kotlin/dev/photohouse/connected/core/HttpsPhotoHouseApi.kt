@@ -3,12 +3,16 @@ package dev.photohouse.connected.core
 import dev.photohouse.protocol.*
 import kotlinx.coroutines.suspendCancellableCoroutine
 import kotlinx.serialization.KSerializer
+import kotlinx.serialization.json.*
 import okhttp3.*
 import okhttp3.HttpUrl.Companion.toHttpUrl
 import okhttp3.MediaType.Companion.toMediaType
 import okhttp3.RequestBody.Companion.toRequestBody
 import java.io.ByteArrayOutputStream
 import java.io.IOException
+import java.io.InputStream
+import java.security.MessageDigest
+import java.util.concurrent.atomic.AtomicReference
 import java.util.concurrent.TimeUnit
 import javax.net.ssl.SSLException
 import kotlin.coroutines.resume
@@ -30,9 +34,9 @@ class TrustedOrigin private constructor(internal val url: HttpUrl) {
 /** Application construction always uses platform trust and hostname validation.
  * The internal overload is visible only to this module's JVM test friend source set.
  */
-class HttpsPhotoHouseApi internal constructor(private val origin: TrustedOrigin, client: OkHttpClient, private val detailPreviewSize: Int = 256, override val discoveryEnabled: Boolean = false, override val photoDeliveryEnabled: Boolean = false, override val protectedNativeV2Enabled: Boolean = false, override val preparedVideoEnabled: Boolean = false, override val mediaFilterEnabled: Boolean = false) : PhotoHouseApi {
-    constructor(origin: TrustedOrigin, detailPreviewSize: Int = 256, discoveryEnabled: Boolean = false, photoDeliveryEnabled: Boolean = false, protectedNativeV2Enabled: Boolean = false, preparedVideoEnabled: Boolean = false, mediaFilterEnabled: Boolean = false) : this(origin, OkHttpClient(), detailPreviewSize, discoveryEnabled, photoDeliveryEnabled, protectedNativeV2Enabled, preparedVideoEnabled, mediaFilterEnabled)
-    init { require(detailPreviewSize in 64..1024); require(!preparedVideoEnabled || protectedNativeV2Enabled); require(!mediaFilterEnabled || protectedNativeV2Enabled) }
+class HttpsPhotoHouseApi internal constructor(private val origin: TrustedOrigin, client: OkHttpClient, private val detailPreviewSize: Int = 256, override val discoveryEnabled: Boolean = false, override val photoDeliveryEnabled: Boolean = false, override val protectedNativeV2Enabled: Boolean = false, override val preparedVideoEnabled: Boolean = false, override val mediaFilterEnabled: Boolean = false, override val preparedBrowseEnabled: Boolean = false, override val uploadEnabled: Boolean = false) : PhotoHouseApi {
+    constructor(origin: TrustedOrigin, detailPreviewSize: Int = 256, discoveryEnabled: Boolean = false, photoDeliveryEnabled: Boolean = false, protectedNativeV2Enabled: Boolean = false, preparedVideoEnabled: Boolean = false, mediaFilterEnabled: Boolean = false, preparedBrowseEnabled: Boolean = false, uploadEnabled: Boolean = false) : this(origin, OkHttpClient(), detailPreviewSize, discoveryEnabled, photoDeliveryEnabled, protectedNativeV2Enabled, preparedVideoEnabled, mediaFilterEnabled, preparedBrowseEnabled, uploadEnabled)
+    init { require(detailPreviewSize in 64..1024); require(!preparedVideoEnabled || protectedNativeV2Enabled); require(!mediaFilterEnabled || protectedNativeV2Enabled); require(!preparedBrowseEnabled || mediaFilterEnabled && preparedVideoEnabled); require(!uploadEnabled || protectedNativeV2Enabled) }
     private val client = client.newBuilder()
         .followRedirects(false).followSslRedirects(false).retryOnConnectionFailure(false)
         .cookieJar(CookieJar.NO_COOKIES).cache(null)
@@ -40,7 +44,92 @@ class HttpsPhotoHouseApi internal constructor(private val origin: TrustedOrigin,
         .connectionSpecs(listOf(ConnectionSpec.MODERN_TLS))
         .connectTimeout(10, TimeUnit.SECONDS).readTimeout(15, TimeUnit.SECONDS).callTimeout(20, TimeUnit.SECONDS)
         .build()
+    private val uploadClient = this.client.newBuilder().callTimeout(2, TimeUnit.MINUTES).writeTimeout(30, TimeUnit.SECONDS).build()
     private data class Packet(val code: Int, val contentType: String?, val bytes: ByteArray, val total: Long = 0, val etag: String? = null)
+
+    override suspend fun uploadPhoto(token: Bearer, source: UploadSource, batch: String,
+                                     onProgress: (Long) -> Unit): UploadReceipt {
+        require(uploadEnabled && protectedNativeV2Enabled)
+        require(batch.matches(Regex("[0-9a-f]{32}")))
+        require(source.bytes in 1..MAX_UPLOAD_BYTES)
+        require(source.displayName.isNotEmpty() && source.displayName.length <= MAX_UPLOAD_NAME &&
+            source.displayName.none { it == '\u0000' || it == '\r' || it == '\n' })
+        val streamedDigest = AtomicReference<String?>(null)
+        val requestBody = object : RequestBody() {
+            override fun contentType() = "application/octet-stream".toMediaType()
+            override fun contentLength() = source.bytes
+            override fun isOneShot() = true
+            override fun writeTo(sink: okio.BufferedSink) {
+                var sent = 0L
+                val digest = MessageDigest.getInstance("SHA-256")
+                source.open().use { input ->
+                    val buffer = ByteArray(32 * 1024)
+                    while (true) {
+                        val n = input.read(buffer)
+                        if (n < 0) break
+                        if (n == 0) throw IOException("source did not advance")
+                        sent += n
+                        if (sent > source.bytes) throw IOException("source exceeded declared length")
+                        sink.write(buffer, 0, n)
+                        digest.update(buffer, 0, n)
+                        onProgress(sent)
+                    }
+                }
+                if (sent != source.bytes) throw IOException("source length changed")
+                streamedDigest.set(digest.digest().joinToString("") { "%02x".format(it) })
+            }
+        }
+        val request = Request.Builder().url(url("/uploads"))
+            .header("Authorization", token.header()).header("Accept", "application/json")
+            .header("Cache-Control", "no-store").header("Accept-Encoding", "identity")
+            .header("X-Upload-Filename", source.displayName).header("X-Upload-Batch", batch)
+            .post(requestBody).build()
+        return suspendCancellableCoroutine { continuation ->
+            val call = uploadClient.newCall(request)
+            continuation.invokeOnCancellation { call.cancel() }
+            call.enqueue(object : Callback {
+                override fun onFailure(call: Call, e: IOException) {
+                    if (continuation.isActive) continuation.resumeWithException(if (e is SSLException) ApiFailure(FailureKind.TLS) else ApiFailure(FailureKind.OFFLINE))
+                }
+                override fun onResponse(call: Call, response: Response) {
+                    try {
+                        response.use {
+                            if (it.code != 201) throw ApiFailure(FailureKind.HTTP, it.code,
+                                if (it.code == 429 || it.code in 502..504) retryAfterMillis(it.header("Retry-After")) else 0)
+                            if (it.header("Content-Type")?.substringBefore(';')?.trim()?.lowercase() != "application/json") throw ApiFailure(FailureKind.INVALID_RESPONSE)
+                            val body = it.body ?: throw ApiFailure(FailureKind.INVALID_RESPONSE)
+                            if (body.contentLength() !in 1..UPLOAD_JSON_LIMIT) throw ApiFailure(FailureKind.INVALID_RESPONSE)
+                            val bytes = readBody(body, UPLOAD_JSON_LIMIT)
+                            val receipt = parseUploadReceipt(bytes)
+                            if (receipt.libraryId != null || receipt.bytes != source.bytes || receipt.sha256 != streamedDigest.get())
+                                throw ApiFailure(FailureKind.INVALID_RESPONSE)
+                            if (continuation.isActive) continuation.resume(receipt)
+                        }
+                    } catch (e: Exception) {
+                        if (continuation.isActive) continuation.resumeWithException(if (e is ApiFailure) e else ApiFailure(FailureKind.INVALID_RESPONSE))
+                    }
+                }
+            })
+        }
+    }
+
+    private fun parseUploadReceipt(bytes: ByteArray): UploadReceipt {
+        val obj = try { DiscoveryJson.parse(bytes, UPLOAD_JSON_LIMIT).jsonObject } catch (_: Exception) { throw ApiFailure(FailureKind.INVALID_RESPONSE) }
+        val expected = setOf("asset_id", "library_id", "incoming", "batch", "kind", "width", "height", "sha256", "bytes", "tasks_enqueued")
+        if (obj.keys != expected) throw ApiFailure(FailureKind.INVALID_RESPONSE)
+        fun str(name: String) = (obj[name] as? JsonPrimitive)?.takeIf { it.isString }?.content ?: throw ApiFailure(FailureKind.INVALID_RESPONSE)
+        fun number(name: String) = (obj[name] as? JsonPrimitive)?.takeIf { !it.isString }?.content?.toLongOrNull() ?: throw ApiFailure(FailureKind.INVALID_RESPONSE)
+        val assetId = str("asset_id").also { require(it.matches(Regex("[1-9][0-9]{0,18}"))) }
+        val library = obj["library_id"].let { if (it == JsonNull) null else str("library_id") }
+        val incoming = str("incoming"); val batch = str("batch"); val kind = str("kind"); val sha = str("sha256")
+        val width = number("width").also { require(it in 1..64 * 1024 * 1024) }.toInt()
+        val height = number("height").also { require(it in 1..64 * 1024 * 1024) }.toInt()
+        val size = number("bytes").also { require(it in 1..MAX_UPLOAD_BYTES) }
+        val tasks = number("tasks_enqueued").also { require(it in 0..16) }.toInt()
+        require(width.toLong() * height <= 64L * 1024 * 1024)
+        require(batch.matches(Regex("[0-9a-f]{32}")) && kind == "image" && sha.matches(Regex("[0-9a-f]{64}")))
+        return UploadReceipt(assetId, library, incoming, batch, kind, width, height, sha, size, tasks)
+    }
 
     private fun url(path: String, library: String? = null, page: Int? = null): HttpUrl {
         require(path.startsWith('/') && !path.startsWith("//"))
@@ -223,6 +312,7 @@ class HttpsPhotoHouseApi internal constructor(private val origin: TrustedOrigin,
     override suspend fun gallery(token: Bearer, library: String, page: Int, media: GalleryMedia): Gallery {
         if (media == GalleryMedia.ALL) return gallery(token, library, page)
         require(mediaFilterEnabled)
+        require(media != GalleryMedia.PREPARED_VIDEOS || preparedBrowseEnabled)
         return json(url("/assets", library, page).newBuilder().addQueryParameter("media", media.wire).build(), Gallery.serializer(), token)
     }
     override suspend fun detail(token: Bearer, library: String, assetId: String) = json(url("/assets/detail/${assetId(assetId)}", library), Detail.serializer(), token)
@@ -313,6 +403,9 @@ class HttpsPhotoHouseApi internal constructor(private val origin: TrustedOrigin,
         return ProtectedStoriesWire.current(result.bytes, assetId, storyId)
     }
     companion object {
+        const val MAX_UPLOAD_BYTES = 25 * 1024 * 1024
+        const val MAX_UPLOAD_NAME = 200
+        const val UPLOAD_JSON_LIMIT = 16 * 1024
         const val VIDEO_CHUNK_LIMIT = 256 * 1024
         const val VIDEO_FILE_LIMIT = 32L * 1024 * 1024 * 1024
         const val JSON_LIMIT = 524288; const val STORIES_LIMIT = 3 * 1024 * 1024; const val IMAGE_LIMIT = 1048576; const val DISPLAY_LIMIT = 12 * 1024 * 1024; const val ORIGINAL_LIMIT = 64 * 1024 * 1024 }
