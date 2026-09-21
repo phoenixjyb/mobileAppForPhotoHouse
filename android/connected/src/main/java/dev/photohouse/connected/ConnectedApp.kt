@@ -225,7 +225,7 @@ private class Words(val zh: Boolean) {
                                     items(state.session!!.memberships, key = { it.library_id }) { membership ->
                                         Card(Modifier.fillMaxWidth()) { Column(Modifier.padding(20.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
                                             Text(t("Photo and video library", "照片与视频资料库"), style = MaterialTheme.typography.titleLarge)
-                                            Text(membership.library_id, style = MaterialTheme.typography.bodyMedium,
+                                            Text(LibraryNames.display(membership.library_id, words.zh), style = MaterialTheme.typography.bodyMedium,
                                                 color = MaterialTheme.colorScheme.onSurfaceVariant)
                                             Text(words.membership(membership), color = MaterialTheme.colorScheme.primary)
                                             Button(onClick = { store.selectLibrary(membership.library_id) }, enabled = membership.available && !state.busy) { Text(t("Open library", "打开资料库")) }
@@ -301,7 +301,7 @@ private class Words(val zh: Boolean) {
                                 else -> {
                                     item { Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
                                         Text(if (state.discovery != null) t("Search results", "搜索结果") else t("Your memories", "家庭相册"), style = MaterialTheme.typography.headlineMedium, fontFamily = FontFamily.Serif)
-                                        Text(state.library.orEmpty(), style = MaterialTheme.typography.bodySmall,
+                                        Text(LibraryNames.display(state.library.orEmpty(), words.zh), style = MaterialTheme.typography.bodySmall,
                                             color = MaterialTheme.colorScheme.onSurfaceVariant)
                                     } }
                                     if (store.mediaFilterEnabled && state.discovery == null) item {

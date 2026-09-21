@@ -130,7 +130,7 @@ fun PhotoHouseApp(store: PhotoHouseStore) {
                             items(state.session!!.memberships, key = { it.library_id }) { membership ->
                                 Card(Modifier.fillMaxWidth()) {
                                     Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                                        Text(membership.library_id, style = MaterialTheme.typography.titleLarge)
+                                        Text(LibraryNames.display(membership.library_id, words.zh), style = MaterialTheme.typography.titleLarge)
                                         Text(words.membership(membership))
                                         Action(w("Open library", "打开资料库"), "library-${membership.library_id}", membership.available && !state.busy) {
                                             store.selectLibrary(membership.library_id)
@@ -171,7 +171,7 @@ fun PhotoHouseApp(store: PhotoHouseStore) {
                         else -> {
                             item {
                                 Text(w("Photos", "照片"), style = MaterialTheme.typography.headlineMedium)
-                                Text(state.library!!)
+                                Text(LibraryNames.display(state.library!!, words.zh))
                             }
                             state.gallery?.let { gallery ->
                                 if (gallery.items.isEmpty()) item { Text(w("This page has no photos", "此页没有照片"), modifier = Modifier.testTag("empty-gallery")) }
