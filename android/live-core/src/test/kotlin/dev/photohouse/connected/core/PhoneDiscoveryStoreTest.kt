@@ -16,6 +16,7 @@ class PhoneDiscoveryStoreTest {
     private inner class FakeApi(override val discoveryEnabled: Boolean = true) : PhotoHouseApi {
         var facetReads = 0; var searches = 0; var galleryReads = 0; var originals = 0; var allowOriginals = false
         var placeQueries = mutableListOf<String>()
+        var supportsPlaceQuery = true
         var placeGate: CompletableDeferred<Unit>? = null
         var searchGate: CompletableDeferred<Unit>? = null; var searchError: ApiFailure? = null
         var facetError: ApiFailure? = null; var sessionDenied = false
@@ -40,6 +41,7 @@ class PhoneDiscoveryStoreTest {
             return PhoneFacetPage(snapshot(library), facet, page, 50, 51, page == 1, if (page == 1) listOf(PhoneChoice("1", "First choice", 1)) else listOf(person))
         }
         override suspend fun placeFacets(token: Bearer, library: String, page: Int, query: String, binding: String?): PhoneFacetPage {
+            if (!supportsPlaceQuery) return super<PhotoHouseApi>.placeFacets(token, library, page, query, binding)
             placeQueries += query
             placeGate?.let { withContext(NonCancellable) { it.await() } }
             return PhoneFacetPage(snapshot(library), PhoneFacet.PLACES, page, 50, 51, page == 1,
@@ -59,6 +61,15 @@ class PhoneDiscoveryStoreTest {
     @Test fun disabledBuildMakesNoDiscoveryRequests() = runTest {
         val api = FakeApi(false); val s = signedIn(api); s.openDiscovery(); runCurrent()
         assertNull(s.state.value.discovery); assertEquals(0, api.facetReads)
+    }
+    @Test fun legacyPlaceFacetAdapterRejectsQueryInsteadOfDroppingIt() = runTest {
+        val api = FakeApi().apply { supportsPlaceQuery = false }
+        val token = Bearer.from(api.login("+12025550123", "synthetic-password-only"))
+        api.placeFacets(token, "family", 1, "")
+        val failure = runCatching { api.placeFacets(token, "family", 1, "Beijing") }.exceptionOrNull()
+        assertTrue(failure is ApiFailure)
+        assertEquals(FailureKind.INVALID_INPUT, (failure as ApiFailure).kind)
+        assertEquals(1, api.facetReads)
     }
     @Test fun placeQueryResetsToFirstPageRetainsSelectionsAndSuppressesOldResponse() = runTest {
         val api = FakeApi(); val s = signedIn(api); s.openDiscovery(); runCurrent()
