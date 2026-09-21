@@ -39,6 +39,9 @@ interface PhotoHouseApi {
     suspend fun displayPhoto(token: Bearer, library: String, assetId: String): ByteArray = throw ApiFailure(FailureKind.INVALID_INPUT)
     val discoveryEnabled: Boolean get() = false
     suspend fun facets(token: Bearer, library: String, facet: PhoneFacet, page: Int = 1, binding: String? = null): PhoneFacetPage = throw ApiFailure(FailureKind.INVALID_INPUT)
+    /** Location-only facet query; the default preserves existing adapters and no-query behavior. */
+    suspend fun placeFacets(token: Bearer, library: String, page: Int = 1, query: String = "", binding: String? = null): PhoneFacetPage =
+        facets(token, library, PhoneFacet.PLACES, page, binding)
     suspend fun search(token: Bearer, library: String, binding: String, filters: PhoneFilters, page: Int = 1, fingerprint: String? = null): PhoneSearchPage = throw ApiFailure(FailureKind.INVALID_INPUT)
     suspend fun login(phone: String, password: String): SessionToken
     suspend fun register(phone: String, password: String, code: String): SessionToken

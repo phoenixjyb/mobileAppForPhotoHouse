@@ -32,6 +32,7 @@ class ConnectedUiTest {
         }
         var discoveryError: ApiFailure? = null
         var discoverySearches = 0
+        val placeQueries = mutableListOf<String>()
         var discoveredFilters: PhoneFilters? = null
         private val pinned = PhoneChoice("7", "Sample family", 1, listOf("示例家人"))
         override suspend fun facets(token: Bearer, library: String, facet: PhoneFacet, page: Int, binding: String?): PhoneFacetPage {
@@ -40,6 +41,10 @@ class ConnectedUiTest {
             val choices = if (page == 1) (1..50).map { if (it == 7) pinned else PhoneChoice(it.toString(), "Sample $it · 示例", 1) }
                 else listOf(PhoneChoice("51", "Later choice · 后页选项", 1))
             return PhoneFacetPage(snap, facet, page, 50, 51, page == 1, choices)
+        }
+        override suspend fun placeFacets(token: Bearer, library: String, page: Int, query: String, binding: String?): PhoneFacetPage {
+            placeQueries += query
+            return facets(token, library, PhoneFacet.PLACES, page, binding)
         }
         override suspend fun search(token: Bearer, library: String, binding: String, filters: PhoneFilters, page: Int, fingerprint: String?): PhoneSearchPage {
             discoverySearches++; discoveredFilters = filters; discoveryError?.let { throw it }
@@ -168,6 +173,10 @@ class ConnectedUiTest {
         clickTag("choice-tags-1")
         clickTag("browse-places")
         rule.onNodeWithTag("discovery-places-coverage").assertTextContains("51", substring = true)
+        rule.onNodeWithTag("place-query").performTextInput("Beijing")
+        clickTag("place-query-search")
+        assertEquals("Beijing", api.placeQueries.last())
+        reveal(hasText("Search places")); rule.onNodeWithText("Search places").assertIsDisplayed()
         clickTag("choice-locations-2")
         capture("discovery-place-selected")
         reveal(hasTestTag("discovery-caption")); rule.onNodeWithTag("discovery-caption").performTextInput("生日 birthday")

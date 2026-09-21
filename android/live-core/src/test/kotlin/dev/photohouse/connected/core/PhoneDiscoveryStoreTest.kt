@@ -15,6 +15,8 @@ class PhoneDiscoveryStoreTest {
         PhoneDiscoveryWire.fields.associateWith { PhoneCoverage(51, 0) }, "2026-01-01", "2026-12-31", listOf(person))
     private inner class FakeApi(override val discoveryEnabled: Boolean = true) : PhotoHouseApi {
         var facetReads = 0; var searches = 0; var galleryReads = 0; var originals = 0; var allowOriginals = false
+        var placeQueries = mutableListOf<String>()
+        var placeGate: CompletableDeferred<Unit>? = null
         var searchGate: CompletableDeferred<Unit>? = null; var searchError: ApiFailure? = null
         var facetError: ApiFailure? = null; var sessionDenied = false
         var returnedKind = "image"
@@ -37,6 +39,12 @@ class PhoneDiscoveryStoreTest {
             facetReads++; facetError?.let { throw it }
             return PhoneFacetPage(snapshot(library), facet, page, 50, 51, page == 1, if (page == 1) listOf(PhoneChoice("1", "First choice", 1)) else listOf(person))
         }
+        override suspend fun placeFacets(token: Bearer, library: String, page: Int, query: String, binding: String?): PhoneFacetPage {
+            placeQueries += query
+            placeGate?.let { withContext(NonCancellable) { it.await() } }
+            return PhoneFacetPage(snapshot(library), PhoneFacet.PLACES, page, 50, 51, page == 1,
+                if (page == 1) listOf(PhoneChoice("1", "北京", 1), PhoneChoice("2", "Beijing", 1)) else listOf(person))
+        }
         override suspend fun search(token: Bearer, library: String, binding: String, filters: PhoneFilters, page: Int, fingerprint: String?): PhoneSearchPage {
             searches++; seenFilters = filters; seenPage = page; seenFingerprint = fingerprint
             searchGate?.let { withContext(NonCancellable) { it.await() } }; searchError?.let { throw it }
@@ -51,6 +59,26 @@ class PhoneDiscoveryStoreTest {
     @Test fun disabledBuildMakesNoDiscoveryRequests() = runTest {
         val api = FakeApi(false); val s = signedIn(api); s.openDiscovery(); runCurrent()
         assertNull(s.state.value.discovery); assertEquals(0, api.facetReads)
+    }
+    @Test fun placeQueryResetsToFirstPageRetainsSelectionsAndSuppressesOldResponse() = runTest {
+        val api = FakeApi(); val s = signedIn(api); s.openDiscovery(); runCurrent()
+        s.searchPlaces(); runCurrent()
+        s.updateDiscoveryFilters(PhoneFilters(places = listOf(PhoneChoice("1", "北京", 1))))
+        s.loadDiscoveryFacet(PhoneFacet.PLACES, 2); runCurrent()
+        assertEquals(listOf("", ""), api.placeQueries)
+        val gate = CompletableDeferred<Unit>(); api.placeGate = gate
+        s.searchPlaces(); runCurrent()
+        s.updatePlaceQuery("Beijing")
+        assertEquals("Beijing", s.state.value.discovery!!.placeQuery)
+        assertNull(s.state.value.discovery!!.facetPage)
+        gate.complete(Unit); runCurrent()
+        assertNull(s.state.value.discovery!!.facetPage)
+        api.placeGate = null
+        s.searchPlaces(); runCurrent()
+        assertEquals(listOf("", "", "", "Beijing"), api.placeQueries)
+        assertEquals(listOf("1"), s.state.value.discovery!!.filters.places.map { it.id })
+        s.loadDiscoveryFacet(PhoneFacet.PLACES, 2); runCurrent()
+        assertEquals("Beijing", api.placeQueries.last())
     }
     @Test fun laterFacetSelectionSurvivesPagingAndQueriesUseExplicitApply() = runTest {
         val api = FakeApi(); val s = signedIn(api); s.openDiscovery(); runCurrent()

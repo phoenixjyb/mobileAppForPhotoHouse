@@ -13,6 +13,12 @@ internal object DiscoveryExamples {
 
 class PhoneDiscoveryWireTest {
     private fun rejected(block: () -> Unit) { try { block(); fail("Invalid response accepted") } catch (e: ApiFailure) { assertEquals(FailureKind.INVALID_RESPONSE, e.kind) } }
+    @Test fun placeQueryValidationUsesUtf8BytesAndRejectsControls() {
+        assertTrue(PhoneDiscoveryWire.validPlaceQuery("北京 Beijing"))
+        assertTrue(PhoneDiscoveryWire.validPlaceQuery(""))
+        assertFalse(PhoneDiscoveryWire.validPlaceQuery("界".repeat(43)))
+        assertFalse(PhoneDiscoveryWire.validPlaceQuery("北京\n"))
+    }
     @Test fun parsesEverySuccessfulProducerExampleIncluding64BitIds() {
         var successes = 0
         for (e in DiscoveryExamples.all) {

@@ -85,6 +85,20 @@ internal fun LazyListScope.phoneDiscoveryEditor(store: ConnectedStore, state: Li
                     modifier = Modifier.fillMaxWidth().testTag("browse-places")) {
                     Text(t("Choose a place", "选择地点"))
                 }
+                OutlinedTextField(
+                    value = current.placeQuery,
+                    onValueChange = { if (PhoneDiscoveryWire.validPlaceQuery(it)) store.updatePlaceQuery(it) },
+                    label = { Text(t("Search places", "搜索地点")) },
+                    supportingText = { Text(t("Example: Beijing", "例如：北京")) },
+                    singleLine = true,
+                    enabled = !state.busy && placesEnabled,
+                    modifier = Modifier.fillMaxWidth().testTag("place-query"))
+                OutlinedButton(
+                    onClick = store::searchPlaces,
+                    enabled = !state.busy && placesEnabled,
+                    modifier = Modifier.fillMaxWidth().testTag("place-query-search")) {
+                    Text(t("Search places", "搜索地点"))
+                }
             }
         }
     }

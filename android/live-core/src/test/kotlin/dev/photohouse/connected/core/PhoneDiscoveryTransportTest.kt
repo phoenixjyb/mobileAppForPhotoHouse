@@ -38,6 +38,17 @@ class PhoneDiscoveryTransportTest {
             assertEquals("no-store", request.getHeader("Cache-Control")); assertNull(request.getHeader("Cookie")); assertNull(request.getHeader("Origin"))
         }
     }
+    @Test fun placeQueryIsOnlySentForLocationFacetAndIsUtf8Bounded() = runBlocking {
+        Fixture().use { f ->
+            val library = "family-a"
+            val body = JsonObject(DiscoveryExamples.body("locations") + ("library_id" to JsonPrimitive(library)))
+            f.enqueue(body); f.api.placeFacets(token, library, 1, "北京 Beijing", null)
+            val request = f.server.takeRequest()
+            assertEquals("locations", request.requestUrl!!.queryParameter("facet"))
+            assertEquals("北京 Beijing", request.requestUrl!!.queryParameter("q"))
+            assertTrue(runCatching { f.api.placeFacets(token, library, 1, "界".repeat(43), null) }.isFailure)
+        }
+    }
     @Test fun discoveryPostBudgetDoesNotBroadenLoginAndNeverSendsFiltersInUrl() = runBlocking {
         Fixture().use { f ->
             val choices = (1..20).map { PhoneChoice((Long.MAX_VALUE - it).toString(), "Selection", 1) }
