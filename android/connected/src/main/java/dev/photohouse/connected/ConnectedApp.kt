@@ -2,8 +2,12 @@ package dev.photohouse.connected
 
 import android.graphics.BitmapFactory
 import androidx.activity.compose.BackHandler
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.contract.ActivityResultContracts
+import android.net.Uri
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
@@ -21,6 +25,7 @@ import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalFocusManager
 import androidx.compose.ui.platform.LocalSoftwareKeyboardController
 import androidx.compose.ui.platform.LocalConfiguration
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.input.KeyboardType
@@ -32,6 +37,8 @@ import androidx.compose.ui.window.DialogProperties
 import dev.photohouse.connected.core.*
 import dev.photohouse.protocol.*
 import kotlinx.coroutines.delay
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.withContext
 
 private class Words(val zh: Boolean) {
     fun t(en: String, cn: String) = if (zh) cn else en
@@ -76,6 +83,28 @@ private class Words(val zh: Boolean) {
     val state = store?.state?.collectAsState()?.value ?: LiveState()
     var jumpPage by remember(state.generation) { mutableStateOf(false) }
     var lookupAsset by remember(state.generation) { mutableStateOf(false) }
+    val context = LocalContext.current
+    var pickerAccount by remember { mutableStateOf<String?>(null) }
+    var pendingUpload by remember { mutableStateOf<Pair<String, Uri>?>(null) }
+    var selectionError by remember(state.session?.account_id) { mutableStateOf(false) }
+    // The launcher survives the privacy cover while Android's picker is in front.
+    // Keep only an ephemeral URI, then recheck the account before opening its bytes.
+    val pickPhoto = rememberLauncherForActivityResult(ActivityResultContracts.OpenDocument()) { uri ->
+        pendingUpload = pickerAccount?.let { account -> uri?.let { account to it } }
+        pickerAccount = null
+    }
+    LaunchedEffect(pendingUpload, state.covered, state.session?.account_id, state.busy) {
+        val pending = pendingUpload ?: return@LaunchedEffect
+        if (state.covered || state.busy) return@LaunchedEffect
+        if (store == null || state.session?.account_id != pending.first) { pendingUpload = null; return@LaunchedEffect }
+        val generation = state.generation
+        val source = withContext(Dispatchers.IO) { runCatching { uploadSource(context, pending.second) }.getOrNull() }
+        pendingUpload = null
+        if (store.state.value.generation != generation || store.state.value.covered) return@LaunchedEffect
+        selectionError = source == null
+        val upload = store.openUpload()
+        if (source != null) upload?.start(source, network = uploadNetwork(context))
+    }
     val scroll = rememberLazyListState()
     LaunchedEffect(state.generation) { scroll.scrollToItem(0) }
     PhotoHouseTheme {
@@ -111,9 +140,25 @@ private class Words(val zh: Boolean) {
                 else if (state.viewingOriginal) store?.closeOriginalPhoto()
                 else if (state.detail != null || state.photoNavigation != null) store?.backToPhotos() else if (state.discovery != null) { if (state.discovery?.editing == true) store?.loadPage(1) else store?.editDiscovery() } else store?.libraries()
             }
+            if (state.upload != null && !state.covered && store != null) {
+                BackHandler { store.closeUpload() }
+                Column(Modifier.fillMaxSize().safeDrawingPadding().verticalScroll(androidx.compose.foundation.rememberScrollState()).padding(20.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
+                    TextButton(onClick = store::closeUpload) { Text(t("Back to album", "返回相册")) }
+                    if (selectionError) Text(t("Choose a JPEG or PNG up to 25 MiB with a known file size.", "请选择大小已知且不超过 25 MiB 的 JPEG 或 PNG 照片。"), color = MaterialTheme.colorScheme.error)
+                    UploadPanel(state.upload!!, words.zh, onPick = {
+                        selectionError = false
+                        pickerAccount = state.session?.account_id
+                        pickPhoto.launch(arrayOf("image/jpeg", "image/png"))
+                    }, onClose = store::closeUpload)
+                }
+                return@Surface
+            }
             if (state.video != null && !state.covered && store != null) {
                 val reader = state.video!!
-                key(reader) { VideoPlayer(reader, words.zh, { store.closeVideo(reader) }) { store.videoPlaybackFailed(reader, nativeFailure = true, reason = it) } }
+                key(reader) { VideoPlayer(reader, words.zh, { store.closeVideo(reader) },
+                    { store.videoPlaybackFailed(reader, nativeFailure = true, reason = it) }, state.videoBookmark,
+                    previous = if (store.adjacentVideoId(-1) != null) ({ store.adjacentVideo(-1) }) else null,
+                    next = if (store.adjacentVideoId(1) != null) ({ store.adjacentVideo(1) }) else null) }
                 return@Surface
             }
             if (state.viewingOriginal && !state.covered && store != null) {
@@ -165,6 +210,10 @@ private class Words(val zh: Boolean) {
                         }
                         state.session == null -> item { key(state.generation) { AdmissionForm(store, state, words) } }
                         else -> {
+                            if (store.uploadEnabled && state.session?.memberships?.any { it.available } == true) item {
+                                OutlinedButton(onClick = { selectionError = false; store.openUpload() }, enabled = !state.busy,
+                                    modifier = Modifier.testTag("open-upload")) { Text(t("Add a photo", "添加照片")) }
+                            }
                             if (state.library != null && state.detail == null && state.photoNavigation == null) item {
                                 TextButton(onClick = store::libraries) { Text(t("Libraries", "资料库")) }
                             }

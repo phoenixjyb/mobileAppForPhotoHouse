@@ -10,8 +10,66 @@ import org.junit.Test
 class ConnectedStoreTest {
     private val asset = Asset("1", "image", 256, 256, null, null, "/assets/1/thumbnail?library=family")
     private fun membership(id: String, available: Boolean = true) = Membership(id, "approved", "viewer", 1, null, 0, available)
+    @Test fun videoNavigationPreservesPageSkipsPhotosAndReauthorizesEachAsset() = runTest {
+        val api = FakeApi().apply {
+            preparedVideoEnabled = true
+            assets = listOf(asset.copy(id = "1", kind = "video"), asset.copy(id = "2"), asset.copy(id = "3", kind = "video"))
+        }
+        val store = ConnectedStore(api, backgroundScope, now = { 0L })
+        store.authenticate("+12025550123", "correct horse battery staple"); runCurrent()
+        store.selectLibrary("family"); runCurrent()
+        store.openAsset(api.assets.first(), viewMedia = true); runCurrent()
+        assertNotNull(store.state.value.video)
+        assertNull(store.adjacentVideoId(-1)); assertEquals("3", store.adjacentVideoId(1))
+        val old = store.state.value.video!!
+        store.state.value.videoBookmark!!.record(12000, 60000)
+        store.adjacentVideo(1); runCurrent()
+        assertTrue(old.isClosed); assertEquals("3", store.state.value.detail!!.asset.id)
+        assertEquals(listOf("1", "3"), api.detailReads)
+        store.adjacentVideo(-1); runCurrent()
+        assertEquals(12000, store.state.value.videoBookmark!!.positionMillis)
+        val stale = store.state.value.videoBookmark!!
+        store.logout(); runCurrent(); stale.record(20000, 60000)
+        store.authenticate("+12025550123", "correct horse battery staple"); runCurrent()
+        store.selectLibrary("family"); runCurrent(); store.openAsset(api.assets.first(), viewMedia = true); runCurrent()
+        assertEquals(0, store.state.value.videoBookmark!!.positionMillis)
+    }
+    @Test fun uploadEntryRequiresCurrentMembershipAndCannotSurvivePrivacyInvalidation() = runTest {
+        val api = FakeApi().apply { protectedNativeV2Enabled = true; uploadEnabled = true }
+        val store = ConnectedStore(api, backgroundScope, now = { 0L })
+        assertNull(store.openUpload())
+        store.authenticate("+12025550123", "password"); runCurrent()
+        val upload = store.openUpload()!!
+        val source = UploadSource("photo.jpg", 1) { java.io.ByteArrayInputStream(byteArrayOf(1)) }
+        upload.start(source, network = UploadNetwork.UNKNOWN)
+        store.background()
+        assertNull(store.state.value.upload)
+        assertFalse(upload.approveNetwork())
+        assertFalse(upload.start(source, network = UploadNetwork.UNMETERED))
+        store.foreground(); runCurrent()
+        assertNotSame(upload, store.openUpload())
+        store.logout(); runCurrent()
+        assertNull(store.state.value.upload); assertEquals(0, api.uploads)
+    }
+    @Test fun deniedUploadClearsTheAuthenticatedGalleryAndHistory() = runTest {
+        val api = FakeApi().apply { protectedNativeV2Enabled = true; uploadEnabled = true; uploadError = ApiFailure(FailureKind.HTTP,403) }
+        val store = ConnectedStore(api,backgroundScope,now={0L})
+        store.authenticate("+12025550123","password"); runCurrent()
+        store.selectLibrary("family"); runCurrent(); assertNotNull(store.state.value.gallery)
+        store.openUpload()!!.start(UploadSource("photo.jpg",1) { java.io.ByteArrayInputStream(byteArrayOf(1)) }, network=UploadNetwork.UNMETERED)
+        runCurrent()
+        assertFalse(store.hasSession); assertNull(store.state.value.gallery); assertNull(store.state.value.upload)
+        assertTrue(store.state.value.previews.isEmpty()); assertEquals(Message.ACCESS_DENIED,store.state.value.problem?.message)
+    }
     private inner class FakeApi : PhotoHouseApi {
         override var protectedNativeV2Enabled = false
+        override var uploadEnabled = false
+        var uploads = 0
+        var uploadError: ApiFailure? = null
+        override suspend fun uploadPhoto(token: Bearer, source: UploadSource, batch: String, onProgress: (Long) -> Unit): UploadReceipt {
+            uploads++; uploadError?.let { throw it }
+            return UploadReceipt("7", null, "synthetic", batch, "image", 1, 1, "a".repeat(64), source.bytes, 5)
+        }
         override var preparedVideoEnabled = false
         var preparedHeads = 0
         var preparedReads = 0

@@ -35,13 +35,14 @@ class UploadStore(
     val state = mutable.asStateFlow()
     private var job: Job? = null
     private var pending: Pending? = null
+    private var closed = false
     private val epoch = AtomicLong(0)
 
     private data class Pending(val source: UploadSource, val batch: String)
 
     fun start(source: UploadSource, batch: String = UUID.randomUUID().toString().replace("-", ""),
               network: UploadNetwork, allowMetered: Boolean = false): Boolean {
-        if (!api.uploadEnabled || !api.protectedNativeV2Enabled || job?.isActive == true || !valid()) return false
+        if (closed || !api.uploadEnabled || !api.protectedNativeV2Enabled || job?.isActive == true || !valid()) return false
         require(batch.matches(Regex("[0-9a-f]{32}")))
         if (network != UploadNetwork.UNMETERED && !allowMetered) {
             pending = Pending(source, batch); mutable.value = UploadState.AwaitingNetwork(network); return true
@@ -53,14 +54,14 @@ class UploadStore(
 
     /** Explicit user action after reviewing the metered/unknown-network warning. */
     fun approveNetwork(): Boolean {
-        if (mutable.value !is UploadState.AwaitingNetwork || job?.isActive == true || !valid()) return false
+        if (closed || mutable.value !is UploadState.AwaitingNetwork || job?.isActive == true || !valid()) return false
         launchPending(); return true
     }
 
     /** Retry is always explicit; an interrupted request may already have created the receipt. */
     fun retry(): Boolean {
         val failed = mutable.value as? UploadState.Failed ?: return false
-        if (!failed.retryAvailable || failed.problem.retryAtMillis > now() || job?.isActive == true || !valid()) return false
+        if (closed || !failed.retryAvailable || failed.problem.retryAtMillis > now() || job?.isActive == true || !valid()) return false
         val currentNetwork = network()
         if (currentNetwork != UploadNetwork.UNMETERED) {
             mutable.value = UploadState.AwaitingNetwork(currentNetwork)
@@ -78,6 +79,7 @@ class UploadStore(
     }
 
     fun close() {
+        closed = true
         epoch.incrementAndGet()
         job?.cancel()
         job = null
@@ -96,7 +98,7 @@ class UploadStore(
                 val receipt = api.uploadPhoto(token, request.source, request.batch) { sent ->
                     scope.launch { if (isActive && attempt == epoch.get() && valid()) mutable.value = UploadState.Uploading(sent, request.source.bytes) }
                 }
-                if (attempt == epoch.get() && valid()) { epoch.incrementAndGet(); mutable.value = UploadState.Succeeded(receipt) }
+                if (attempt == epoch.get() && valid()) { epoch.incrementAndGet(); pending = null; mutable.value = UploadState.Succeeded(receipt) }
             } catch (cancelled: CancellationException) {
                 throw cancelled
             } catch (error: Exception) {

@@ -11,8 +11,8 @@ import androidx.lifecycle.ViewModelProvider
 import androidx.lifecycle.viewModelScope
 import dev.photohouse.connected.core.*
 
-class ConnectedViewModel(api: PhotoHouseApi?, persistence: SessionPersistence? = null) : ViewModel() {
-    val store = api?.let { ConnectedStore(it, viewModelScope, persistence).also { store -> store.restoreSession() } }
+class ConnectedViewModel(api: PhotoHouseApi?, persistence: SessionPersistence? = null, uploadNetwork: () -> UploadNetwork = { UploadNetwork.UNKNOWN }) : ViewModel() {
+    val store = api?.let { ConnectedStore(it, viewModelScope, persistence, uploadNetwork = uploadNetwork).also { store -> store.restoreSession() } }
 }
 class MainActivity : ComponentActivity() {
     private val model by viewModels<ConnectedViewModel> {
@@ -27,8 +27,10 @@ class MainActivity : ComponentActivity() {
                     photoDeliveryEnabled = BuildConfig.PHOTOHOUSE_PHOTO_DELIVERY_ENABLED,
                     preparedVideoEnabled = BuildConfig.PHOTOHOUSE_PREPARED_VIDEO_ENABLED,
                     mediaFilterEnabled = BuildConfig.PHOTOHOUSE_MEDIA_FILTER_ENABLED,
-                    preparedBrowseEnabled = BuildConfig.PHOTOHOUSE_PREPARED_BROWSE_ENABLED) },
-                    origin?.let { KeystoreSessionPersistence(applicationContext, BuildConfig.PHOTOHOUSE_ORIGIN) }) as T
+                    preparedBrowseEnabled = BuildConfig.PHOTOHOUSE_PREPARED_BROWSE_ENABLED,
+                    uploadEnabled = BuildConfig.PHOTOHOUSE_UPLOAD_ENABLED) },
+                    origin?.let { KeystoreSessionPersistence(applicationContext, BuildConfig.PHOTOHOUSE_ORIGIN) },
+                    uploadNetwork = { uploadNetwork(applicationContext) }) as T
             }
         }
     }

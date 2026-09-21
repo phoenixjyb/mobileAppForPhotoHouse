@@ -14,7 +14,7 @@ import java.time.Instant
 import java.time.LocalDate
 import java.time.ZoneOffset
 
-@OptIn(ExperimentalLayoutApi::class)
+@OptIn(ExperimentalLayoutApi::class, ExperimentalMaterial3Api::class)
 internal fun LazyListScope.phoneDiscoveryEditor(store: ConnectedStore, state: LiveState, zh: Boolean) {
     fun t(en: String, cn: String) = if (zh) cn else en
     val current = state.discovery ?: return
@@ -71,13 +71,13 @@ internal fun LazyListScope.phoneDiscoveryEditor(store: ConnectedStore, state: Li
                 var dateTarget by remember { mutableStateOf<String?>(null) }
                 val datePicker = rememberDatePickerState()
                 fun millis(value: String): Long? = runCatching {
-                    LocalDate.parse(value).atStartOfDay(ZoneOffset.UTC).toInstant().toEpochMilli()
+                    LocalDate.parse(value).takeIf { it.year in 1900..2100 }?.atStartOfDay(ZoneOffset.UTC)?.toInstant()?.toEpochMilli()
                 }.getOrNull()
                 @Composable fun dateField(value: String, label: String, textTag: String, pickerTag: String, update: (String) -> Unit) {
                     Row(horizontalArrangement = Arrangement.spacedBy(8.dp), modifier = Modifier.fillMaxWidth()) {
                         OutlinedTextField(value, { if (it.length <= 10) update(it) }, label = { Text(label) },
                             singleLine = true, enabled = !state.busy, modifier = Modifier.weight(1f).testTag(textTag))
-                        OutlinedButton(onClick = { dateTarget = textTag; datePicker.selectedDateMillis = millis(value) },
+                        OutlinedButton(onClick = { dateTarget = textTag; datePicker.selectedDateMillis = millis(value); millis(value)?.let { datePicker.displayedMonthMillis = it } },
                             enabled = !state.busy, modifier = Modifier.testTag(pickerTag)) { Text(t("Pick", "选择")) }
                     }
                 }

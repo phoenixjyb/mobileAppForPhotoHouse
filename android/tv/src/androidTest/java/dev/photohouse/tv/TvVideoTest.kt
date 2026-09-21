@@ -93,7 +93,7 @@ class TvVideoTest {
     }
 
     @get:Rule val rule = createAndroidComposeRule<MainActivity>()
-    private fun install(bytes: ByteArray? = null): HomeVideoReader {
+    private fun install(bytes: ByteArray? = null, bookmark: dev.photohouse.playback.PlaybackBookmark? = null, next: (() -> Unit)? = null): HomeVideoReader {
         val data = bytes ?: InstrumentationRegistry.getInstrumentation().context.assets.open("synthetic-video.mp4").use { it.readBytes() }
         val source = HomeVideoReader(data.size.toLong(), 65536, { position, count ->
             data.copyOfRange(position.toInt(), position.toInt() + count)
@@ -102,7 +102,7 @@ class TvVideoTest {
             var visible by remember { mutableStateOf(true) }
             var failed by remember { mutableStateOf(false) }
             MaterialTheme {
-                if (visible) TvVideoPlayer(source, false, { visible = false }, { failed = true; visible = false })
+                if (visible) TvVideoPlayer(source, false, { visible = false }, { failed = true; visible = false }, bookmark, next = next)
                 else Text(if (failed) "Playback unavailable" else "Video closed")
             }
         } }
@@ -117,6 +117,25 @@ class TvVideoTest {
         if (view is TextureView) return view
         if (view is ViewGroup) for (i in 0 until view.childCount) texture(view.getChildAt(i))?.let { return it }
         return null
+    }
+    @Test fun explicitResumeStartsAtBookmarkAndNextIsAnExplicitAction() {
+        val progress = dev.photohouse.playback.PlaybackProgress()
+        progress.open("synthetic").record(8000, 20000)
+        var navigated = 0
+        val source = install(bookmark = progress.open("synthetic"), next = { navigated++ })
+        ready()
+        rule.onNodeWithText("Play", substring=false).assertExists()
+        rule.onNodeWithTag("video-resume").performScrollTo().performClick()
+        rule.waitUntil(15000) {
+            val text = rule.onNodeWithTag("video-position").fetchSemanticsNode().config[androidx.compose.ui.semantics.SemanticsProperties.Text].first().text
+            text.startsWith("0:08") || text.startsWith("0:09") || text.startsWith("0:1")
+        }
+        rule.onNodeWithText("Pause", substring=false).assertExists()
+        rule.onNodeWithTag("video-previous").performScrollTo().assertIsNotEnabled()
+        assertEquals(0, navigated)
+        rule.onNodeWithTag("video-next").performScrollTo().performClick()
+        assertEquals(1, navigated)
+        source.close()
     }
     @Test fun nativeVideoPreparesPlaysSeeksFitsFullscreenAndCloses() {
         val source = install(); ready()

@@ -44,6 +44,7 @@ class HttpsPhotoHouseApi internal constructor(private val origin: TrustedOrigin,
         .connectionSpecs(listOf(ConnectionSpec.MODERN_TLS))
         .connectTimeout(10, TimeUnit.SECONDS).readTimeout(15, TimeUnit.SECONDS).callTimeout(20, TimeUnit.SECONDS)
         .build()
+    private val uploadClient = this.client.newBuilder().callTimeout(2, TimeUnit.MINUTES).writeTimeout(30, TimeUnit.SECONDS).build()
     private data class Packet(val code: Int, val contentType: String?, val bytes: ByteArray, val total: Long = 0, val etag: String? = null)
 
     override suspend fun uploadPhoto(token: Bearer, source: UploadSource, batch: String,
@@ -57,6 +58,7 @@ class HttpsPhotoHouseApi internal constructor(private val origin: TrustedOrigin,
         val requestBody = object : RequestBody() {
             override fun contentType() = "application/octet-stream".toMediaType()
             override fun contentLength() = source.bytes
+            override fun isOneShot() = true
             override fun writeTo(sink: okio.BufferedSink) {
                 var sent = 0L
                 val digest = MessageDigest.getInstance("SHA-256")
@@ -65,7 +67,7 @@ class HttpsPhotoHouseApi internal constructor(private val origin: TrustedOrigin,
                     while (true) {
                         val n = input.read(buffer)
                         if (n < 0) break
-                        if (n == 0) continue
+                        if (n == 0) throw IOException("source did not advance")
                         sent += n
                         if (sent > source.bytes) throw IOException("source exceeded declared length")
                         sink.write(buffer, 0, n)
@@ -83,7 +85,7 @@ class HttpsPhotoHouseApi internal constructor(private val origin: TrustedOrigin,
             .header("X-Upload-Filename", source.displayName).header("X-Upload-Batch", batch)
             .post(requestBody).build()
         return suspendCancellableCoroutine { continuation ->
-            val call = client.newCall(request)
+            val call = uploadClient.newCall(request)
             continuation.invokeOnCancellation { call.cancel() }
             call.enqueue(object : Callback {
                 override fun onFailure(call: Call, e: IOException) {

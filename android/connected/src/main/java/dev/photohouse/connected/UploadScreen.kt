@@ -12,6 +12,12 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.mutableLongStateOf
+import androidx.compose.runtime.setValue
+import dev.photohouse.connected.core.Message
+import kotlinx.coroutines.delay
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.collectAsState
 import androidx.compose.ui.Modifier
@@ -24,13 +30,16 @@ import dev.photohouse.connected.core.UploadStore
 @Composable
 internal fun UploadPanel(store: UploadStore, zh: Boolean, onPick: () -> Unit, onClose: () -> Unit) {
     val state by store.state.collectAsState()
-    UploadPanelState(state, zh, onPick, onClose, store::approveNetwork, store::retry, store::cancel)
+    var now by remember(state) { mutableLongStateOf(System.currentTimeMillis()) }
+    val retryAt = (state as? UploadState.Failed)?.problem?.retryAtMillis ?: 0
+    LaunchedEffect(retryAt) { while (now < retryAt) { delay(500); now = System.currentTimeMillis() } }
+    UploadPanelState(state, zh, onPick, onClose, { store.approveNetwork() }, { store.retry() }, store::cancel, now >= retryAt)
 }
 
 @Composable
 internal fun UploadPanelState(
     state: UploadState, zh: Boolean, onPick: () -> Unit, onClose: () -> Unit,
-    onApproveNetwork: () -> Unit, onRetry: () -> Unit, onCancel: () -> Unit,
+    onApproveNetwork: () -> Unit, onRetry: () -> Unit, onCancel: () -> Unit, retryReady: Boolean = true,
 ) {
     fun t(en: String, cn: String) = if (zh) cn else en
     Card(Modifier.fillMaxWidth().testTag("upload-panel")) {
@@ -38,12 +47,13 @@ internal fun UploadPanelState(
             Text(t("Add a photo", "添加照片"), style = MaterialTheme.typography.titleLarge)
             when (state) {
                 UploadState.Idle, UploadState.Cancelled -> {
-                    Text(t("Choose one JPEG or PNG. It will be sent to your incoming folder for review.", "选择一张 JPEG 或 PNG。照片会先发送到你的待审核收件夹。"))
-                    Text(t("Memories can be attached after the photo is promoted into a library.", "照片进入资料库并完成审核后，才能附加回忆。"), style = MaterialTheme.typography.bodySmall)
+                    Text(t("Choose one JPEG or PNG up to 25 MiB. It will be sent to your incoming folder for review.", "选择一张不超过 25 MiB 的 JPEG 或 PNG。照片会先发送到你的待审核收件夹。"))
+                    Text(t("Keep PhotoHouse open during upload. Leaving cancels this transfer; the server may already have received it.", "上传时请保持相册在前台。离开将取消本次传输；服务器可能已经收到照片。"), style = MaterialTheme.typography.bodySmall)
+                    Text(t("Once your photo is approved for the family album, you can add a memory.", "照片审核后会加入家庭相册，届时可以添加回忆。"), style = MaterialTheme.typography.bodySmall)
                     Button(onClick = onPick, modifier = Modifier.testTag("upload-pick")) { Text(t("Choose photo", "选择照片")) }
                 }
                 is UploadState.AwaitingNetwork -> {
-                    Text(if (state.network.name == "METERED") t("This uses mobile data. Continue?", "当前使用移动数据，是否继续？") else t("The network type is unknown. Continue only if you accept possible data charges.", "无法确认网络类型。继续前请确认可能产生流量费用。"), modifier = Modifier.testTag("upload-network-warning"))
+                    Text(if (state.network.name == "METERED") t("This connection may incur data charges. Continue?", "当前连接可能产生流量费用，是否继续？") else t("The network type is unknown. Continue only if you accept possible data charges.", "无法确认网络类型。继续前请确认可能产生流量费用。"), modifier = Modifier.testTag("upload-network-warning"))
                     Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                         Button(onClick = onApproveNetwork, modifier = Modifier.testTag("upload-network-approve")) { Text(t("Continue", "继续")) }
                         OutlinedButton(onClick = onClose) { Text(t("Later", "稍后")) }
@@ -55,16 +65,19 @@ internal fun UploadPanelState(
                     OutlinedButton(onClick = onCancel, modifier = Modifier.testTag("upload-cancel")) { Text(t("Cancel", "取消")) }
                 }
                 is UploadState.Failed -> {
+                    if (state.problem.message == Message.TLS_ERROR) Text(t("Cannot verify the server's secure connection.", "无法验证服务器的安全连接。"), color = MaterialTheme.colorScheme.error)
+                    if (state.problem.message == Message.INVALID_RESPONSE) Text(t("The server receipt could not be verified.", "无法验证服务器的接收凭据。"), color = MaterialTheme.colorScheme.error)
+                    if (!retryReady) Text(t("Please wait before retrying.", "请稍候再重试。"))
                     Text(t("The upload was interrupted. The server may already have received it; retry only if needed.", "上传中断。服务器可能已经收到照片；确认后再手动重试。"), color = MaterialTheme.colorScheme.error, modifier = Modifier.testTag("upload-failed"))
                     Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                        if (state.retryAvailable) Button(onClick = onRetry, modifier = Modifier.testTag("upload-retry")) { Text(t("Retry", "重试")) }
+                        if (state.retryAvailable) Button(onClick = onRetry, enabled = retryReady, modifier = Modifier.testTag("upload-retry")) { Text(t("Retry", "重试")) }
                         OutlinedButton(onClick = onClose) { Text(t("Close", "关闭")) }
                     }
                 }
                 is UploadState.Succeeded -> {
                     Text(t("Received for review", "已收到，等待审核"), modifier = Modifier.testTag("upload-received"))
-                    Text(t("Incoming item ${state.receipt.assetId} · ${state.receipt.tasksEnqueued} processing tasks queued. This does not mean processing is complete.", "待审核项目 ${state.receipt.assetId} · 已排队 ${state.receipt.tasksEnqueued} 个处理任务。任务尚未完成。"), style = MaterialTheme.typography.bodySmall)
-                    Text(t("Memories are unavailable until an operator promotes this photo into a library.", "管理员将照片加入资料库后，才能附加回忆。"), style = MaterialTheme.typography.bodySmall)
+                    Text(t("Photo ${state.receipt.assetId} has been received. It will appear in your album after review and processing.", "已收到照片 ${state.receipt.assetId}，审核和处理后将出现在相册中。"), style = MaterialTheme.typography.bodySmall)
+                    Text(t("You can add a memory once the photo appears in your album.", "照片出现在相册后，就可以添加回忆。"), style = MaterialTheme.typography.bodySmall)
                     Button(onClick = onClose, modifier = Modifier.testTag("upload-done")) { Text(t("Done", "完成")) }
                 }
             }

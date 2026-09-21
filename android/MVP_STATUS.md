@@ -1,3 +1,10 @@
+# Current development: family journey v21
+
+See [v21 scope and remaining gates](FAMILY_JOURNEY_V21.md) and
+[validation return](../docs/evidence/android/family-journey-v21/RETURN.md).
+Previous v20/v19 changes are preserved. Source/emulator checks do not activate
+upload or discovery on the server.
+
 # Android family browsing MVP — current status
 
 Current continuation: [Playback recovery v20](../docs/evidence/android/playback-recovery-v20/RETURN.md)

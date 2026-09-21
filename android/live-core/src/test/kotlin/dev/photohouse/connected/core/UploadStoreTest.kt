@@ -4,6 +4,7 @@ import dev.photohouse.protocol.*
 import kotlinx.coroutines.*
 import kotlinx.coroutines.test.runTest
 import kotlinx.coroutines.test.advanceUntilIdle
+import kotlinx.coroutines.test.runCurrent
 import org.junit.Assert.*
 import org.junit.Test
 import java.io.ByteArrayInputStream
@@ -17,8 +18,12 @@ class UploadStoreTest {
         override val uploadEnabled = true
         var calls = 0
         var failure: Exception? = null
+        var gate: CompletableDeferred<Unit>? = null
+        val progress = mutableListOf<(Long) -> Unit>()
         override suspend fun uploadPhoto(token: Bearer, source: UploadSource, batch: String, onProgress: (Long) -> Unit): UploadReceipt {
-            calls++; failure?.let { throw it }; onProgress(source.bytes)
+            calls++; progress += onProgress
+            gate?.let { withContext(NonCancellable) { it.await() } }
+            failure?.let { throw it }; onProgress(source.bytes)
             return UploadReceipt("7", null, "member", batch, "image", 1, 1, "a".repeat(64), source.bytes, 5)
         }
         override suspend fun login(phone: String, password: String) = SessionToken(86400, "T".repeat(43), "Bearer")
@@ -61,5 +66,36 @@ class UploadStoreTest {
         assertFalse(failed.retryAvailable)
         assertFalse(store.retry())
         assertEquals(1, denied)
+    }
+    @Test fun cancelledAttemptCannotOverwriteReplacementOrResurrectClosedState() = runTest {
+        val api = Api(); val oldGate = CompletableDeferred<Unit>(); api.gate = oldGate
+        val store = UploadStore(api, token, this, { true })
+        val source = UploadSource("photo.jpg", 10) { ByteArrayInputStream(ByteArray(10)) }
+        store.start(source, batch, UploadNetwork.UNMETERED); runCurrent()
+        store.cancel()
+        val newGate = CompletableDeferred<Unit>(); api.gate = newGate
+        store.start(source, batch, UploadNetwork.UNMETERED); runCurrent()
+        api.progress.first()(9); oldGate.complete(Unit); runCurrent()
+        assertEquals(UploadState.Uploading(0,10), store.state.value)
+        assertFalse(store.start(source, batch, UploadNetwork.UNMETERED))
+        newGate.complete(Unit); runCurrent()
+        assertTrue(store.state.value is UploadState.Succeeded)
+        store.close(); api.progress.last()(10); runCurrent()
+        assertEquals(UploadState.Idle, store.state.value)
+        assertFalse(store.start(source,batch,UploadNetwork.UNMETERED))
+    }
+
+    @Test fun cooldownAndChangedNetworkRequireNewExplicitConsent() = runTest {
+        var now = 1000L
+        val api = Api().apply { failure = ApiFailure(FailureKind.HTTP,429,5000) }
+        val store = UploadStore(api,token,this,{true},{UploadNetwork.METERED},{now})
+        val source = UploadSource("photo.jpg",1){ ByteArrayInputStream(byteArrayOf(1)) }
+        store.start(source,batch,UploadNetwork.UNMETERED); runCurrent()
+        assertEquals(6000L,(store.state.value as UploadState.Failed).problem.retryAtMillis)
+        assertFalse(store.retry()); now=6000
+        assertTrue(store.retry()); assertEquals(UploadState.AwaitingNetwork(UploadNetwork.METERED),store.state.value)
+        assertEquals(1,api.calls)
+        api.failure=null; store.approveNetwork(); runCurrent()
+        assertTrue(store.state.value is UploadState.Succeeded)
     }
 }

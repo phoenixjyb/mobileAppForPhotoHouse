@@ -20,7 +20,7 @@ class UploadTransportTest {
         val cert = HeldCertificate.Builder().addSubjectAlternativeName("localhost").build()
         val server = MockWebServer().apply { useHttps(HandshakeCertificates.Builder().heldCertificate(cert).build().sslSocketFactory(), false) }
         server.enqueue(MockResponse().setResponseCode(201).setHeader("Content-Type", "application/json")
-            .setBody("""{"asset_id":"17","library_id":null,"incoming":"Yanbo-a1","batch":"$batch","kind":"image","width":640,"height":480,"sha256":"9f64a747e1b97f131fabb6b447296c9b6f0201e79fb3c5356e6c77e89b6a806a","bytes":4,"tasks_enqueued":5}"""))
+            .setBody("""{"asset_id":"17","library_id":null,"incoming":"synthetic-member","batch":"$batch","kind":"image","width":640,"height":480,"sha256":"9f64a747e1b97f131fabb6b447296c9b6f0201e79fb3c5356e6c77e89b6a806a","bytes":4,"tasks_enqueued":5}"""))
         server.start(java.net.InetAddress.getByName("127.0.0.1"), 0)
         try {
             val trust = HandshakeCertificates.Builder().addTrustedCertificate(cert.certificate).build()
@@ -38,6 +38,21 @@ class UploadTransportTest {
             assertArrayEquals(byteArrayOf(1, 2, 3, 4), request.body.readByteArray())
             assertEquals("17", receipt.assetId); assertEquals(5, receipt.tasksEnqueued)
             assertEquals(listOf(4L), progress)
+            val valid = """{"asset_id":"17","library_id":null,"incoming":"synthetic-member","batch":"${"b".repeat(32)}","kind":"image","width":640,"height":480,"sha256":"9f64a747e1b97f131fabb6b447296c9b6f0201e79fb3c5356e6c77e89b6a806a","bytes":4,"tasks_enqueued":0}"""
+            val source = UploadSource("photo.jpg",4) { ByteArrayInputStream(byteArrayOf(1,2,3,4)) }
+            server.enqueue(MockResponse().setResponseCode(201).setHeader("Content-Type","application/json").setBody(valid))
+            assertEquals("b".repeat(32),api.uploadPhoto(token,source,batch).batch)
+            for (invalid in listOf(valid.replace("\"bytes\":4", "\"bytes\":5"),
+                valid.replace("9f64a747", "af64a747"), valid.replace("\"library_id\":null", "\"library_id\":\"foreign\""),
+                valid.replace("\"width\":640", "\"width\":64000000"),
+                valid.replace("\"bytes\":4", "\"bytes\":4,\"bytes\":4"))) {
+                server.enqueue(MockResponse().setResponseCode(201).setHeader("Content-Type","application/json").setBody(invalid))
+                assertThrows(ApiFailure::class.java) { runBlocking { api.uploadPhoto(token,source,batch) } }
+            }
+            server.enqueue(MockResponse().setResponseCode(429).setHeader("Retry-After","5"))
+            val limited=assertThrows(ApiFailure::class.java) { runBlocking { api.uploadPhoto(token,source,batch) } }
+            assertEquals(5000L,limited.retryAfterMillis)
+
         } finally { server.shutdown() }
     }
 
@@ -74,6 +89,7 @@ class UploadTransportTest {
             val client = OkHttpClient.Builder().protocols(listOf(okhttp3.Protocol.HTTP_1_1)).sslSocketFactory(trust.sslSocketFactory(), trust.trustManager).build()
             val api = HttpsPhotoHouseApi(TrustedOrigin.parse("https://localhost:${server.port}"), client, protectedNativeV2Enabled = true, uploadEnabled = true)
             assertThrows(ApiFailure::class.java) { runBlocking { api.uploadPhoto(token, UploadSource("x.jpg", 1) { ByteArrayInputStream(byteArrayOf(1)) }, batch) } }
+            Unit
         } finally { server.shutdown() }
     }
 }

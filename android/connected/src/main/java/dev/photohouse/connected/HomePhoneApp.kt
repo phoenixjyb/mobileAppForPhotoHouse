@@ -62,7 +62,9 @@ import kotlinx.coroutines.withContext
                 val video = requireNotNull(state.video)
                 val source = remember(video) { HomePlaybackSource(video) }
                 PhoneVideoPlayer(source, zh, { if (store?.state?.value?.video === video) store.closeVideo() },
-                    { reason -> if (store?.state?.value?.video === video) { playbackFailure = reason; store.videoPlaybackFailed() } })
+                    { reason -> if (store?.state?.value?.video === video) { playbackFailure = reason; store.videoPlaybackFailed() } }, state.videoBookmark,
+                    previous = if (state.adjacentVideo(-1) != null) ({ store?.adjacentVideo(-1) }) else null,
+                    next = if (state.adjacentVideo(1) != null) ({ store?.adjacentVideo(1) }) else null)
             }
             asset?.kind == AssetKind.PHOTO && (state.display != null || state.busy) && state.mediaProblem == null -> {
                 val items = feed?.items.orEmpty()

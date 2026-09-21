@@ -46,6 +46,7 @@ import android.net.Uri
 import java.io.IOException
 import dev.photohouse.home.HomeVideoSource
 import dev.photohouse.home.PlaybackWaitDeadline
+import dev.photohouse.playback.PlaybackBookmark
 import kotlinx.coroutines.delay
 import java.util.concurrent.atomic.AtomicBoolean
 
@@ -215,6 +216,15 @@ internal class NativeVideoPlayer(context: Context, private val reader: HomeVideo
         state = state.copy(seeking = true); publish()
         player?.seekTo(milliseconds.coerceIn(0, state.duration).toLong())
     }
+    fun resume(milliseconds: Int) = command {
+        if (!state.ready || state.seeking) return@command
+        if (audio.requestAudioFocus(focus) != AudioManager.AUDIOFOCUS_REQUEST_GRANTED) {
+            state = state.copy(audioFocusDenied = true); publish(); return@command
+        }
+        player?.seekTo(milliseconds.coerceIn(0, state.duration).toLong())
+        player?.play()
+        state = state.copy(playing = true, seeking = true, audioFocusDenied = false); publish()
+    }
     fun poll() = command {
         if (state.ready && !state.seeking) { state = state.copy(position = (player?.currentPosition ?: 0).coerceIn(0, Int.MAX_VALUE.toLong()).toInt()); publish() }
     }
@@ -234,14 +244,14 @@ internal class NativeVideoPlayer(context: Context, private val reader: HomeVideo
 }
 
 /** Native TV player: explicit Play, remote seeking, aspect-fit surface and owned teardown. */
-@Composable internal fun TvVideoPlayer(source: HomeVideoSource, zh: Boolean, close: () -> Unit, failure: (TvPlaybackFailure) -> Unit) {
+@Composable internal fun TvVideoPlayer(source: HomeVideoSource, zh: Boolean, close: () -> Unit, failure: (TvPlaybackFailure) -> Unit, bookmark: PlaybackBookmark? = null, previous: (() -> Unit)? = null, next: (() -> Unit)? = null) {
     val current by rememberUpdatedState(source)
     val onClose by rememberUpdatedState(close)
     val onFailure by rememberUpdatedState(failure)
-    key(source) { TvVideoContent(source, zh, { if (current === source) onClose() }, { if (current === source) onFailure(it) }) }
+    key(source) { TvVideoContent(source, zh, { if (current === source) onClose() }, { if (current === source) onFailure(it) }, bookmark, previous, next) }
 }
 
-@Composable private fun TvVideoContent(source: HomeVideoSource, zh: Boolean, close: () -> Unit, failure: (TvPlaybackFailure) -> Unit) {
+@Composable private fun TvVideoContent(source: HomeVideoSource, zh: Boolean, close: () -> Unit, failure: (TvPlaybackFailure) -> Unit, bookmark: PlaybackBookmark? = null, previous: (() -> Unit)? = null, next: (() -> Unit)? = null) {
     fun t(en: String, cn: String) = if (zh) cn else en
     var state by remember(source) { mutableStateOf(Playback()) }
     var immersive by remember(source) { mutableStateOf(false) }
@@ -251,7 +261,11 @@ internal class NativeVideoPlayer(context: Context, private val reader: HomeVideo
     val view = LocalView.current
     val onFailure by rememberUpdatedState(failure)
     val onClose by rememberUpdatedState(close)
-    val player = remember(source) { NativeVideoPlayer(context, source, { state = it }, { onFailure(it) }) }
+    var offerResume by remember(source) { mutableStateOf((bookmark?.positionMillis ?: 0) >= 3000) }
+    val player = remember(source) { NativeVideoPlayer(context, source, {
+        state = it
+        if (!offerResume && it.ready && !it.seeking) bookmark?.record(it.position, it.duration)
+    }, { onFailure(it) }) }
     val first = remember { FocusRequester() }
     DisposableEffect(player) { onDispose { player.close() } }
     DisposableEffect(state.playing, view) {
@@ -283,13 +297,13 @@ internal class NativeVideoPlayer(context: Context, private val reader: HomeVideo
             else {
                 hintTick++
                 when (it.nativeKeyEvent.keyCode) {
-                    KeyEvent.KEYCODE_MEDIA_PLAY_PAUSE -> { player.playPause(); true }
+                    KeyEvent.KEYCODE_MEDIA_PLAY_PAUSE -> { offerResume = false; player.playPause(); true }
                     KeyEvent.KEYCODE_MEDIA_PAUSE -> { player.pause(); true }
                     KeyEvent.KEYCODE_MEDIA_REWIND -> { player.seek(state.position - 10000); true }
                     KeyEvent.KEYCODE_MEDIA_FAST_FORWARD -> { player.seek(state.position + 10000); true }
                     KeyEvent.KEYCODE_DPAD_LEFT -> if (immersive) { player.seek(state.position - 10000); true } else false
                     KeyEvent.KEYCODE_DPAD_RIGHT -> if (immersive) { player.seek(state.position + 10000); true } else false
-                    KeyEvent.KEYCODE_DPAD_CENTER, KeyEvent.KEYCODE_ENTER -> if (immersive) { player.playPause(); true } else false
+                    KeyEvent.KEYCODE_DPAD_CENTER, KeyEvent.KEYCODE_ENTER -> if (immersive) { offerResume = false; player.playPause(); true } else false
                     else -> false
                 }
             }
@@ -324,8 +338,13 @@ internal class NativeVideoPlayer(context: Context, private val reader: HomeVideo
             LinearProgressIndicator(progress = if (state.duration > 0) state.position.toFloat() / state.duration else 0f, modifier = Modifier.fillMaxWidth())
             Text("${videoTime(state.position)} / ${videoTime(state.duration)}", Modifier.testTag("video-position"), color = Color.White)
             Row(Modifier.fillMaxWidth().horizontalScroll(rememberScrollState()), horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+                if (offerResume && state.ready) TvButton(t("Continue ${videoTime(bookmark!!.positionMillis)}", "继续 ${videoTime(bookmark!!.positionMillis)}"), Modifier.testTag("video-resume"), !state.seeking) {
+                    offerResume = false; player.resume(bookmark.positionMillis)
+                }
+                TvButton(t("Previous video", "上一个视频"), Modifier.testTag("video-previous"), previous != null) { previous?.invoke() }
+                TvButton(t("Next video", "下一个视频"), Modifier.testTag("video-next"), next != null) { next?.invoke() }
                 TvButton(t("Close video", "关闭视频"), Modifier.then(if (!state.ready) Modifier.focusRequester(first) else Modifier)) { player.close(); onClose() }
-                TvButton(if (state.playing) t("Pause", "暂停") else t("Play", "播放"), Modifier.testTag("video-play").then(if (state.ready) Modifier.focusRequester(first) else Modifier), state.ready && !state.seeking) { player.playPause() }
+                TvButton(if (state.playing) t("Pause", "暂停") else t("Play", "播放"), Modifier.testTag("video-play").then(if (state.ready) Modifier.focusRequester(first) else Modifier), state.ready && !state.seeking) { offerResume = false; player.playPause() }
                 TvButton(t("Back 10s", "后退 10 秒"), Modifier.testTag("video-rewind"), state.ready && !state.seeking) { player.seek(state.position - 10000) }
                 TvButton(t("Forward 10s", "前进 10 秒"), Modifier.testTag("video-forward"), state.ready && !state.seeking) { player.seek(state.position + 10000) }
                 TvButton(t("Full screen", "全屏"), Modifier.testTag("video-fullscreen")) { immersive = true }

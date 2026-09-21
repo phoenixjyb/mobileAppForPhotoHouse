@@ -39,6 +39,7 @@ import dev.photohouse.connected.core.VideoReader
 import dev.photohouse.connected.core.MediaViewport
 import dev.photohouse.connected.core.VideoPlaybackFailure
 import dev.photohouse.home.PlaybackWaitDeadline
+import dev.photohouse.playback.PlaybackBookmark
 import kotlinx.coroutines.delay
 import java.util.concurrent.atomic.AtomicBoolean
 
@@ -253,6 +254,15 @@ internal class NativeVideoPlayer(context: Context, private val reader: PhonePlay
         state = state.copy(seeking = true); publish()
         player?.seekTo(milliseconds.coerceIn(0, state.duration).toLong())
     }
+    fun resume(milliseconds: Int) = command {
+        if (!state.ready || state.seeking) return@command
+        if (audio.requestAudioFocus(focus) != AudioManager.AUDIOFOCUS_REQUEST_GRANTED) {
+            state = state.copy(audioFocusDenied = true); publish(); return@command
+        }
+        player?.seekTo(milliseconds.coerceIn(0, state.duration).toLong())
+        player?.play()
+        state = state.copy(playing = true, seeking = true, audioFocusDenied = false); publish()
+    }
     fun poll() = command {
         if (state.ready && !state.seeking) { state = state.copy(position = (player?.currentPosition ?: 0).coerceIn(0, Int.MAX_VALUE.toLong()).toInt()); publish()
             val now = SystemClock.elapsedRealtime()
@@ -276,27 +286,31 @@ internal class NativeVideoPlayer(context: Context, private val reader: PhonePlay
     }
 }
 
-@Composable internal fun VideoPlayer(reader: VideoReader, zh: Boolean, close: () -> Unit, failure: (VideoPlaybackFailure) -> Unit) {
+@Composable internal fun VideoPlayer(reader: VideoReader, zh: Boolean, close: () -> Unit, failure: (VideoPlaybackFailure) -> Unit, bookmark: PlaybackBookmark? = null, previous: (() -> Unit)? = null, next: (() -> Unit)? = null) {
     val source = remember(reader) { AccountPlaybackSource(reader) }
-    PhoneVideoPlayer(source, zh, close, failure)
+    PhoneVideoPlayer(source, zh, close, failure, bookmark, previous, next)
 }
 
-@Composable internal fun PhoneVideoPlayer(reader: PhonePlaybackSource, zh: Boolean, close: () -> Unit, failure: (VideoPlaybackFailure) -> Unit) {
+@Composable internal fun PhoneVideoPlayer(reader: PhonePlaybackSource, zh: Boolean, close: () -> Unit, failure: (VideoPlaybackFailure) -> Unit, bookmark: PlaybackBookmark? = null, previous: (() -> Unit)? = null, next: (() -> Unit)? = null) {
     val current by rememberUpdatedState(reader)
     val onClose by rememberUpdatedState(close)
     val onFailure by rememberUpdatedState(failure)
-    key(reader) { PhoneVideoContent(reader, zh, { if (current === reader) onClose() }, { reason -> if (current === reader) onFailure(reason) }) }
+    key(reader) { PhoneVideoContent(reader, zh, { if (current === reader) onClose() }, { reason -> if (current === reader) onFailure(reason) }, bookmark, previous, next) }
 }
 
 @OptIn(ExperimentalLayoutApi::class)
-@Composable private fun PhoneVideoContent(reader: PhonePlaybackSource, zh: Boolean, close: () -> Unit, failure: (VideoPlaybackFailure) -> Unit) {
+@Composable private fun PhoneVideoContent(reader: PhonePlaybackSource, zh: Boolean, close: () -> Unit, failure: (VideoPlaybackFailure) -> Unit, bookmark: PlaybackBookmark? = null, previous: (() -> Unit)? = null, next: (() -> Unit)? = null) {
     fun t(en: String, cn: String) = if (zh) cn else en
     var state by remember(reader) { mutableStateOf(Playback()) }
     var fill by remember(reader) { mutableStateOf(false) }
     var fullScreen by remember(reader) { mutableStateOf(false) }
     val context = LocalContext.current
     val onFailure by rememberUpdatedState(failure)
-    val player = remember(reader) { NativeVideoPlayer(context, reader, { state = it }, { onFailure(it) }) }
+    var offerResume by remember(reader) { mutableStateOf((bookmark?.positionMillis ?: 0) >= 3000) }
+    val player = remember(reader) { NativeVideoPlayer(context, reader, {
+        state = it
+        if (!offerResume && it.ready && !it.seeking) bookmark?.record(it.position, it.duration)
+    }, { onFailure(it) }) }
     DisposableEffect(player) { onDispose { player.close() } }
     MediaWindow(fullScreen, state.playing)
     BackHandler(fullScreen) { fullScreen = false }
@@ -332,9 +346,20 @@ internal class NativeVideoPlayer(context: Context, private val reader: PhonePlay
             Text(when { !state.ready -> t("Loading video…", "正在加载视频…"); state.seeking -> t("Seeking…", "正在跳转…"); else -> t("Buffering…", "正在缓冲…") })
         }
         if (state.audioFocusDenied) Text(t("Audio is busy. Pause other audio and try Play again.", "音频被占用，请暂停其他音频后再播放。"), Modifier.testTag("video-audio-focus"))
+        if (offerResume && state.ready) FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+            Button(onClick = { offerResume = false; player.resume(bookmark!!.positionMillis) },
+                modifier = Modifier.testTag("video-resume"), enabled = !state.seeking) {
+                Text(t("Continue from ${videoTime(bookmark!!.positionMillis)}", "从 ${videoTime(bookmark!!.positionMillis)} 继续"))
+            }
+            TextButton(onClick = { offerResume = false; bookmark?.record(0, state.duration) }, modifier = Modifier.testTag("video-start-over")) { Text(t("Start over", "从头开始")) }
+        }
+        FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+            OutlinedButton(onClick = { previous?.invoke() }, enabled = previous != null, modifier = Modifier.testTag("video-previous")) { Text(t("Previous video", "上一个视频")) }
+            OutlinedButton(onClick = { next?.invoke() }, enabled = next != null, modifier = Modifier.testTag("video-next")) { Text(t("Next video", "下一个视频")) }
+        }
         Text("${videoTime(state.position)} / ${videoTime(state.duration)}", Modifier.testTag("video-position"))
         FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-            Button(onClick = player::playPause, enabled = state.ready && !state.seeking) { Text(if (state.playing) t("Pause", "暂停") else t("Play", "播放")) }
+            Button(onClick = { offerResume = false; player.playPause() }, enabled = state.ready && !state.seeking) { Text(if (state.playing) t("Pause", "暂停") else t("Play", "播放")) }
             OutlinedButton(onClick = { player.seek(state.position - 10000) }, enabled = state.ready && !state.seeking) { Text(t("Back 10s", "后退 10 秒")) }
             OutlinedButton(onClick = { player.seek(state.position + 10000) }, enabled = state.ready && !state.seeking) { Text(t("Forward 10s", "前进 10 秒")) }
         }

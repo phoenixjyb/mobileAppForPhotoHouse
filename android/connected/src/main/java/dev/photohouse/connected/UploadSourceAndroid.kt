@@ -9,9 +9,10 @@ import dev.photohouse.connected.core.HttpsPhotoHouseApi
 import dev.photohouse.connected.core.UploadNetwork
 import dev.photohouse.connected.core.UploadSource
 
-/** Build a bounded source over a persisted SAF URI; no media bytes are copied to app storage. */
+/** Build a bounded source over an ephemeral SAF URI; no media bytes are copied to app storage. */
 internal fun uploadSource(context: Context, uri: Uri): UploadSource? {
-    val resolver = context.contentResolver
+    if (uri.scheme != "content") return null
+    val resolver = context.applicationContext.contentResolver
     val mime = resolver.getType(uri)?.substringBefore(';')?.lowercase() ?: return null
     val extension = when (mime) { "image/jpeg" -> "jpg"; "image/png" -> "png"; else -> return null }
     val bytes = resolver.query(uri, arrayOf(OpenableColumns.SIZE), null, null, null)?.use { cursor ->
