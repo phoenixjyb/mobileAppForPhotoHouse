@@ -53,7 +53,7 @@ class RememberedSessionStoreTest {
         val store = store(api, storage)
         store.restoreSession()
         runCurrent()
-        assertEquals(Message.UNAVAILABLE, store.state.value.problem?.message)
+        assertEquals(Message.NETWORK_UNAVAILABLE, store.state.value.problem?.message)
         assertTrue(store.state.value.covered)
         assertTrue(store.canRetry())
         api.sessionError = null

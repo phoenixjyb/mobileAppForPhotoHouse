@@ -117,9 +117,9 @@ class ProtectedJourneyTest {
                 rule.onNodeWithText("简体中文").performClick()
             }
             clickText(if (zh) "收到邀请？注册" else "Have an invitation? Register")
-            val phoneField = hasText(if (zh) "含国家码的手机号" else "Phone with country code") and hasSetTextAction()
+            val phoneField = hasText(if (zh) "手机号码" else "Phone number") and hasSetTextAction()
             rule.onNodeWithTag("connected-screen").performScrollToNode(phoneField)
-            rule.onNode(phoneField).performTextReplacement("+8612345678")
+            rule.onNode(phoneField).performTextReplacement("13800138000")
             input(if (zh) "密码（8–128 个字符）" else "Password (8–128 characters)", "12345678")
             input(if (zh) "邀请码" else "Invitation code", "synthetic-invitation")
             val submit = if (zh) "使用邀请注册" else "Register with invitation"
@@ -136,6 +136,7 @@ class ProtectedJourneyTest {
             rule.waitUntil(10000) {
                 rootView?.let { androidx.core.view.ViewCompat.getRootWindowInsets(it)?.isVisible(androidx.core.view.WindowInsetsCompat.Type.ime()) } == false
             }
+            assertEquals("+8613800138000", api.loginPhone)
             assertEquals("小溪 Jane", api.registeredName)
             assertEquals("synthetic-invitation", api.registrationCode)
             scroll("account-name")
@@ -163,22 +164,22 @@ class ProtectedJourneyTest {
         val api = SyntheticApi()
         val store = start(api)
 
-        rule.onNode(hasText("Phone with country code") and hasSetTextAction()).assertTextContains("+86")
-        rule.onNode(hasText("Phone with country code") and hasSetTextAction()).performTextReplacement("+8612345678")
+        rule.onNode(hasText("Phone number") and hasSetTextAction()).performTextReplacement("13800138000")
         input("Password", "eight888")
         clickText("Sign in")
         rule.waitUntil(5000) { rule.onAllNodesWithText("Your libraries").fetchSemanticsNodes().isNotEmpty() }
-        assertEquals("+8612345678", api.loginPhone)
+        assertEquals("+8613800138000", api.loginPhone)
         assertEquals("eight888", api.loginPassword)
 
         clickText("Open library")
-        rule.waitUntil(5000) { rule.onAllNodesWithText("Photos").fetchSemanticsNodes().isNotEmpty() }
+        rule.waitUntil(5000) { rule.onAllNodesWithText("Your memories").fetchSemanticsNodes().isNotEmpty() }
         clickTag("details-1")
         clickText("View photo")
         rule.waitUntil(5000) { rule.onAllNodesWithTag("original-image").fetchSemanticsNodes().isNotEmpty() }
         assertEquals(1, api.displayCalls)
         assertEquals("Display route must be used; originals remain untouched", 0, api.originalCalls)
-        rule.onNodeWithText("Close photo").performClick(); rule.waitForIdle()
+        if (rule.onAllNodesWithTag("photo-exit-fullscreen").fetchSemanticsNodes().isNotEmpty()) rule.onNodeWithTag("photo-exit-fullscreen").performClick()
+        rule.onNodeWithText("Close photo").performScrollTo().performClick(); rule.waitForIdle()
 
         clickTag("stories-open")
         rule.waitUntil(5000) { rule.onAllNodesWithTag("story-11111111-1111-1111-1111-111111111111").fetchSemanticsNodes().isNotEmpty() }

@@ -10,7 +10,7 @@ import kotlinx.coroutines.flow.asStateFlow
 enum class GalleryMedia(val wire: String) { ALL("all"), PHOTOS("image"), VIDEOS("video"), PREPARED_VIDEOS("prepared_video");
     val assetKind get() = if (this == PREPARED_VIDEOS) "video" else wire
 }
-enum class Message { SESSION_STORAGE_UNAVAILABLE, SIGNED_OUT_LOCAL, SIGNED_OUT_CONFIRMED, SESSION_ENDED, ACCESS_DENIED, UNAVAILABLE, TLS_ERROR, CLOSED, RATE_LIMITED, INVALID_INPUT, INVALID_RESPONSE, TOO_LARGE, MEDIA_UNAVAILABLE, DISCOVERY_CHANGED, DISCOVERY_INPUT, VIDEO_NOT_READY, VIDEO_CHANGED, VIDEO_BUSY, PLAYBACK_UNAVAILABLE }
+enum class Message { SESSION_STORAGE_UNAVAILABLE, SIGNED_OUT_LOCAL, SIGNED_OUT_CONFIRMED, SESSION_ENDED, ACCESS_DENIED, UNAVAILABLE, NETWORK_UNAVAILABLE, TLS_ERROR, CLOSED, RATE_LIMITED, INVALID_INPUT, INVALID_RESPONSE, TOO_LARGE, MEDIA_UNAVAILABLE, DISCOVERY_CHANGED, DISCOVERY_INPUT, VIDEO_NOT_READY, VIDEO_CHANGED, VIDEO_BUSY, PLAYBACK_UNAVAILABLE }
 data class LiveProblem(val message: Message, val retryAtMillis: Long = 0, val playbackFailure: VideoPlaybackFailure? = null)
 /** Only the current page's IDs, never a persistent or cross-library history. */
 data class PhotoNavigation(val page: Int, val assetIds: List<String>, val index: Int, val discovery: PhoneDiscoveryState? = null, val media: GalleryMedia = GalleryMedia.ALL, val videoIds: Set<String> = emptySet())
@@ -754,7 +754,8 @@ class ConnectedStore(private val api: PhotoHouseApi, private val scope: Coroutin
             error.kind == FailureKind.TOO_LARGE -> Message.TOO_LARGE
             error.status == 404 -> Message.MEDIA_UNAVAILABLE
             error.kind == FailureKind.TLS -> Message.TLS_ERROR
-            error.kind == FailureKind.OFFLINE || error.status in 500..599 -> Message.UNAVAILABLE
+            error.kind == FailureKind.OFFLINE -> Message.NETWORK_UNAVAILABLE
+            error.status in 500..599 -> Message.UNAVAILABLE
             error.status == 401 -> Message.ACCESS_DENIED
             error.status == 403 || error.status in 300..399 -> Message.CLOSED
             error.status == 429 -> Message.RATE_LIMITED

@@ -78,6 +78,13 @@ data class UploadReceipt(
 )
 
 object Admission {
+    /** Form convenience only; wire callers still require an explicit international number. */
+    fun phoneFromForm(value: String, protectedNativeV2: Boolean): String {
+        val compact = value.filterNot { it in " ()-" }
+        val international = if (protectedNativeV2 && compact.matches(Regex("[0-9]{11}"))) "+86$compact" else compact
+        return phone(international)
+    }
+
     fun phone(value: String): String {
         val result = value.filterNot { it in " ()-" }
         require(result.matches(Regex("\\+[1-9][0-9]{7,14}"))) { "Use an international phone login" }

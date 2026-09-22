@@ -61,6 +61,23 @@ class ConnectedStoreTest {
         assertFalse(store.hasSession); assertNull(store.state.value.gallery); assertNull(store.state.value.upload)
         assertTrue(store.state.value.previews.isEmpty()); assertEquals(Message.ACCESS_DENIED,store.state.value.problem?.message)
     }
+    @Test fun authenticationDistinguishesConnectionFailureFromServerFailureWithoutRetryingRegistration() = runTest {
+        for ((failure, expected) in listOf(
+            ApiFailure(FailureKind.OFFLINE) to Message.NETWORK_UNAVAILABLE,
+            ApiFailure(FailureKind.HTTP, 503) to Message.UNAVAILABLE,
+            ApiFailure(FailureKind.TLS) to Message.TLS_ERROR,
+        )) {
+            val api = FakeApi().apply { protectedNativeV2Enabled = true; admissionError = failure }
+            val store = store(api)
+            store.authenticate("+12025550123", "synthetic-password", "synthetic-invitation", "Synthetic member")
+            runCurrent()
+            assertEquals(expected, store.state.value.problem?.message)
+            assertEquals(1, api.logins)
+            assertFalse(store.canRetry())
+            assertNull(store.state.value.session)
+        }
+    }
+
     private inner class FakeApi : PhotoHouseApi {
         override var protectedNativeV2Enabled = false
         override var uploadEnabled = false
@@ -877,7 +894,7 @@ class ConnectedStoreTest {
         api.detailError = ApiFailure(FailureKind.OFFLINE); api.detailFailures = 2
         store.adjacentPhoto(1); advanceTimeBy(350); runCurrent()
         assertEquals(listOf("1", "2", "2"), api.detailReads)
-        assertNull(store.state.value.detail); assertEquals(Message.UNAVAILABLE, store.state.value.problem?.message)
+        assertNull(store.state.value.detail); assertEquals(Message.NETWORK_UNAVAILABLE, store.state.value.problem?.message)
         assertTrue(store.canRetry())
     }
 
@@ -914,7 +931,7 @@ class ConnectedStoreTest {
         advanceTimeBy(350); runCurrent()
         assertEquals(2, api.galleryReads)
         assertNull(store.state.value.gallery)
-        assertEquals(Message.UNAVAILABLE, store.state.value.problem?.message)
+        assertEquals(Message.NETWORK_UNAVAILABLE, store.state.value.problem?.message)
         assertTrue(store.canRetry())
     }
 

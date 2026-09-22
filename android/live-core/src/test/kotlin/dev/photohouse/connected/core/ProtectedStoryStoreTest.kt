@@ -104,7 +104,7 @@ class ProtectedStoryStoreTest {
     @Test fun recoverableStoryFailureKeepsPhotoAndRequiresExplicitRetry()=runTest {
         val api=Api();val store=open(api);api.storyError=ApiFailure(FailureKind.OFFLINE)
         store.loadStories();runCurrent();assertNotNull(store.state.value.detail)
-        assertEquals(Message.UNAVAILABLE,store.state.value.stories!!.problem!!.message);assertEquals(listOf(1),api.reads)
+        assertEquals(Message.NETWORK_UNAVAILABLE,store.state.value.stories!!.problem!!.message);assertEquals(listOf(1),api.reads)
         api.storyError=null;store.loadStories();runCurrent();assertNotNull(store.state.value.stories!!.result)
     }
     @Test fun cooldownSuppressesRepeatRequestsAndNoWrongScopeTextAppears()=runTest {

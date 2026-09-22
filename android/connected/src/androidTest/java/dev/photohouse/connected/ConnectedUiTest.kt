@@ -322,7 +322,7 @@ class ConnectedUiTest {
         val store = ConnectedStore(SyntheticApi(), scope)
         rule.runOnUiThread { rule.activity.setContent { ConnectedApp(store) } }
         capture("admission-en")
-        input("Phone with country code", "+12025550123"); input("Password (15–128 characters)", "synthetic-password-only")
+        input("Phone number", "+12025550123"); input("Password (15–128 characters)", "synthetic-password-only")
         click("Sign in"); click("Open library")
         rule.onNodeWithText("Preview unavailable").assertExists()
         details("1")
@@ -371,7 +371,7 @@ class ConnectedUiTest {
         rule.runOnUiThread { rule.activity.setContent { ConnectedApp(store) } }
         click("Have an invitation? Register")
         reveal(hasText("Register with invitation")); rule.onNode(hasText("Register with invitation") and hasClickAction()).assertIsNotEnabled()
-        input("Phone with country code", "+12025550123"); input("Password (15–128 characters)", "synthetic-password-only"); input("Invitation code", "synthetic-invitation")
+        input("Phone number", "+12025550123"); input("Password (15–128 characters)", "synthetic-password-only"); input("Invitation code", "synthetic-invitation")
         click("Register with invitation")
         assertEquals("synthetic-invitation", api.registrationCode)
         assertNotNull(store.state.value.session)
