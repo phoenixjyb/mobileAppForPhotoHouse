@@ -61,6 +61,66 @@ class ConnectedStoreTest {
         assertFalse(store.hasSession); assertNull(store.state.value.gallery); assertNull(store.state.value.upload)
         assertTrue(store.state.value.previews.isEmpty()); assertEquals(Message.ACCESS_DENIED,store.state.value.problem?.message)
     }
+    @Test fun uploadHistoryPaginatesAndClearsOnBackground() = runTest {
+        val api = FakeApi().apply {
+            protectedNativeV2Enabled = true; uploadEnabled = true
+            uploadHistoryResult = UploadHistoryPage(1, 10, 1, listOf(UploadHistoryItem("901", 1760000000, 1234, "image", "available", "family")))
+        }
+        val store = store(api)
+        store.authenticate("+12025550123", "synthetic-password-only"); runCurrent()
+        store.loadUploadHistory(); runCurrent()
+        assertEquals("901", store.state.value.uploadHistory?.items?.single()?.assetId)
+        store.background(); assertNull(store.state.value.uploadHistory)
+    }
+    @Test fun unavailableHistoryDoesNotDisableRegularUploadAndLateHistoryIsIgnored() = runTest {
+        val api = FakeApi().apply { protectedNativeV2Enabled = true; uploadEnabled = true; historyError = ApiFailure(FailureKind.HTTP, 403) }
+        val store = store(api)
+        store.authenticate("+12025550123", "synthetic-password-only"); runCurrent()
+        store.loadUploadHistory(); runCurrent()
+        assertTrue(store.state.value.uploadHistory?.unavailable == true)
+        assertNotNull(store.openUpload())
+        api.historyError = null; api.historyGate = CompletableDeferred()
+        store.loadUploadHistory(); runCurrent(); store.background()
+        api.historyGate!!.complete(Unit); runCurrent()
+        assertNull(store.state.value.uploadHistory)
+    }
+    @Test fun closingHistoryDiscardsLateResponse() = runTest {
+        val api = FakeApi().apply {
+            protectedNativeV2Enabled = true; uploadEnabled = true
+            historyGate = CompletableDeferred()
+            uploadHistoryResult = UploadHistoryPage(1, 10, 1, listOf(UploadHistoryItem("902", 1760000000, 1234, "image", "available", "family")))
+        }
+        val store = store(api)
+        store.authenticate("+12025550123", "synthetic-password-only"); runCurrent()
+        store.loadUploadHistory(); runCurrent()
+        store.closeUploadHistory()
+        api.historyGate!!.complete(Unit); runCurrent()
+        assertNull(store.state.value.uploadHistory)
+    }
+    @Test fun uploadHistory401UsesExistingIdentityDenialFlow() = runTest {
+        val api = FakeApi().apply { protectedNativeV2Enabled = true; uploadEnabled = true; historyError = ApiFailure(FailureKind.HTTP, 401) }
+        val store = store(api)
+        store.authenticate("+12025550123", "synthetic-password-only"); runCurrent()
+        store.selectLibrary("family"); runCurrent()
+        api.sessionError = ApiFailure(FailureKind.HTTP, 401)
+        store.loadUploadHistory(); runCurrent()
+        assertFalse(store.hasSession)
+        assertNull(store.state.value.uploadHistory)
+    }
+    @Test fun availableHistoryItemSwitchesLibraryBeforeOpeningAndReauthorizesDetail() = runTest {
+        val api = FakeApi().apply {
+            protectedNativeV2Enabled = true; uploadEnabled = true
+            uploadHistoryResult = UploadHistoryPage(1, 10, 1, listOf(UploadHistoryItem("1", 1760000000, 1234, "image", "available", "second")))
+        }
+        val store = store(api)
+        store.authenticate("+12025550123", "synthetic-password-only"); runCurrent()
+        store.loadUploadHistory(); runCurrent()
+        val item = store.state.value.uploadHistory!!.items.single()
+        store.openUploadHistory(item); runCurrent()
+        assertEquals("second", store.state.value.library)
+        assertEquals("1", store.state.value.detail?.asset?.id)
+        assertEquals("second", store.state.value.detail?.library_id)
+    }
     @Test fun authenticationDistinguishesConnectionFailureFromServerFailureWithoutRetryingRegistration() = runTest {
         for ((failure, expected) in listOf(
             ApiFailure(FailureKind.OFFLINE) to Message.NETWORK_UNAVAILABLE,
@@ -146,6 +206,13 @@ class ConnectedStoreTest {
         override suspend fun uploadPhoto(token: Bearer, source: UploadSource, batch: String, onProgress: (Long) -> Unit): UploadReceipt {
             uploads++; uploadError?.let { throw it }
             return UploadReceipt("7", null, "synthetic", batch, "image", 1, 1, "a".repeat(64), source.bytes, 5)
+        }
+        var uploadHistoryResult = UploadHistoryPage(1, 10, 0, emptyList())
+        var historyError: ApiFailure? = null
+        var historyGate: CompletableDeferred<Unit>? = null
+        override suspend fun uploadHistory(token: Bearer, page: Int): UploadHistoryPage {
+            historyGate?.await(); historyError?.let { throw it }
+            return uploadHistoryResult.copy(page = page)
         }
         override var preparedVideoEnabled = false
         var preparedHeads = 0

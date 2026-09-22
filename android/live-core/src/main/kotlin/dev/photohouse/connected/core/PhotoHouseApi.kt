@@ -30,6 +30,8 @@ interface PhotoHouseApi {
     suspend fun uploadPhoto(token: Bearer, source: UploadSource, batch: String,
                             onProgress: (Long) -> Unit = {}): UploadReceipt =
         throw ApiFailure(FailureKind.INVALID_INPUT)
+    suspend fun uploadHistory(token: Bearer, page: Int = 1): UploadHistoryPage =
+        throw ApiFailure(FailureKind.INVALID_INPUT)
     val mediaFilterEnabled: Boolean get() = false
     val preparedBrowseEnabled: Boolean get() = false
     val preparedVideoEnabled: Boolean get() = false
@@ -75,6 +77,16 @@ data class UploadReceipt(
     val assetId: String, val libraryId: String?, val incoming: String, val batch: String,
     val kind: String, val width: Int, val height: Int, val sha256: String,
     val bytes: Long, val tasksEnqueued: Int
+)
+
+data class UploadHistoryItem(
+    val assetId: String, val createdAt: Long, val bytes: Long,
+    val kind: String, val state: String, val libraryId: String?
+)
+
+data class UploadHistoryPage(
+    val page: Int, val pageSize: Int, val total: Int,
+    val items: List<UploadHistoryItem>
 )
 
 object Admission {

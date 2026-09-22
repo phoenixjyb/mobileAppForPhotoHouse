@@ -113,6 +113,15 @@ class HttpsPhotoHouseApi internal constructor(private val origin: TrustedOrigin,
         }
     }
 
+    override suspend fun uploadHistory(token: Bearer, page: Int): UploadHistoryPage {
+        require(uploadEnabled && protectedNativeV2Enabled && page in 1..100000)
+        val requestUrl = origin.url.newBuilder().encodedPath("/uploads")
+            .addQueryParameter("page", page.toString()).build()
+        val response = packet(requestUrl, token, limit = 64 * 1024)
+        if (response.contentType?.substringBefore(';')?.trim()?.lowercase() != "application/json") throw ApiFailure(FailureKind.INVALID_RESPONSE)
+        return UploadHistoryWire.parse(response.bytes, page)
+    }
+
     private fun parseUploadReceipt(bytes: ByteArray): UploadReceipt {
         val obj = try { DiscoveryJson.parse(bytes, UPLOAD_JSON_LIMIT).jsonObject } catch (_: Exception) { throw ApiFailure(FailureKind.INVALID_RESPONSE) }
         val expected = setOf("asset_id", "library_id", "incoming", "batch", "kind", "width", "height", "sha256", "bytes", "tasks_enqueued")

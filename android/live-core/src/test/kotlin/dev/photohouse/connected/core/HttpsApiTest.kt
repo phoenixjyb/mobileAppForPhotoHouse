@@ -315,6 +315,21 @@ class HttpsApiTest {
             assertEquals(0, f.server.requestCount)
         }
     }
+    @Test fun uploadHistoryUsesProtectedBearerAndStrictPageContract() = runBlocking {
+        TlsFixture().use { f ->
+            val api = HttpsPhotoHouseApi(f.origin, f.client, protectedNativeV2Enabled = true, uploadEnabled = true)
+            f.server.enqueue(json("""{"page":1,"page_size":10,"total":1,"items":[{"asset_id":"901","created_at":1760000000,"bytes":1234,"kind":"image","state":"available","library_id":"family"}]}"""))
+            val page = api.uploadHistory(token, 1)
+            assertEquals("901", page.items.single().assetId)
+            val request = f.server.takeRequest()
+            assertEquals("/uploads?page=1", request.path)
+            assertEquals("Bearer " + "T".repeat(43), request.getHeader("Authorization"))
+            for (status in listOf(403, 404, 503)) {
+                f.server.enqueue(MockResponse().setResponseCode(status))
+                assertEquals(status, failure { api.uploadHistory(token, 1) }.status)
+            }
+        }
+    }
     @Test fun originAdmissionAndOpaqueTokenValidation() {
         for (origin in listOf("http://localhost", "https://u:p@example.invalid", "https://example.invalid/path", "https://example.invalid?x=1", "https://example.invalid#x", " https://example.invalid", "https://example.invalid\\path")) {
             assertTrue(runCatching { TrustedOrigin.parse(origin) }.isFailure)

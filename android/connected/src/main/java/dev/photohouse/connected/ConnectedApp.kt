@@ -212,8 +212,53 @@ private class Words(val zh: Boolean) {
                         state.session == null -> item { key(state.generation) { AdmissionForm(store, state, words) } }
                         else -> {
                             if (store.uploadEnabled && state.session?.memberships?.any { it.available } == true) item {
-                                OutlinedButton(onClick = { selectionError = false; store.openUpload() }, enabled = !state.busy,
-                                    modifier = Modifier.testTag("open-upload")) { Text(t("Add a photo", "添加照片")) }
+                                FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                                    OutlinedButton(onClick = { selectionError = false; store.openUpload() }, enabled = !state.busy,
+                                        modifier = Modifier.testTag("open-upload")) { Text(t("Add a photo", "添加照片")) }
+                                    OutlinedButton(onClick = { store.loadUploadHistory(1) }, enabled = !state.busy && state.uploadHistory?.busy != true,
+                                        modifier = Modifier.testTag("open-upload-history")) { Text(t("Upload history", "上传记录")) }
+                                }
+                                state.uploadHistory?.let { history ->
+                                    Card(Modifier.fillMaxWidth().testTag("upload-history")) {
+                                        Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                                            Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween, verticalAlignment = Alignment.CenterVertically) {
+                                                Text(t("My uploads", "我的上传记录"), style = MaterialTheme.typography.titleMedium)
+                                                TextButton(onClick = store::closeUploadHistory) { Text(t("Close", "关闭")) }
+                                            }
+                                            if (history.busy) LinearProgressIndicator(Modifier.fillMaxWidth())
+                                            else if (history.unavailable) Text(t("Upload history is unavailable right now. Regular uploads remain available.", "上传记录暂不可用，仍可继续普通上传。"))
+                                            else if (history.items.isEmpty()) Text(t("No uploads yet.", "还没有上传记录。"))
+                                            else history.items.forEach { item ->
+                                                Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween,
+                                                    verticalAlignment = Alignment.CenterVertically) {
+                                                    Column(Modifier.weight(1f)) {
+                                                        Text("#${item.assetId}")
+                                                        val locale = if (words.zh) java.util.Locale.SIMPLIFIED_CHINESE else java.util.Locale.ENGLISH
+                                                        val uploadedAt = java.text.DateFormat.getDateTimeInstance(java.text.DateFormat.MEDIUM, java.text.DateFormat.SHORT, locale).format(java.util.Date(item.createdAt * 1000))
+                                                        Text("$uploadedAt · ${String.format(locale, "%.1f KiB", item.bytes / 1024.0)}", style = MaterialTheme.typography.bodySmall)
+                                                        Text(when (item.state) {
+                                                            "available" -> t("Available", "可浏览")
+                                                            "awaiting_review" -> t("Awaiting review", "等待审核")
+                                                            else -> t("Unavailable", "暂不可用")
+                                                        }, style = MaterialTheme.typography.bodySmall)
+                                                    }
+                                                    if (item.state == "available") TextButton(onClick = { store.openUploadHistory(item) }) {
+                                                        Text(t("Open", "打开"))
+                                                    }
+                                                }
+                                            }
+                                            if (!history.busy && !history.unavailable && history.total > 0) Text(t("Page ${history.page} of ${(history.total + 9L) / 10}", "第 ${history.page} / ${(history.total + 9L) / 10} 页"), style = MaterialTheme.typography.bodySmall)
+                                            FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                                                OutlinedButton(onClick = { store.loadUploadHistory(history.page) }, enabled = !history.busy,
+                                                    modifier = Modifier.testTag("upload-history-refresh")) { Text(t("Refresh", "刷新")) }
+                                                OutlinedButton(onClick = { store.loadUploadHistory(history.page - 1) }, enabled = !history.busy && !history.unavailable && history.page > 1,
+                                                    modifier = Modifier.testTag("upload-history-previous")) { Text(t("Previous", "上一页")) }
+                                                OutlinedButton(onClick = { store.loadUploadHistory(history.page + 1) }, enabled = !history.busy && !history.unavailable && history.page * 10 < history.total,
+                                                    modifier = Modifier.testTag("upload-history-next")) { Text(t("Next", "下一页")) }
+                                            }
+                                        }
+                                    }
+                                }
                             }
                             if (state.library != null && state.detail == null && state.photoNavigation == null) item {
                                 TextButton(onClick = store::libraries) { Text(t("Libraries", "资料库")) }

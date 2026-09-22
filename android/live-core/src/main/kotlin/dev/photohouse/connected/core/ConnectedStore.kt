@@ -15,6 +15,7 @@ data class LiveProblem(val message: Message, val retryAtMillis: Long = 0, val pl
 /** Only the current page's IDs, never a persistent or cross-library history. */
 data class PhotoNavigation(val page: Int, val assetIds: List<String>, val index: Int, val discovery: PhoneDiscoveryState? = null, val media: GalleryMedia = GalleryMedia.ALL, val videoIds: Set<String> = emptySet())
 data class StoryReading(val page: Int = 1, val result: ProtectedStoryPage? = null, val busy: Boolean = false, val problem: LiveProblem? = null)
+data class UploadHistoryState(val page: Int = 1, val total: Int = 0, val items: List<UploadHistoryItem> = emptyList(), val busy: Boolean = false, val unavailable: Boolean = false)
 data class LiveState(
     val generation: Long = 0, val session: Session? = null, val library: String? = null,
     val gallery: Gallery? = null, val detail: Detail? = null, val captions: Captions? = null,
@@ -31,6 +32,7 @@ data class LiveState(
     val media: GalleryMedia = GalleryMedia.ALL,
     val storyEditor: ProtectedStoryEditorStore? = null,
     val upload: UploadStore? = null,
+    val uploadHistory: UploadHistoryState? = null,
 )
 
 /** UI-dispatcher-confined; only the wire DTO module is shared with fixture code. */
@@ -48,6 +50,7 @@ class ConnectedStore(private val api: PhotoHouseApi, private val scope: Coroutin
     private var expiryJob: Job? = null
     private val requests = mutableSetOf<Job>()
     private var retry: (() -> Unit)? = null
+    private var uploadHistoryRequest = 0L
     val protectedNativeV2Enabled get() = api.protectedNativeV2Enabled
     val mediaFilterEnabled get() = api.mediaFilterEnabled
     val preparedBrowseEnabled get() = api.preparedBrowseEnabled
@@ -238,12 +241,47 @@ class ConnectedStore(private val api: PhotoHouseApi, private val scope: Coroutin
         mutable.value = state.value.copy(upload = upload)
         return upload
     }
+
+    fun loadUploadHistory(page: Int = 1) {
+        if (!api.uploadEnabled || !api.protectedNativeV2Enabled || !usable() || state.value.busy ||
+            page !in 1..100000 || state.value.uploadHistory?.busy == true) return
+        val credential = token!!
+        val request = ++uploadHistoryRequest
+        mutable.value = state.value.copy(uploadHistory = UploadHistoryState(page = page, busy = true))
+        launch { generation ->
+            try {
+                val result = api.uploadHistory(credential, page)
+                if (!active(generation) || request != uploadHistoryRequest) return@launch
+                mutable.value = state.value.copy(uploadHistory = UploadHistoryState(result.page, result.total, result.items))
+            } catch (e: CancellationException) { throw e }
+            catch (e: Exception) {
+                if (!active(generation) || request != uploadHistoryRequest) return@launch
+                if (e is ApiFailure && e.status == 401) {
+                    readFailure(e, generation, credential) { background(); foreground() }
+                } else if (e is ApiFailure && e.status in listOf(403, 404, 503)) {
+                    mutable.value = state.value.copy(uploadHistory = UploadHistoryState(page = page, busy = false, unavailable = true))
+                } else {
+                    mutable.value = state.value.copy(uploadHistory = UploadHistoryState(page = page, unavailable = true), problem = problem(e))
+                }
+            }
+        }
+    }
+
+    fun openUploadHistory(item: UploadHistoryItem) {
+        if (item.state != "available" || item.libraryId == null || !usable() ||
+            state.value.uploadHistory?.items?.any { it == item } != true ||
+            identity?.memberships?.any { it.library_id == item.libraryId && it.available } != true) return
+        val target = item.libraryId
+        if (state.value.library == target) { openAssetById(item.assetId); return }
+        selectLibrary(target) { openAssetById(item.assetId) }
+    }
+    fun closeUploadHistory() { uploadHistoryRequest++; mutable.value = state.value.copy(uploadHistory = null) }
     fun closeUpload() {
         state.value.upload?.close()
         mutable.value = state.value.copy(upload = null)
     }
     fun libraries() { if (usable()) { playbackProgress.clear(); invalidate(keepIdentity = true) } }
-    fun selectLibrary(library: String) {
+    fun selectLibrary(library: String, afterLoaded: (() -> Unit)? = null) {
         if (state.value.library != null && state.value.library != library) playbackProgress.clear()
         if (!usable() || coolingDown()) return
         invalidate(keepIdentity = true)
@@ -251,13 +289,13 @@ class ConnectedStore(private val api: PhotoHouseApi, private val scope: Coroutin
             mutable.value = state.value.copy(problem = LiveProblem(Message.ACCESS_DENIED)); return
         }
         mutable.value = state.value.copy(library = library)
-        loadPage(1)
+        loadPage(1, GalleryMedia.ALL, afterLoaded)
     }
     fun selectMedia(media: GalleryMedia) {
         if (!mediaFilterEnabled || media == GalleryMedia.PREPARED_VIDEOS && !preparedBrowseEnabled) return
         loadPage(1, media)
     }
-    fun loadPage(page: Int = 1, media: GalleryMedia = state.value.media) {
+    fun loadPage(page: Int = 1, media: GalleryMedia = state.value.media, afterLoaded: (() -> Unit)? = null) {
         if (!allowed() || coolingDown()) return
         require(page in 1..100000 && (media == GalleryMedia.ALL || mediaFilterEnabled))
         require(media != GalleryMedia.PREPARED_VIDEOS || preparedBrowseEnabled)
@@ -292,6 +330,7 @@ class ConnectedStore(private val api: PhotoHouseApi, private val scope: Coroutin
                     }
                 }
                 mutable.value = state.value.copy(busy = false)
+                afterLoaded?.invoke()
             } catch (e: CancellationException) { throw e }
             catch (e: Exception) { readFailure(e, generation, credential) { loadPage(page, media) } }
         }
