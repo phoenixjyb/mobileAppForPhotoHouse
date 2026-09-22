@@ -69,9 +69,10 @@ class ConnectedUiTest {
         var photos = listOf(photo)
         var total = 1L
         var originalsAllowed = false
+        var memberships = listOf(Membership("synthetic-library", "approved", "viewer", 1, null, 0, true))
         override suspend fun login(phone: String, password: String) = SessionToken(86400, "T".repeat(43), "Bearer")
         override suspend fun register(phone: String, password: String, code: String): SessionToken { registrationCode = code; return login(phone, password) }
-        override suspend fun session(token: Bearer) = Session("synthetic-account", "+12025550123", listOf(Membership("synthetic-library", "approved", "viewer", 1, null, 0, true)))
+        override suspend fun session(token: Bearer) = Session("synthetic-account", "+12025550123", memberships)
         override suspend fun logout(token: Bearer) { }
         override suspend fun acceptInvitation(token: Bearer, code: String) { }
         override suspend fun gallery(token: Bearer, library: String, page: Int) = Gallery(library, page, 50, total, false, photos)
@@ -101,6 +102,10 @@ class ConnectedUiTest {
         }
     }
     private fun reveal(matcher: SemanticsMatcher) { rule.onNodeWithTag("connected-screen").performScrollToNode(matcher) }
+    private fun awaitLibrary(store: ConnectedStore, library: String = "synthetic-library") {
+        rule.waitUntil(5000) { store.state.value.library == library }
+        rule.waitForIdle()
+    }
     private fun click(text: String) {
         val matcher = hasText(text) and hasClickAction()
         if (text in listOf("简体中文", "English", "System", "系统", "Sign out", "退出登录")) {
@@ -164,7 +169,7 @@ class ConnectedUiTest {
         val api = SyntheticApi().apply { discoveryEnabled = true }
         val store = ConnectedStore(api, scope)
         rule.runOnUiThread { rule.activity.setContent { ConnectedApp(store) }; store.authenticate("+12025550123", "synthetic-password-only") }
-        click("Open library"); clickTag("open-discovery")
+        awaitLibrary(store); clickTag("open-discovery")
         clickTag("pin-7")
         capture("discovery-en")
         clickTag("facet-next"); clickTag("choice-people-51"); clickTag("facet-previous")
@@ -204,7 +209,7 @@ class ConnectedUiTest {
         val api = SyntheticApi().apply { discoveryEnabled = true }
         val store = ConnectedStore(api,scope)
         rule.runOnUiThread { rule.activity.setContent { ConnectedApp(store) }; store.authenticate("+12025550123","synthetic-password-only") }
-        click("Open library"); clickTag("open-discovery")
+        awaitLibrary(store); clickTag("open-discovery")
         reveal(hasTestTag("discovery-from")); rule.onNodeWithTag("discovery-from").performTextInput("2026-01-01")
         clickTag("discovery-from-picker")
         rule.onNodeWithText("Thursday, January 15, 2026").performClick()
@@ -218,7 +223,7 @@ class ConnectedUiTest {
         val api = SyntheticApi().apply { discoveryEnabled = true }
         val store = ConnectedStore(api, scope)
         rule.runOnUiThread { rule.activity.setContent { ConnectedApp(store) }; store.authenticate("+12025550123", "synthetic-password-only") }
-        click("Open library"); clickTag("open-discovery")
+        awaitLibrary(store); clickTag("open-discovery")
         reveal(hasTestTag("discovery-from")); rule.onNodeWithTag("discovery-from").performTextInput("2026-02-30")
         clickTag("discovery-apply"); assertEquals(0, api.discoverySearches)
         reveal(hasTestTag("discovery-input-error")); rule.onNodeWithTag("discovery-input-error").assertIsDisplayed()
@@ -237,7 +242,7 @@ class ConnectedUiTest {
         val api = SyntheticApi().apply { photos = listOf(photo.copy(kind = "image")); originalsAllowed = true; total = 100 }
         val store = ConnectedStore(api, scope)
         rule.runOnUiThread { rule.activity.setContent { ConnectedApp(store) }; store.authenticate("+12025550123", "synthetic-password-only") }
-        click("Open library"); click("Next")
+        awaitLibrary(store); click("Next")
         reveal(hasTestTag("media-1")); rule.onNodeWithTag("media-1").performClick()
         rule.waitUntil(5000) { rule.onAllNodesWithTag("original-image").fetchSemanticsNodes().size == 1 }
         if (rule.onAllNodesWithTag("photo-exit-fullscreen").fetchSemanticsNodes().isNotEmpty()) rule.onNodeWithTag("photo-exit-fullscreen").performClick()
@@ -260,7 +265,7 @@ class ConnectedUiTest {
         }
         val store = ConnectedStore(api, scope)
         rule.runOnUiThread { rule.activity.setContent { ConnectedApp(store) }; store.authenticate("+12025550123", "synthetic-password-only") }
-        click("Open library")
+        awaitLibrary(store)
         reveal(hasTestTag("media-1")); rule.onNodeWithTag("media-1").performClick()
         fun ready() { rule.waitUntil(30000) { rule.onAllNodes(hasText("Play") and isEnabled()).fetchSemanticsNodes().isNotEmpty() } }
         ready()
@@ -291,7 +296,7 @@ class ConnectedUiTest {
         }
         val store = ConnectedStore(api, scope)
         rule.runOnUiThread { rule.activity.setContent { ConnectedApp(store) }; store.authenticate("+12025550123", "synthetic-password-only") }
-        click("Open library"); clickTag("media-1")
+        awaitLibrary(store); clickTag("media-1")
         val unavailable = "This video is not ready for playback yet. You can try again later."
         reveal(hasText(unavailable)); rule.onNodeWithText(unavailable).assertIsDisplayed()
         capture("prepared-not-ready-en")
@@ -323,7 +328,7 @@ class ConnectedUiTest {
         rule.runOnUiThread { rule.activity.setContent { ConnectedApp(store) } }
         capture("admission-en")
         input("Phone number", "+12025550123"); input("Password (15–128 characters)", "synthetic-password-only")
-        click("Sign in"); click("Open library")
+        click("Sign in"); awaitLibrary(store)
         rule.onNodeWithText("Preview unavailable").assertExists()
         details("1")
         reveal(hasText("<b>Literal 原文</b>")); rule.onNodeWithText("<b>Literal 原文</b>").assertIsDisplayed(); capture("literal-caption-en")
@@ -350,7 +355,7 @@ class ConnectedUiTest {
         }
         val store = ConnectedStore(api, scope)
         rule.runOnUiThread { rule.activity.setContent { ConnectedApp(store) }; store.authenticate("+12025550123", "synthetic-password-only") }
-        reveal(hasText("Your libraries")); capture("libraries-en")
+        awaitLibrary(store); click("Libraries"); reveal(hasText("Your libraries")); capture("libraries-en")
         click("Open library")
         rule.waitUntil(5000) { store.state.value.previews.size == 3 }
         reveal(hasText("Your memories")); capture("gallery-en")
@@ -414,7 +419,7 @@ class ConnectedUiTest {
             rule.activity.setContent { ConnectedApp(store) }
             store.authenticate("+12025550123", "synthetic-password-only")
         }
-        click("Open library"); details("1"); click("Open video")
+        awaitLibrary(store); details("1"); click("Open video")
         rule.waitUntil(30000) { rule.onAllNodes(hasText("Play") and isEnabled()).fetchSemanticsNodes().isNotEmpty() }
         rule.onNodeWithTag("video-previous").performScrollTo().assertIsNotEnabled()
         rule.onNodeWithTag("video-seek").performScrollTo().performSemanticsAction(androidx.compose.ui.semantics.SemanticsActions.SetProgress) { it(15000f) }
@@ -442,7 +447,7 @@ class ConnectedUiTest {
             rule.activity.setContent { ConnectedApp(store) }
             store.authenticate("+12025550123", "synthetic-password-only")
         }
-        click("Open library"); details("1"); click("Open video")
+        awaitLibrary(store); details("1"); click("Open video")
         val reader = store.state.value.video!!
         fun ready(label: String) { rule.waitUntil(30000) {
             rule.onAllNodes(hasText(label) and isEnabled()).fetchSemanticsNodes().isNotEmpty()
@@ -489,7 +494,7 @@ class ConnectedUiTest {
         val api = SyntheticApi().apply { originalsAllowed = true; videoBytes = ByteArray(128) { 7 } }
         val store = ConnectedStore(api, scope)
         rule.runOnUiThread { rule.activity.setContent { ConnectedApp(store) }; store.authenticate("+12025550123", "synthetic-password-only") }
-        click("Open library"); details("1"); click("Open video")
+        awaitLibrary(store); details("1"); click("Open video")
         rule.waitUntil(30000) { store.state.value.video == null && store.state.value.problem != null }
         assertEquals(Message.MEDIA_UNAVAILABLE, store.state.value.problem?.message)
         assertFalse(store.canRetry()); rule.onNodeWithTag("video-player").assertDoesNotExist()
@@ -510,7 +515,7 @@ class ConnectedUiTest {
         }
         val store = ConnectedStore(api, scope)
         rule.runOnUiThread { rule.activity.setContent { ConnectedApp(store) }; store.authenticate("+12025550123", "synthetic-password-only") }
-        click("Open library"); details("1"); click("Open original photo")
+        awaitLibrary(store); details("1"); click("Open original photo")
         rule.waitUntil(10000) { rule.onAllNodesWithTag("original-image").fetchSemanticsNodes().size == 1 }
         rule.runOnIdle { api.transientDetailFailures = 2 }
         rule.onNodeWithTag("photo-fullscreen-next").performClick()
@@ -531,7 +536,7 @@ class ConnectedUiTest {
             rule.activity.setContent { ConnectedApp(store) }
             store.authenticate("+12025550123", "synthetic-password-only")
         }
-        click("Open library"); details("1"); click("Open original photo")
+        awaitLibrary(store); details("1"); click("Open original photo")
         rule.waitUntil(5000) { rule.onAllNodesWithTag("original-image").fetchSemanticsNodes().size == 1 }
         if (rule.onAllNodesWithTag("photo-exit-fullscreen").fetchSemanticsNodes().isNotEmpty()) rule.onNodeWithTag("photo-exit-fullscreen").performClick()
         rule.onNodeWithTag("photo-zoom").assertTextEquals("100%")
@@ -573,7 +578,7 @@ class ConnectedUiTest {
         }
         val store = ConnectedStore(api, scope)
         rule.runOnUiThread { rule.activity.setContent { ConnectedApp(store) }; store.authenticate("+12025550123", "synthetic-password-only") }
-        click("Open library"); click("Next"); details("1"); click("Open original photo")
+        awaitLibrary(store); click("Next"); details("1"); click("Open original photo")
         fun ready() { rule.waitUntil(5000) { rule.onAllNodesWithTag("original-image").fetchSemanticsNodes().size == 1 } }
         fun mediaClick(label: String) { rule.onNode(hasText(label) and hasClickAction()).performScrollTo().performClick() }
         ready(); rule.onNodeWithTag("photo-exit-fullscreen").performClick(); val original = store.state.value.originalPhoto
@@ -625,7 +630,7 @@ class ConnectedUiTest {
         }
         val store = ConnectedStore(api, scope)
         rule.runOnUiThread { rule.activity.setContent { ConnectedApp(store) }; store.authenticate("+12025550123", "synthetic-password-only") }
-        click("Open library"); details("1"); click("Open video")
+        awaitLibrary(store); details("1"); click("Open video")
         rule.waitUntil(30000) { rule.onAllNodes(hasText("Play") and isEnabled()).fetchSemanticsNodes().isNotEmpty() }
         val reader = store.state.value.video!!
         fun mediaClick(label: String) { rule.onNode(hasText(label) and hasClickAction()).performScrollTo().performClick() }
@@ -660,7 +665,7 @@ class ConnectedUiTest {
         val api = SyntheticApi().apply { total = 1000 }
         val store = ConnectedStore(api, scope)
         rule.runOnUiThread { rule.activity.setContent { ConnectedApp(store) }; store.authenticate("+12025550123", "synthetic-password-only") }
-        click("Open library"); click("Go to page")
+        awaitLibrary(store); click("Go to page")
         rule.onNodeWithTag("phone-page-input").performTextReplacement("0")
         rule.onNodeWithTag("phone-page-go").assertIsNotEnabled()
         rule.onNodeWithTag("phone-page-input").performTextReplacement("21")
@@ -716,7 +721,7 @@ class ConnectedUiTest {
             rule.activity.setContent { ConnectedApp(store) }
             store.authenticate("+12025550123", "synthetic-password-only")
         }
-        click("Open library"); click("Next"); details("1")
+        awaitLibrary(store); click("Next"); details("1")
         reveal(hasText("Photo 1 of 2 · Page 2"))
         rule.onNodeWithText("Photo 1 of 2 · Page 2").assertIsDisplayed()
         rule.onNode(hasText("Previous photo") and hasClickAction()).assertIsNotEnabled()
@@ -736,5 +741,32 @@ class ConnectedUiTest {
         reveal(hasText("第 2 页 · 100 项")); rule.onAllNodesWithText("第 2 页 · 100 项").onFirst().assertIsDisplayed()
         click("退出登录"); assertNull(store.state.value.photoNavigation)
         rule.onAllNodes(hasText("第 2 页 · 第 1/2 张")).assertCountEquals(0)
+    }
+
+    @Test fun familyLibraryOpensFirstAndExplicitSwitchRemainsAvailable() {
+        val api = SyntheticApi().apply {
+            memberships = listOf(
+                Membership("alpha", "approved", "viewer", 1, null, 0, true),
+                Membership("family", "approved", "viewer", 1, null, 0, true),
+            )
+        }
+        val store = ConnectedStore(api, scope)
+        rule.runOnUiThread {
+            rule.activity.setContent { ConnectedApp(store) }
+            store.authenticate("+12025550123", "synthetic-password-only")
+        }
+
+        awaitLibrary(store, "family")
+        assertEquals("family", store.state.value.gallery?.library_id)
+        click("Libraries")
+        reveal(hasText("Your libraries"))
+        rule.onNodeWithText("Family").assertIsDisplayed()
+        reveal(hasText("alpha"))
+        rule.onNodeWithText("alpha").assertIsDisplayed()
+        val open = hasText("Open library") and hasClickAction()
+        rule.onAllNodes(open).onLast().performScrollTo().performClick()
+        rule.waitForIdle()
+        awaitLibrary(store, "alpha")
+        assertEquals("alpha", store.state.value.gallery?.library_id)
     }
 }

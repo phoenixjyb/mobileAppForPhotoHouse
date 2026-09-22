@@ -102,6 +102,10 @@ class ProtectedJourneyTest {
         rule.onNodeWithTag("connected-screen").performScrollToNode(matcher)
         rule.onNode(matcher).performClick(); rule.waitForIdle()
     }
+    private fun awaitLibrary(store: ConnectedStore, library: String = "synthetic-library") {
+        rule.waitUntil(5000) { store.state.value.library == library }
+        rule.waitForIdle()
+    }
     private fun input(label: String, text: String) {
         val matcher = hasText(label) and hasSetTextAction()
         rule.onNodeWithTag("connected-screen").performScrollToNode(matcher)
@@ -139,9 +143,12 @@ class ProtectedJourneyTest {
             assertEquals("+8613800138000", api.loginPhone)
             assertEquals("小溪 Jane", api.registeredName)
             assertEquals("synthetic-invitation", api.registrationCode)
+            awaitLibrary(store)
+            clickText(if (zh) "资料库" else "Libraries")
             scroll("account-name")
             rule.onNodeWithTag("account-name").assertTextContains(if (zh) "欢迎，小溪 Jane" else "Welcome, 小溪 Jane")
             clickText(if (zh) "打开资料库" else "Open library")
+            awaitLibrary(store)
             clickTag("media-1")
             assertTrue("Preview entry: ${store.state.value.problem}", store.state.value.viewingOriginal)
             rule.waitUntil(10000) { rule.onAllNodesWithTag("original-image").fetchSemanticsNodes().size == 1 }
@@ -167,12 +174,10 @@ class ProtectedJourneyTest {
         rule.onNode(hasText("Phone number") and hasSetTextAction()).performTextReplacement("13800138000")
         input("Password", "eight888")
         clickText("Sign in")
-        rule.waitUntil(5000) { rule.onAllNodesWithText("Your libraries").fetchSemanticsNodes().isNotEmpty() }
+        awaitLibrary(store)
         assertEquals("+8613800138000", api.loginPhone)
         assertEquals("eight888", api.loginPassword)
 
-        clickText("Open library")
-        rule.waitUntil(5000) { rule.onAllNodesWithText("Your memories").fetchSemanticsNodes().isNotEmpty() }
         clickTag("details-1")
         clickText("View photo")
         rule.waitUntil(5000) { rule.onAllNodesWithTag("original-image").fetchSemanticsNodes().isNotEmpty() }
@@ -213,7 +218,7 @@ class ProtectedJourneyTest {
         val api = SyntheticApi().apply { storyText = "我们在湖边散步，听风吹过树梢。\n".repeat(1000) + "最后一段 / End of memory" }
         val store = start(api)
         rule.runOnIdle { store.authenticate("+8612345678", "eight888") }
-        rule.waitForIdle(); clickText("Open library"); clickTag("details-1");clickTag("stories-open")
+        rule.waitForIdle(); awaitLibrary(store); clickTag("details-1");clickTag("stories-open")
         clickTag("story-read-full")
         rule.waitUntil(5000) { rule.onAllNodesWithTag("story-reader").fetchSemanticsNodes().isNotEmpty() }
         rule.onNodeWithTag("story-reader").performScrollToNode(hasText("最后一段 / End of memory", substring = true))
@@ -230,7 +235,7 @@ class ProtectedJourneyTest {
         val api = SyntheticApi().apply { photoDeliveryEnabled = false; previewAvailable = true }
         val store = start(api)
         rule.runOnIdle { store.authenticate("+8612345678", "eight888") }
-        rule.waitForIdle(); clickText("Open library"); clickTag("media-1")
+        rule.waitForIdle(); awaitLibrary(store); clickTag("media-1")
         rule.waitUntil(10000) { rule.onAllNodesWithTag("original-image").fetchSemanticsNodes().size == 1 }
         if (rule.onAllNodesWithTag("photo-exit-fullscreen").fetchSemanticsNodes().isNotEmpty()) rule.onNodeWithTag("photo-exit-fullscreen").performClick()
         assertTrue(store.state.value.photoPreviewOnly)

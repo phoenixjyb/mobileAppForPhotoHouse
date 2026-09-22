@@ -36,3 +36,18 @@ No backend contract change, service deployment/restart, real-device installation
 push or merge. No phone/emulator UI acceptance is claimed. Anonymous Home/TV
 selection behavior is unchanged. Web parity is separately implemented and tested
 in backend commit`75796ceda7fa65ddc78df14980528181fab92cbe`.
+
+## Instrumentation follow-up — 22 September 2026
+
+Updated connected-app instrumentation journeys to wait for the automatically
+selected library after login and invited registration. Explicit library-picker
+coverage remains via the Libraries action, including the registered display
+name and bilingual layout. A new synthetic journey presents alpha before Family,
+asserts that Family opens first, and switches explicitly to alpha.
+
+Seven targeted API 36 emulator journeys passed in a separate unconfigured QA
+package: all four ProtectedJourneyTest scenarios plus the new Family selection,
+gallery/settings bilingual layout and literal-caption login scenarios. QA and
+test APK assembly passed. Chinese registration and English gallery renders were
+inspected. No real account, invitation or phone was used. The configured Phone
+v24 APK remains unchanged; these follow-up changes affect tests and evidence only.
