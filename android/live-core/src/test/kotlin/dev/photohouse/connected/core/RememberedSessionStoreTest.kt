@@ -23,7 +23,10 @@ class RememberedSessionStoreTest {
     private val session = Session("account-a", "+12025550123", listOf(Membership("family", "approved", "viewer", 1, null, 0, true)))
 
     @Test fun recreatedStoreRestoresWithoutLoginAndReauthorizesBeforeUncovering() = runTest {
-        val api = FakeApi()
+        val api = FakeApi().apply {
+            currentSession = session.copy(memberships = listOf(
+                session.memberships.single().copy(library_id = "alpha"), session.memberships.single()))
+        }
         val storage = FakeStorage(RememberedSession(token, 0, DAY))
         val first = store(api, storage)
         first.authenticate(phone, password)
@@ -43,7 +46,9 @@ class RememberedSessionStoreTest {
         gate.complete(Unit)
         runCurrent()
         assertFalse(recreated.state.value.covered)
-        assertEquals(session, recreated.state.value.session)
+        assertEquals(api.currentSession, recreated.state.value.session)
+        assertEquals("family", recreated.state.value.library)
+        assertEquals("family", recreated.state.value.gallery?.library_id)
         assertEquals(2, api.sessionReads)
     }
 

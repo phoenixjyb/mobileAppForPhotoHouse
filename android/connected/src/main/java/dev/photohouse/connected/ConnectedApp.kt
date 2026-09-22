@@ -223,7 +223,8 @@ private class Words(val zh: Boolean) {
                                     item { Text(t("Your libraries", "你的资料库"), style = MaterialTheme.typography.headlineSmall) }
                                     state.session?.displayName?.let { name -> item { Text(t("Welcome, $name", "欢迎，$name"), modifier = Modifier.testTag("account-name")) } }
                                     if (state.session!!.memberships.isEmpty()) item { Text(t("You have no library memberships.", "尚未加入任何资料库。")) }
-                                    items(state.session!!.memberships, key = { it.library_id }) { membership ->
+                                    val memberships = state.session!!.memberships.sortedWith(compareBy { if (it.library_id == "family") 0 else 1 })
+                                    items(memberships, key = { it.library_id }) { membership ->
                                         Card(Modifier.fillMaxWidth()) { Column(Modifier.padding(20.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
                                             Text(t("Photo and video library", "照片与视频资料库"), style = MaterialTheme.typography.titleLarge)
                                             Text(LibraryNames.display(membership.library_id, words.zh), style = MaterialTheme.typography.bodyMedium,

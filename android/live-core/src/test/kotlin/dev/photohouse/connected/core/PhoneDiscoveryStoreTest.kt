@@ -56,7 +56,7 @@ class PhoneDiscoveryStoreTest {
     private fun TestScope.signedIn(api: FakeApi): ConnectedStore {
         val store = ConnectedStore(api, backgroundScope) { testScheduler.currentTime }
         store.authenticate("+12025550123", "synthetic-password-only"); runCurrent()
-        store.selectLibrary("family"); runCurrent(); return store
+        return store // Authentication now loads the preferred library itself.
     }
     @Test fun disabledBuildMakesNoDiscoveryRequests() = runTest {
         val api = FakeApi(false); val s = signedIn(api); s.openDiscovery(); runCurrent()

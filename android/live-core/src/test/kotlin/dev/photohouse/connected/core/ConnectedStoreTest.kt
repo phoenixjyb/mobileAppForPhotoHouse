@@ -78,6 +78,66 @@ class ConnectedStoreTest {
         }
     }
 
+    @Test fun authenticationOpensFamilyByStableIdEvenWhenAnotherLibraryComesFirst() = runTest {
+        val api = FakeApi().apply {
+            currentSession = currentSession.copy(memberships = listOf(membership("alpha"), membership("family")))
+        }
+        val store = store(api)
+        store.authenticate("+12025550123", "synthetic-password-only"); runCurrent()
+        assertEquals("family", store.state.value.library)
+        assertEquals("family", store.state.value.gallery?.library_id)
+    }
+
+    @Test fun authenticationFallsBackToFirstAccessibleLibraryWhenFamilyIsUnavailable() = runTest {
+        val api = FakeApi().apply {
+            currentSession = currentSession.copy(memberships = listOf(membership("family", false), membership("alpha")))
+        }
+        val store = store(api)
+        store.authenticate("+12025550123", "synthetic-password-only"); runCurrent()
+        assertEquals("alpha", store.state.value.library)
+        assertEquals("alpha", store.state.value.gallery?.library_id)
+    }
+
+    @Test fun revalidationPreservesAccessibleManualLibraryAndFallsBackWhenItIsRevoked() = runTest {
+        val api = FakeApi().apply {
+            currentSession = currentSession.copy(memberships = listOf(membership("family"), membership("second")))
+        }
+        val store = store(api)
+        store.authenticate("+12025550123", "synthetic-password-only"); runCurrent()
+        store.selectLibrary("second"); runCurrent()
+        store.background(); api.currentSession = api.currentSession.copy(memberships = listOf(membership("family"), membership("second")))
+        store.foreground(); runCurrent()
+        assertEquals("second", store.state.value.library)
+        api.currentSession = api.currentSession.copy(memberships = listOf(membership("family"), membership("second", false)))
+        store.background(); store.foreground(); runCurrent()
+        assertEquals("family", store.state.value.library)
+        assertEquals("family", store.state.value.gallery?.library_id)
+    }
+
+    @Test fun noAccessibleMembershipDoesNotAutomaticallyReadMedia() = runTest {
+        val api = FakeApi().apply {
+            currentSession = currentSession.copy(memberships = listOf(membership("family", false)))
+        }
+        val store = store(api); signIn(store)
+        assertNull(store.state.value.library)
+        assertEquals(0, api.galleryReads)
+        assertEquals(0, api.imageReads)
+    }
+
+    @Test fun manualSelectionSurvivesFailedForegroundRevalidationAndExplicitRetry() = runTest {
+        val api = FakeApi(); val store = store(api); signIn(store)
+        store.selectLibrary("second"); runCurrent(); store.background()
+        assertNull(store.state.value.library)
+        api.sessionError = ApiFailure(FailureKind.OFFLINE)
+        store.foreground(); runCurrent()
+        assertTrue(store.state.value.covered); assertNull(store.state.value.gallery)
+        api.sessionError = null
+        store.retry(); runCurrent()
+        assertEquals("second", store.state.value.gallery?.library_id)
+        store.logout(); runCurrent(); signIn(store)
+        assertEquals("family", store.state.value.library)
+    }
+
     private inner class FakeApi : PhotoHouseApi {
         override var protectedNativeV2Enabled = false
         override var uploadEnabled = false
@@ -446,7 +506,7 @@ class ConnectedStoreTest {
     @Test fun refreshedRevokedExpiredOrClosedLibraryCannotUsePreviousApproval() = runTest {
         for (status in listOf("revoked", "requested", "rejected", "approved")) {
             val api = FakeApi(); val store = store(api); signIn(store)
-            store.selectLibrary("family"); runCurrent(); assertTrue(store.cachedBytes > 0)
+            assertTrue(store.cachedBytes > 0)
             store.background()
             api.currentSession = api.currentSession.copy(memberships = listOf(membership("family", false).copy(status = status)))
             store.foreground(); runCurrent(); store.selectLibrary("family"); runCurrent()
@@ -633,7 +693,7 @@ class ConnectedStoreTest {
         val api = FakeApi(); val store = store(api); signIn(store)
         assertEquals(1, api.sessionReads)
         store.selectLibrary("closed"); runCurrent()
-        assertEquals(0, api.galleryReads); assertEquals(Message.ACCESS_DENIED, store.state.value.problem?.message)
+        assertEquals(1, api.galleryReads); assertEquals(Message.ACCESS_DENIED, store.state.value.problem?.message)
         store.selectLibrary("second"); runCurrent()
         assertEquals("second", store.state.value.gallery?.library_id)
     }
@@ -658,7 +718,7 @@ class ConnectedStoreTest {
         api.sessionGate = CompletableDeferred()
         store.foreground(); runCurrent(); assertTrue(store.state.value.covered)
         api.sessionGate!!.complete(Unit); runCurrent()
-        assertFalse(store.state.value.covered); assertNull(store.state.value.gallery); assertEquals(2, api.sessionReads)
+        assertFalse(store.state.value.covered); assertEquals("family", store.state.value.gallery?.library_id); assertEquals(2, api.sessionReads)
     }
     @Test fun lateGalleryCannotCrossLibraryOrLogoutGeneration() = runTest {
         val api = FakeApi(); val store = store(api); signIn(store)
@@ -684,7 +744,6 @@ class ConnectedStoreTest {
     }
     @Test fun object401RechecksOnceWithoutRetryingForeignRead() = runTest {
         val api = FakeApi().apply { galleryError = ApiFailure(FailureKind.HTTP, 401) }; val store = store(api); signIn(store)
-        store.selectLibrary("family"); runCurrent()
         assertEquals(2, api.sessionReads); assertEquals(1, api.galleryReads)
         assertTrue(store.hasSession); assertNull(store.state.value.library); assertFalse(store.canRetry())
     }
@@ -913,8 +972,8 @@ class ConnectedStoreTest {
             galleryError = ApiFailure(FailureKind.OFFLINE)
             galleryFailures = 1
         }
-        val store = store(api); signIn(store); store.selectLibrary("family"); runCurrent()
-        // selectLibrary performs the first gallery load; recovery completes after one delay.
+        val store = store(api); signIn(store)
+        // Signing in opens the first gallery; recovery completes after one delay.
         advanceTimeBy(350); runCurrent()
         assertEquals(2, api.galleryReads)
         assertNotNull(store.state.value.gallery)
@@ -927,7 +986,7 @@ class ConnectedStoreTest {
             galleryError = ApiFailure(FailureKind.OFFLINE)
             galleryFailures = 2
         }
-        val store = store(api); signIn(store); store.selectLibrary("family"); runCurrent()
+        val store = store(api); signIn(store)
         advanceTimeBy(350); runCurrent()
         assertEquals(2, api.galleryReads)
         assertNull(store.state.value.gallery)
@@ -941,7 +1000,6 @@ class ConnectedStoreTest {
             galleryFailures = 1
         }
         val store = store(api); signIn(store)
-        store.selectLibrary("family"); runCurrent()
         store.background(); advanceTimeBy(350); runCurrent()
         assertEquals(1, api.galleryReads)
         assertNull(store.state.value.gallery)
@@ -954,7 +1012,6 @@ class ConnectedStoreTest {
             galleryFailures = 1
         }
         val store = store(api); signIn(store)
-        store.selectLibrary("family"); runCurrent()
         store.logout(); advanceTimeBy(350); runCurrent()
         assertEquals(1, api.galleryReads)
         assertNull(store.state.value.gallery)
@@ -969,7 +1026,6 @@ class ConnectedStoreTest {
         var clock = 0L
         val store = ConnectedStore(api, backgroundScope) { clock }
         store.authenticate("+12025550123", "synthetic-password-only"); runCurrent()
-        store.selectLibrary("family"); runCurrent()
         clock = 86_400_000L
         advanceTimeBy(350); runCurrent()
         assertEquals(1, api.galleryReads)
@@ -983,7 +1039,6 @@ class ConnectedStoreTest {
             galleryFailures = 1
         }
         val store = store(api); signIn(store)
-        store.selectLibrary("family"); runCurrent()
         store.loadPage(2); runCurrent(); advanceTimeBy(350); runCurrent()
         assertEquals(2, api.galleryReads)
         assertEquals(2, store.state.value.gallery?.page)
@@ -1000,7 +1055,7 @@ class ConnectedStoreTest {
         for (failure in failures) {
             val api = FakeApi().apply { galleryError = failure }
             val store = store(api); signIn(store)
-            store.selectLibrary("family"); runCurrent(); advanceTimeBy(350); runCurrent()
+            advanceTimeBy(350); runCurrent()
             assertEquals(failure.toString(), 1, api.galleryReads)
             assertNull(store.state.value.gallery)
             store.logout(); runCurrent()
@@ -1012,7 +1067,7 @@ class ConnectedStoreTest {
             galleryResult = Gallery("family", 2, 50, 1, false, assets)
         }
         val store = store(api); signIn(store)
-        store.selectLibrary("family"); runCurrent(); advanceTimeBy(350); runCurrent()
+        advanceTimeBy(350); runCurrent()
         assertEquals(1, api.galleryReads)
         assertEquals(Message.INVALID_RESPONSE, store.state.value.problem?.message)
         assertNull(store.state.value.gallery)
@@ -1026,7 +1081,7 @@ class ConnectedStoreTest {
             thumbnailFailureAsset = first.id
             thumbnailFailure = ApiFailure(FailureKind.OFFLINE)
         }
-        val store = store(api); signIn(store); store.selectLibrary("family"); runCurrent()
+        val store = store(api); signIn(store)
         assertEquals(listOf("1", "2"), store.state.value.gallery?.items?.map { it.id })
         assertNull(store.state.value.previews[first.id])
         assertArrayEquals(byteArrayOf(1, 2, 3), store.state.value.previews[second.id])
@@ -1041,7 +1096,7 @@ class ConnectedStoreTest {
             thumbnailFailureAsset = asset.id
             thumbnailFailure = ApiFailure(FailureKind.HTTP, 403)
         }
-        val store = store(api); signIn(store); store.selectLibrary("family"); runCurrent()
+        val store = store(api); signIn(store)
         assertNull(store.state.value.gallery)
         assertEquals(Message.CLOSED, store.state.value.problem?.message)
         assertEquals(1, api.imageReads)
