@@ -49,6 +49,7 @@ private class Words(val zh: Boolean) {
         Message.SESSION_ENDED -> t("Your session ended. Please sign in again.", "会话已结束，请重新登录。")
         Message.ACCESS_DENIED -> t("Access was not granted. Check your account, invitation or library access.", "未获授权，请检查账号、邀请或资料库权限。")
         Message.UNAVAILABLE -> t("PhotoHouse is temporarily unavailable. If registration was submitted, try signing in when it returns.", "相册服务暂不可用。如果已提交注册，请在恢复后尝试登录。")
+        Message.NETWORK_UNAVAILABLE -> t("Cannot reach PhotoHouse. Check this device’s network and server connection. If registration may have completed, try Sign in.", "无法连接 PhotoHouse，请检查手机网络和服务器连接。如果注册可能已完成，请尝试登录。")
         Message.TLS_ERROR -> t("The server's secure connection could not be verified. Contact your administrator.", "无法验证服务器的安全连接，请联系管理员。")
         Message.CLOSED -> t("This request was blocked. Contact your administrator.", "请求已被阻止，请联系管理员。")
         Message.RATE_LIMITED -> t("Too many attempts. Wait before trying again.", "尝试过于频繁，请稍后重试。")
@@ -193,7 +194,7 @@ private class Words(val zh: Boolean) {
                     if (state.busy) item { LinearProgressIndicator(Modifier.fillMaxWidth()) }
                     state.problem?.let { problem -> item {
                         Card(Modifier.fillMaxWidth()) { Column(Modifier.padding(16.dp)) {
-                            Text(problem.playbackFailure?.message(words.zh) ?: if (problem.message == Message.UNAVAILABLE && state.session != null)
+                            Text(problem.playbackFailure?.message(words.zh) ?: if ((problem.message == Message.UNAVAILABLE || problem.message == Message.NETWORK_UNAVAILABLE) && state.session != null)
                                 t("Could not load this item. Check the connection and retry.", "暂时无法加载此内容，请检查网络连接后重试。")
                             else words.message(problem.message))
                             var now by remember(problem) { mutableLongStateOf(System.currentTimeMillis()) }
@@ -222,7 +223,8 @@ private class Words(val zh: Boolean) {
                                     item { Text(t("Your libraries", "你的资料库"), style = MaterialTheme.typography.headlineSmall) }
                                     state.session?.displayName?.let { name -> item { Text(t("Welcome, $name", "欢迎，$name"), modifier = Modifier.testTag("account-name")) } }
                                     if (state.session!!.memberships.isEmpty()) item { Text(t("You have no library memberships.", "尚未加入任何资料库。")) }
-                                    items(state.session!!.memberships, key = { it.library_id }) { membership ->
+                                    val memberships = state.session!!.memberships.sortedWith(compareBy { if (it.library_id == "family") 0 else 1 })
+                                    items(memberships, key = { it.library_id }) { membership ->
                                         Card(Modifier.fillMaxWidth()) { Column(Modifier.padding(20.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
                                             Text(t("Photo and video library", "照片与视频资料库"), style = MaterialTheme.typography.titleLarge)
                                             Text(LibraryNames.display(membership.library_id, words.zh), style = MaterialTheme.typography.bodyMedium,
@@ -371,7 +373,7 @@ private class Words(val zh: Boolean) {
     val keyboard = LocalSoftwareKeyboardController.current
     var register by remember { mutableStateOf(false) }
     var rememberSession by remember { mutableStateOf(true) }
-    val defaultPhone = if (store.protectedNativeV2Enabled) "+86" else ""
+    val defaultPhone = ""
     var phone by remember { mutableStateOf(defaultPhone) }
     var password by remember { mutableStateOf("") }
     var code by remember { mutableStateOf("") }
@@ -387,7 +389,9 @@ private class Words(val zh: Boolean) {
                 { if (it.length <= 512) name = it }, label = { Text(words.t("Your name", "你的名字")) },
                 supportingText = { Text(words.t("How your family will see you · 1–64 characters", "家人看到的名字 · 1–64 个字符")) },
                 singleLine = true, enabled = !state.busy, modifier = Modifier.fillMaxWidth().testTag("registration-name"))
-            OutlinedTextField(phone, { if (it.length <= 32) phone = it }, label = { Text(words.t("Phone with country code", "含国家码的手机号")) }, keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Phone), singleLine = true, enabled = !state.busy, modifier = Modifier.fillMaxWidth())
+            OutlinedTextField(phone, { if (it.length <= 32) phone = it }, label = { Text(words.t("Phone number", "手机号码")) },
+                supportingText = { Text(if (store.protectedNativeV2Enabled) words.t("China (+86) is the default. Other countries: include + and country code.", "默认中国区号 +86。其他国家请填写 + 和国家区号。") else words.t("Include + and your country code.", "请填写 + 和国家区号。")) },
+                keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Phone), singleLine = true, enabled = !state.busy, modifier = Modifier.fillMaxWidth())
             OutlinedTextField(password, { if (it.codePointCount(0, it.length) <= 128) password = it }, label = { Text(if (store.protectedNativeV2Enabled) { if (register) words.t("Password (8–128 characters)", "密码（8–128 个字符）") else words.t("Password", "密码") } else words.t("Password (15–128 characters)", "密码（15–128 个字符）")) }, keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Password, autoCorrect = false), visualTransformation = PasswordVisualTransformation(), singleLine = true, enabled = !state.busy, modifier = Modifier.fillMaxWidth())
             if (register) OutlinedTextField(code, { if (it.length <= 512) code = it }, label = { Text(words.t("Invitation code", "邀请码")) }, keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Password, autoCorrect = false), visualTransformation = PasswordVisualTransformation(), singleLine = true, enabled = !state.busy, modifier = Modifier.fillMaxWidth())
             if (store.canRememberSession) {
@@ -398,10 +402,14 @@ private class Words(val zh: Boolean) {
                 Text(words.t("Encrypted on this device. Sign-in still expires after 24 hours; your password is never saved.",
                     "在此设备加密保存。登录仍会在 24 小时后过期，不保存密码。"), style = MaterialTheme.typography.bodySmall)
             }
-            val valid = runCatching { Admission.phone(phone); Admission.password(password, protectedNativeV2 = store.protectedNativeV2Enabled, registration = register); if (register && store.protectedNativeV2Enabled) { Admission.displayName(name); Admission.invitationCode(code) }; !register || code.isNotBlank() }.getOrDefault(false)
-            Button(onClick = { focus.clearFocus(); keyboard?.hide(); store.authenticate(phone, password, if (register) code else null, if (register) name else null, remember = rememberSession); phone = defaultPhone; password = ""; code = ""; name = "" }, enabled = valid && !state.busy && now >= (state.problem?.retryAtMillis ?: 0), modifier = Modifier.fillMaxWidth()) { Text(words.t(if (register) "Register with invitation" else "Sign in", if (register) "使用邀请注册" else "登录")) }
+            val valid = runCatching { Admission.phoneFromForm(phone, store.protectedNativeV2Enabled); Admission.password(password, protectedNativeV2 = store.protectedNativeV2Enabled, registration = register); if (register && store.protectedNativeV2Enabled) { Admission.displayName(name); Admission.invitationCode(code) }; !register || code.isNotBlank() }.getOrDefault(false)
+            Button(onClick = { focus.clearFocus(); keyboard?.hide(); store.authenticate(Admission.phoneFromForm(phone, store.protectedNativeV2Enabled), password, if (register) code else null, if (register) name else null, remember = rememberSession); phone = defaultPhone; password = ""; code = ""; name = "" }, enabled = valid && !state.busy && now >= (state.problem?.retryAtMillis ?: 0), modifier = Modifier.fillMaxWidth()) { Text(words.t(if (register) "Register with invitation" else "Sign in", if (register) "使用邀请注册" else "登录")) }
             TextButton(onClick = { focus.clearFocus(); keyboard?.hide(); register = !register; phone = defaultPhone; password = ""; code = ""; name = "" }, enabled = !state.busy) { Text(words.t(if (register) "Already registered? Sign in" else "Have an invitation? Register", if (register) "已有账号？登录" else "收到邀请？注册")) }
-            Text(words.t("Phone is an unverified login label. Include your country code.", "手机号是未经验证的登录标识，请包含国家码。"),
+            if (!valid) Text(words.t(
+                if (register && store.protectedNativeV2Enabled) "Complete your name, phone, invitation and the password requirements above to register." else if (register) "Complete your phone, invitation and the password requirements above to register." else "Enter your phone and password to sign in.",
+                if (register && store.protectedNativeV2Enabled) "请填写名字、手机号、邀请码，并满足上方密码要求后注册。" else if (register) "请填写手机号、邀请码，并满足上方密码要求后注册。" else "请填写手机号和密码后登录。"),
+                style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+            Text(words.t("Already registered on the website? Use Sign in here with the same phone and password.", "已在网页注册？请在这里选择登录，使用相同的手机号和密码。"),
                 style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
         }
     }

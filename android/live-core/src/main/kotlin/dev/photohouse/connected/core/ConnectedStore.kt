@@ -10,7 +10,7 @@ import kotlinx.coroutines.flow.asStateFlow
 enum class GalleryMedia(val wire: String) { ALL("all"), PHOTOS("image"), VIDEOS("video"), PREPARED_VIDEOS("prepared_video");
     val assetKind get() = if (this == PREPARED_VIDEOS) "video" else wire
 }
-enum class Message { SESSION_STORAGE_UNAVAILABLE, SIGNED_OUT_LOCAL, SIGNED_OUT_CONFIRMED, SESSION_ENDED, ACCESS_DENIED, UNAVAILABLE, TLS_ERROR, CLOSED, RATE_LIMITED, INVALID_INPUT, INVALID_RESPONSE, TOO_LARGE, MEDIA_UNAVAILABLE, DISCOVERY_CHANGED, DISCOVERY_INPUT, VIDEO_NOT_READY, VIDEO_CHANGED, VIDEO_BUSY, PLAYBACK_UNAVAILABLE }
+enum class Message { SESSION_STORAGE_UNAVAILABLE, SIGNED_OUT_LOCAL, SIGNED_OUT_CONFIRMED, SESSION_ENDED, ACCESS_DENIED, UNAVAILABLE, NETWORK_UNAVAILABLE, TLS_ERROR, CLOSED, RATE_LIMITED, INVALID_INPUT, INVALID_RESPONSE, TOO_LARGE, MEDIA_UNAVAILABLE, DISCOVERY_CHANGED, DISCOVERY_INPUT, VIDEO_NOT_READY, VIDEO_CHANGED, VIDEO_BUSY, PLAYBACK_UNAVAILABLE }
 data class LiveProblem(val message: Message, val retryAtMillis: Long = 0, val playbackFailure: VideoPlaybackFailure? = null)
 /** Only the current page's IDs, never a persistent or cross-library history. */
 data class PhotoNavigation(val page: Int, val assetIds: List<String>, val index: Int, val discovery: PhoneDiscoveryState? = null, val media: GalleryMedia = GalleryMedia.ALL, val videoIds: Set<String> = emptySet())
@@ -39,6 +39,7 @@ class ConnectedStore(private val api: PhotoHouseApi, private val scope: Coroutin
     val state = mutable.asStateFlow()
     private val playbackProgress = PlaybackProgress()
     private var restorationAttempted = false
+    private var resumeLibrary: String? = null
     private var token: Bearer? = null
     private var identity: Session? = null
     private var deadline = 0L
@@ -66,6 +67,7 @@ class ConnectedStore(private val api: PhotoHouseApi, private val scope: Coroutin
         requests.toList().forEach { it.cancel() }; requests.clear(); retry = null
         var storageFailed = false
         if (!keepIdentity) {
+            resumeLibrary = null
             playbackProgress.clear()
             storageFailed = runCatching { persistence?.clear() }.isFailure
             token = null; identity = null; deadline = 0; expiryJob?.cancel(); expiryJob = null }
@@ -143,6 +145,7 @@ class ConnectedStore(private val api: PhotoHouseApi, private val scope: Coroutin
             }.isSuccess
             mutable.value = state.value.copy(session = session, busy = false,
                 problem = if (!saved) LiveProblem(Message.SESSION_STORAGE_UNAVAILABLE) else state.value.problem)
+            openPreferredLibrary(session)
         }
     }
     /** Stories stay scoped to this visible detail and never enter Home/TV state. */
@@ -676,7 +679,7 @@ class ConnectedStore(private val api: PhotoHouseApi, private val scope: Coroutin
                 validateSession(session, identity?.account_id)
                 identity = session
                 invalidate(keepIdentity = true)
-                mutable.value = state.value.copy(problem = LiveProblem(Message.ACCESS_DENIED))
+                mutable.value = state.value.copy(problem = LiveProblem(Message.ACCESS_DENIED), busy = false)
             } catch (e: CancellationException) { throw e }
             catch (e: Exception) {
                 if (!active(generation)) return
@@ -692,6 +695,7 @@ class ConnectedStore(private val api: PhotoHouseApi, private val scope: Coroutin
     fun acceptInvitation(code: String) {
         if (!usable() || state.value.busy || coolingDown()) return
         val credential = token!!
+        val previousLibrary = state.value.library
         invalidate(keepIdentity = true)
         mutable.value = state.value.copy(busy = true)
         launch { generation ->
@@ -703,14 +707,20 @@ class ConnectedStore(private val api: PhotoHouseApi, private val scope: Coroutin
                 validateSession(session, identity?.account_id)
                 identity = session
                 mutable.value = state.value.copy(session = session, busy = false)
+                openPreferredLibrary(session, previousLibrary)
             } catch (e: CancellationException) { throw e }
             catch (e: Exception) { readFailure(e, generation, credential) { background(); foreground() } }
         }
     }
-    fun background() { invalidate(keepIdentity = true, cover = true) }
+    fun background() {
+        // Retain only an internal selection hint; clear all private UI state.
+        if (!state.value.covered) resumeLibrary = state.value.library
+        invalidate(keepIdentity = true, cover = true)
+    }
     fun foreground() {
         if (!state.value.covered || state.value.busy || coolingDown()) return
         val credential = token
+        val previousLibrary = resumeLibrary
         if (credential == null) { invalidate(keepIdentity = false); return }
         if (now() >= deadline) { expire(); return }
         invalidate(keepIdentity = true, cover = true)
@@ -722,6 +732,8 @@ class ConnectedStore(private val api: PhotoHouseApi, private val scope: Coroutin
                 validateSession(session, identity?.account_id)
                 identity = session
                 mutable.value = state.value.copy(session = session, covered = false, busy = false)
+                resumeLibrary = null
+                openPreferredLibrary(session, previousLibrary)
             } catch (e: CancellationException) { throw e }
             catch (e: Exception) {
                 if (!active(generation)) return@launch
@@ -754,7 +766,8 @@ class ConnectedStore(private val api: PhotoHouseApi, private val scope: Coroutin
             error.kind == FailureKind.TOO_LARGE -> Message.TOO_LARGE
             error.status == 404 -> Message.MEDIA_UNAVAILABLE
             error.kind == FailureKind.TLS -> Message.TLS_ERROR
-            error.kind == FailureKind.OFFLINE || error.status in 500..599 -> Message.UNAVAILABLE
+            error.kind == FailureKind.OFFLINE -> Message.NETWORK_UNAVAILABLE
+            error.status in 500..599 -> Message.UNAVAILABLE
             error.status == 401 -> Message.ACCESS_DENIED
             error.status == 403 || error.status in 300..399 -> Message.CLOSED
             error.status == 429 -> Message.RATE_LIMITED
@@ -771,6 +784,24 @@ class ConnectedStore(private val api: PhotoHouseApi, private val scope: Coroutin
         validResponse(session.account_id.isNotBlank() && (account == null || session.account_id == account))
         validResponse(session.memberships.all { it.revision >= 1 && it.originals in 0..1 })
         validResponse(session.memberships.map { it.library_id }.distinct().size == session.memberships.size)
+    }
+    /**
+     * Select the protected Family library by stable wire ID when it is available.
+     * A currently open accessible library wins during revalidation; otherwise the
+     * first accessible membership remains the existing fallback. Display names
+     * never participate in authorization or selection.
+     */
+    private fun preferredLibrary(session: Session, current: String? = null): String? {
+        val available = session.memberships.filter { it.available }
+        return available.firstOrNull { it.library_id == current }?.library_id
+            ?: available.firstOrNull { it.library_id == "family" }?.library_id
+            ?: available.firstOrNull()?.library_id
+    }
+    private fun openPreferredLibrary(session: Session, current: String? = state.value.library) {
+        val library = preferredLibrary(session, current) ?: return
+        val storageWarning = state.value.problem?.takeIf { it.message == Message.SESSION_STORAGE_UNAVAILABLE }
+        selectLibrary(library)
+        if (storageWarning != null) mutable.value = state.value.copy(problem = storageWarning)
     }
     private fun validResponse(condition: Boolean) { if (!condition) throw ApiFailure(FailureKind.INVALID_RESPONSE) }
     companion object {

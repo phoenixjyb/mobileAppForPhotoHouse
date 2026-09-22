@@ -102,6 +102,10 @@ class ProtectedJourneyTest {
         rule.onNodeWithTag("connected-screen").performScrollToNode(matcher)
         rule.onNode(matcher).performClick(); rule.waitForIdle()
     }
+    private fun awaitLibrary(store: ConnectedStore, library: String = "synthetic-library") {
+        rule.waitUntil(5000) { store.state.value.library == library }
+        rule.waitForIdle()
+    }
     private fun input(label: String, text: String) {
         val matcher = hasText(label) and hasSetTextAction()
         rule.onNodeWithTag("connected-screen").performScrollToNode(matcher)
@@ -117,9 +121,9 @@ class ProtectedJourneyTest {
                 rule.onNodeWithText("简体中文").performClick()
             }
             clickText(if (zh) "收到邀请？注册" else "Have an invitation? Register")
-            val phoneField = hasText(if (zh) "含国家码的手机号" else "Phone with country code") and hasSetTextAction()
+            val phoneField = hasText(if (zh) "手机号码" else "Phone number") and hasSetTextAction()
             rule.onNodeWithTag("connected-screen").performScrollToNode(phoneField)
-            rule.onNode(phoneField).performTextReplacement("+8612345678")
+            rule.onNode(phoneField).performTextReplacement("13800138000")
             input(if (zh) "密码（8–128 个字符）" else "Password (8–128 characters)", "12345678")
             input(if (zh) "邀请码" else "Invitation code", "synthetic-invitation")
             val submit = if (zh) "使用邀请注册" else "Register with invitation"
@@ -136,11 +140,15 @@ class ProtectedJourneyTest {
             rule.waitUntil(10000) {
                 rootView?.let { androidx.core.view.ViewCompat.getRootWindowInsets(it)?.isVisible(androidx.core.view.WindowInsetsCompat.Type.ime()) } == false
             }
+            assertEquals("+8613800138000", api.loginPhone)
             assertEquals("小溪 Jane", api.registeredName)
             assertEquals("synthetic-invitation", api.registrationCode)
+            awaitLibrary(store)
+            clickText(if (zh) "资料库" else "Libraries")
             scroll("account-name")
             rule.onNodeWithTag("account-name").assertTextContains(if (zh) "欢迎，小溪 Jane" else "Welcome, 小溪 Jane")
             clickText(if (zh) "打开资料库" else "Open library")
+            awaitLibrary(store)
             clickTag("media-1")
             assertTrue("Preview entry: ${store.state.value.problem}", store.state.value.viewingOriginal)
             rule.waitUntil(10000) { rule.onAllNodesWithTag("original-image").fetchSemanticsNodes().size == 1 }
@@ -163,22 +171,20 @@ class ProtectedJourneyTest {
         val api = SyntheticApi()
         val store = start(api)
 
-        rule.onNode(hasText("Phone with country code") and hasSetTextAction()).assertTextContains("+86")
-        rule.onNode(hasText("Phone with country code") and hasSetTextAction()).performTextReplacement("+8612345678")
+        rule.onNode(hasText("Phone number") and hasSetTextAction()).performTextReplacement("13800138000")
         input("Password", "eight888")
         clickText("Sign in")
-        rule.waitUntil(5000) { rule.onAllNodesWithText("Your libraries").fetchSemanticsNodes().isNotEmpty() }
-        assertEquals("+8612345678", api.loginPhone)
+        awaitLibrary(store)
+        assertEquals("+8613800138000", api.loginPhone)
         assertEquals("eight888", api.loginPassword)
 
-        clickText("Open library")
-        rule.waitUntil(5000) { rule.onAllNodesWithText("Photos").fetchSemanticsNodes().isNotEmpty() }
         clickTag("details-1")
         clickText("View photo")
         rule.waitUntil(5000) { rule.onAllNodesWithTag("original-image").fetchSemanticsNodes().isNotEmpty() }
         assertEquals(1, api.displayCalls)
         assertEquals("Display route must be used; originals remain untouched", 0, api.originalCalls)
-        rule.onNodeWithText("Close photo").performClick(); rule.waitForIdle()
+        if (rule.onAllNodesWithTag("photo-exit-fullscreen").fetchSemanticsNodes().isNotEmpty()) rule.onNodeWithTag("photo-exit-fullscreen").performClick()
+        rule.onNodeWithText("Close photo").performScrollTo().performClick(); rule.waitForIdle()
 
         clickTag("stories-open")
         rule.waitUntil(5000) { rule.onAllNodesWithTag("story-11111111-1111-1111-1111-111111111111").fetchSemanticsNodes().isNotEmpty() }
@@ -212,7 +218,7 @@ class ProtectedJourneyTest {
         val api = SyntheticApi().apply { storyText = "我们在湖边散步，听风吹过树梢。\n".repeat(1000) + "最后一段 / End of memory" }
         val store = start(api)
         rule.runOnIdle { store.authenticate("+8612345678", "eight888") }
-        rule.waitForIdle(); clickText("Open library"); clickTag("details-1");clickTag("stories-open")
+        rule.waitForIdle(); awaitLibrary(store); clickTag("details-1");clickTag("stories-open")
         clickTag("story-read-full")
         rule.waitUntil(5000) { rule.onAllNodesWithTag("story-reader").fetchSemanticsNodes().isNotEmpty() }
         rule.onNodeWithTag("story-reader").performScrollToNode(hasText("最后一段 / End of memory", substring = true))
@@ -229,7 +235,7 @@ class ProtectedJourneyTest {
         val api = SyntheticApi().apply { photoDeliveryEnabled = false; previewAvailable = true }
         val store = start(api)
         rule.runOnIdle { store.authenticate("+8612345678", "eight888") }
-        rule.waitForIdle(); clickText("Open library"); clickTag("media-1")
+        rule.waitForIdle(); awaitLibrary(store); clickTag("media-1")
         rule.waitUntil(10000) { rule.onAllNodesWithTag("original-image").fetchSemanticsNodes().size == 1 }
         if (rule.onAllNodesWithTag("photo-exit-fullscreen").fetchSemanticsNodes().isNotEmpty()) rule.onNodeWithTag("photo-exit-fullscreen").performClick()
         assertTrue(store.state.value.photoPreviewOnly)

@@ -15,6 +15,21 @@ import java.net.InetAddress
 class ProtectedAccountTest {
     private val nullProfile = """{"account_id":"synthetic-account","phone_login":"+12025550123","display_name":null,"memberships":[]}"""
 
+    @Test fun protectedFormDefaultsChinaButLeavesWireAndLegacyAdmissionStrict() {
+        assertEquals("+8613800138000", Admission.phoneFromForm("138 0013 8000", true))
+        assertEquals("+8613800138000", Admission.phoneFromForm("+86 (138) 0013-8000", true))
+        assertEquals("+12025550123", Admission.phoneFromForm("+1 (202) 555-0123", true))
+        assertEquals("+12025550123", Admission.phoneFromForm("+12025550123", false))
+        for (phone in listOf("", "+86", "123", "138001380000", "1380013800a", "１３８００１３８０００"))
+            assertThrows(IllegalArgumentException::class.java) { Admission.phoneFromForm(phone, true) }
+        assertThrows(IllegalArgumentException::class.java) { Admission.phoneFromForm("13800138000", false) }
+        assertThrows(IllegalArgumentException::class.java) { Admission.phone("13800138000") }
+        val phone = Admission.phoneFromForm("13800138000", true)
+        val wire = Json.parseToJsonElement(ProtectedAccountWire.registration(phone, "synthetic password", "synthetic-invite", "Synthetic member")).jsonObject
+        assertEquals("+8613800138000", wire.getValue("phone").jsonPrimitive.content)
+        assertEquals("native", wire.getValue("transport").jsonPrimitive.content)
+    }
+
     @Test fun namesMatchBackendWhitespaceAndCodepointRulesWithoutPasswordChanges() {
         assertEquals("小溪 Jane", Admission.displayName(" \t小溪\u00a0\u0085Jane\n "))
         for (space in listOf('\u001c', '\u1680', '\u2007', '\u2028', '\u202f', '\u3000'))
