@@ -32,7 +32,7 @@ class MainActivity : ComponentActivity() {
                     uploadEnabled = BuildConfig.PHOTOHOUSE_UPLOAD_ENABLED) },
                     origin?.let { KeystoreSessionPersistence(applicationContext, BuildConfig.PHOTOHOUSE_ORIGIN) },
                     uploadNetwork = { uploadNetwork(applicationContext) },
-                    batchPersistence = applicationContext.getSharedPreferences("photohouse_upload_queue", MODE_PRIVATE).let(::SharedPreferencesUploadQueuePersistence),
+                    batchPersistence = origin?.let { KeystoreUploadQueuePersistence(applicationContext, BuildConfig.PHOTOHOUSE_ORIGIN) },
                     batchSource = { record -> record.locator?.let { batchUploadSource(applicationContext, Uri.parse(it)) } }) as T
             }
         }
