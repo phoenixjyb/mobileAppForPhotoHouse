@@ -79,6 +79,12 @@ class ConnectedUiTest {
         override suspend fun acceptInvitation(token: Bearer, code: String) { }
         override suspend fun uploadHistory(token: Bearer, page: Int): UploadHistoryPage =
             uploadHistoryPages[page] ?: UploadHistoryPage(page, 10, 0, emptyList())
+        var batchOffset = 0L
+        override suspend fun createUploadSession(token: Bearer, request: UploadSessionRequest) = UploadSession("c".repeat(32), request.bytes, batchOffset, 4194304, "uploading", null)
+        override suspend fun uploadSession(token: Bearer, uploadId: String) = UploadSession(uploadId, 4, batchOffset, 4194304, "uploading", null)
+        override suspend fun uploadChunk(token: Bearer, uploadId: String, offset: Long, chunk: ByteArray, sha256: String): UploadSession { batchOffset = offset + chunk.size; return UploadSession(uploadId, 4, batchOffset, 4194304, "uploading", null) }
+        override suspend fun completeUploadSession(token: Bearer, uploadId: String) = UploadSession(uploadId, 4, 4, 4194304, "complete", "902")
+        override suspend fun cancelUploadSession(token: Bearer, uploadId: String) = UploadSession(uploadId, 4, batchOffset, 4194304, "cancelled", null)
         override suspend fun gallery(token: Bearer, library: String, page: Int) = Gallery(library, page, 50, total, false, photos)
         var transientDetailFailures = 0
         override suspend fun detail(token: Bearer, library: String, assetId: String): Detail {
@@ -814,5 +820,20 @@ class ConnectedUiTest {
         rule.onNode(hasText("Open") and hasClickAction()).performClick()
         rule.waitUntil(5000) { store.state.value.detail?.asset?.id == "1" }
         assertEquals("synthetic-library", store.state.value.detail?.library_id)
+    }
+    @Test fun batchQueueReviewAndProgressRequiresExplicitResume() {
+        val api = SyntheticApi().apply { uploadEnabled = true; protectedNativeV2Enabled = true }
+        val source = BatchUploadSource("batch.jpg", 4, UploadKind.IMAGE, { java.io.ByteArrayInputStream(byteArrayOf(1, 2, 3, 4)) }, "content://batch")
+        val store = ConnectedStore(api, scope, batchPersistence = InMemoryUploadQueuePersistence(), batchSource = { source })
+        rule.runOnUiThread { rule.activity.setContent { ConnectedApp(store) }; store.authenticate("+12025550123", "synthetic-password-only") }
+        awaitLibrary(store)
+        val queue = requireNotNull(store.batchUploads); val id = queue.enqueue(listOf(source)).single()
+        rule.onNodeWithTag("batch-queue").assertIsDisplayed()
+        rule.onNodeWithTag("batch-status-$id").assertTextContains("needs_hash", substring = true)
+        rule.runOnUiThread { queue.resume(id) }
+        rule.waitUntil(5000) { runCatching { rule.onNodeWithTag("batch-status-$id").assertTextContains("complete", substring = true) }.isSuccess }
+        val bitmap = rule.onRoot().captureToImage().asAndroidBitmap()
+        File(rule.activity.filesDir, "batch-upload-queue-phone.png").outputStream().use { bitmap.compress(Bitmap.CompressFormat.PNG, 100, it) }
+        bitmap.recycle()
     }
 }

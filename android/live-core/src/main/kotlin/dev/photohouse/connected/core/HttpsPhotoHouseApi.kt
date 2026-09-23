@@ -45,6 +45,10 @@ class HttpsPhotoHouseApi internal constructor(private val origin: TrustedOrigin,
         .connectTimeout(10, TimeUnit.SECONDS).readTimeout(15, TimeUnit.SECONDS).callTimeout(20, TimeUnit.SECONDS)
         .build()
     private val uploadClient = this.client.newBuilder().callTimeout(2, TimeUnit.MINUTES).writeTimeout(30, TimeUnit.SECONDS).build()
+    // Completion hashes the full original on the server. A lost reply is reconciled
+    // by GET on explicit resume, using the same idempotent transfer ledger.
+    private val completionClient = this.client.newBuilder()
+        .callTimeout(10, TimeUnit.MINUTES).readTimeout(10, TimeUnit.MINUTES).build()
     private data class Packet(val code: Int, val contentType: String?, val bytes: ByteArray, val total: Long = 0, val etag: String? = null)
 
     override suspend fun uploadPhoto(token: Bearer, source: UploadSource, batch: String,
@@ -122,6 +126,52 @@ class HttpsPhotoHouseApi internal constructor(private val origin: TrustedOrigin,
         return UploadHistoryWire.parse(response.bytes, page)
     }
 
+    override suspend fun createUploadSession(token: Bearer, request: UploadSessionRequest): UploadSession {
+        require(uploadEnabled && protectedNativeV2Enabled)
+        val result = packet(url("/upload-sessions"), token, UploadSessionWire.request(request), limit = UPLOAD_JSON_LIMIT, requestLimit = 1024)
+        if (result.code != 201 || result.contentType?.substringBefore(';')?.trim()?.lowercase() != "application/json") throw ApiFailure(FailureKind.INVALID_RESPONSE)
+        return UploadSessionWire.parse(result.bytes)
+    }
+    override suspend fun uploadSession(token: Bearer, uploadId: String): UploadSession {
+        val result = packet(sessionUrl(uploadId), token, limit = UPLOAD_JSON_LIMIT)
+        if (result.code != 200 || result.contentType?.substringBefore(';')?.trim()?.lowercase() != "application/json") throw ApiFailure(FailureKind.INVALID_RESPONSE)
+        return UploadSessionWire.parse(result.bytes)
+    }
+    override suspend fun uploadChunk(token: Bearer, uploadId: String, offset: Long, chunk: ByteArray, sha256: String): UploadSession {
+        require(offset >= 0 && chunk.size in 1..(4 * 1024 * 1024) && sha256.matches(Regex("[0-9a-f]{64}")))
+        val request = Request.Builder().url(sessionUrl(uploadId)).header("Authorization", token.header()).header("Accept", "application/json")
+            .header("Content-Type", "application/octet-stream").header("Upload-Offset", offset.toString()).header("X-Chunk-SHA256", sha256)
+            .put(chunk.toRequestBody("application/octet-stream".toMediaType())).build()
+        return rawSession(request, 200)
+    }
+    override suspend fun completeUploadSession(token: Bearer, uploadId: String): UploadSession {
+        val request = Request.Builder().url(completeUrl(uploadId))
+            .header("Authorization", token.header()).header("Accept", "application/json")
+            .post("{}".toRequestBody("application/json; charset=utf-8".toMediaType())).build()
+        return rawSession(request, 200, completionClient)
+    }
+    override suspend fun cancelUploadSession(token: Bearer, uploadId: String): UploadSession {
+        val result = packet(sessionUrl(uploadId), token, limit = UPLOAD_JSON_LIMIT, method = "DELETE")
+        if (result.code != 200 || result.contentType?.substringBefore(';')?.trim()?.lowercase() != "application/json") throw ApiFailure(FailureKind.INVALID_RESPONSE)
+        return UploadSessionWire.parse(result.bytes)
+    }
+    private fun sessionUrl(id: String): HttpUrl { require(id.matches(Regex("[0-9a-f]{32}"))); return origin.url.newBuilder().addPathSegments("upload-sessions/$id").build() }
+    private fun completeUrl(id: String): HttpUrl { require(id.matches(Regex("[0-9a-f]{32}"))); return origin.url.newBuilder().addPathSegments("upload-sessions/$id/complete").build() }
+    private suspend fun rawSession(request: Request, expected: Int, networkClient: OkHttpClient = uploadClient): UploadSession = suspendCancellableCoroutine { continuation ->
+        val call = networkClient.newCall(request); continuation.invokeOnCancellation { call.cancel() }
+        call.enqueue(object : Callback {
+            override fun onFailure(call: Call, e: IOException) { if (continuation.isActive) continuation.resumeWithException(if (e is SSLException) ApiFailure(FailureKind.TLS) else ApiFailure(FailureKind.OFFLINE)) }
+            override fun onResponse(call: Call, response: Response) {
+                try { response.use {
+                    if (it.code != expected) throw ApiFailure(FailureKind.HTTP, it.code, if (it.code == 429) retryAfterMillis(it.header("Retry-After")) else 0)
+                    if (it.header("Content-Type")?.substringBefore(';')?.trim()?.lowercase() != "application/json") throw ApiFailure(FailureKind.INVALID_RESPONSE)
+                    val body = it.body ?: throw ApiFailure(FailureKind.INVALID_RESPONSE); val bytes = readBody(body, UPLOAD_JSON_LIMIT)
+                    if (continuation.isActive) continuation.resume(UploadSessionWire.parse(bytes))
+                } } catch (e: Exception) { if (continuation.isActive) continuation.resumeWithException(if (e is ApiFailure) e else ApiFailure(FailureKind.INVALID_RESPONSE)) }
+            }
+        })
+    }
+
     private fun parseUploadReceipt(bytes: ByteArray): UploadReceipt {
         val obj = try { DiscoveryJson.parse(bytes, UPLOAD_JSON_LIMIT).jsonObject } catch (_: Exception) { throw ApiFailure(FailureKind.INVALID_RESPONSE) }
         val expected = setOf("asset_id", "library_id", "incoming", "batch", "kind", "width", "height", "sha256", "bytes", "tasks_enqueued")
@@ -190,7 +240,7 @@ class HttpsPhotoHouseApi internal constructor(private val origin: TrustedOrigin,
             .apply { rangeStart?.let { header("Range", "bytes=$it-${it + limit - 1}"); header("Accept-Encoding", "identity") } }
             .apply { token?.let { header("Authorization", it.header()) } }
             .apply { if (head) head(); preparedEtag?.let { header("If-Range", it) } }
-            .apply { if (bytes != null) { require(method in setOf("POST", "PUT")); method(method, bytes.toRequestBody("application/json; charset=utf-8".toMediaType())) } }
+            .apply { if (bytes != null) { require(method in setOf("POST", "PUT")); method(method, bytes.toRequestBody("application/json; charset=utf-8".toMediaType())) } else if (method != "POST") method(method, null) }
             .build()
         return suspendCancellableCoroutine { continuation ->
             val call = client.newCall(request)

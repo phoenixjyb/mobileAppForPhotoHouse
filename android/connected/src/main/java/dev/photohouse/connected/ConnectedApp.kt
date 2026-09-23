@@ -82,17 +82,51 @@ private class Words(val zh: Boolean) {
     val words = Words(language == "zh" || language == "system" && config.locales[0].language == "zh")
     val t = words::t
     val state = store?.state?.collectAsState()?.value ?: LiveState()
+    val batchQueue = store?.batchUploads
+    val batchItems = batchQueue?.state?.collectAsState()?.value ?: emptyList()
     var jumpPage by remember(state.generation) { mutableStateOf(false) }
     var lookupAsset by remember(state.generation) { mutableStateOf(false) }
     val context = LocalContext.current
     var pickerAccount by remember { mutableStateOf<String?>(null) }
     var pendingUpload by remember { mutableStateOf<Pair<String, Uri>?>(null) }
+    var batchPickerAccount by remember { mutableStateOf<String?>(null) }
+    var batchUris by remember { mutableStateOf<Pair<String, List<Uri>>?>(null) }
+    var batchTree by remember { mutableStateOf<Pair<String, Uri>?>(null) }
+    var batchReview by remember { mutableStateOf<List<BatchUploadSource>>(emptyList()) }
+    var batchSkipped by remember { mutableIntStateOf(0) }
+    var batchApproved by remember { mutableStateOf(false) }
     var selectionError by remember(state.session?.account_id) { mutableStateOf(false) }
     // The launcher survives the privacy cover while Android's picker is in front.
     // Keep only an ephemeral URI, then recheck the account before opening its bytes.
     val pickPhoto = rememberLauncherForActivityResult(ActivityResultContracts.OpenDocument()) { uri ->
         pendingUpload = pickerAccount?.let { account -> uri?.let { account to it } }
         pickerAccount = null
+    }
+    val pickBatch = rememberLauncherForActivityResult(ActivityResultContracts.OpenMultipleDocuments()) { uris ->
+        uris.forEach { uri -> runCatching { context.contentResolver.takePersistableUriPermission(uri, android.content.Intent.FLAG_GRANT_READ_URI_PERMISSION) } }
+        batchUris = batchPickerAccount?.let { it to uris }; batchPickerAccount = null; batchApproved = false
+    }
+    val pickBatchFolder = rememberLauncherForActivityResult(ActivityResultContracts.OpenDocumentTree()) { uri ->
+        uri?.let { selected -> runCatching { context.contentResolver.takePersistableUriPermission(selected, android.content.Intent.FLAG_GRANT_READ_URI_PERMISSION) }; batchTree = batchPickerAccount?.let { it to selected } }
+        batchPickerAccount = null; batchApproved = false
+    }
+    LaunchedEffect(batchUris, state.session?.account_id, state.generation) {
+        val selected = batchUris ?: return@LaunchedEffect
+        if (selected.first != state.session?.account_id || state.covered) { batchUris = null; batchReview = emptyList(); return@LaunchedEffect }
+        val sources = withContext(Dispatchers.IO) { selected.second.take(100).mapNotNull { runCatching { batchUploadSource(context, it) }.getOrNull() } }
+        if (selected.first != store?.state?.value?.session?.account_id || store?.state?.value?.covered != false) { batchUris = null; return@LaunchedEffect }
+        var total = 0L
+        val accepted = sources.filter { source ->
+            if (source.bytes > 64L * 1024 * 1024 * 1024 - total) false else { total += source.bytes; true }
+        }
+        batchSkipped = selected.second.size - accepted.size; batchReview = accepted; batchUris = null
+    }
+    LaunchedEffect(batchTree, state.session?.account_id, state.generation) {
+        val selected = batchTree ?: return@LaunchedEffect
+        if (selected.first != state.session?.account_id || state.covered) { batchTree = null; batchReview = emptyList(); return@LaunchedEffect }
+        val result = withContext(Dispatchers.IO) { runCatching { batchUploadTree(context, selected.second) }.getOrElse { BatchTreeResult(emptyList(), 1, 0) } }
+        if (selected.first != store?.state?.value?.session?.account_id || store?.state?.value?.covered != false) { batchTree = null; return@LaunchedEffect }
+        batchSkipped = result.skipped; batchReview = result.sources; batchTree = null
     }
     LaunchedEffect(pendingUpload, state.covered, state.session?.account_id, state.busy) {
         val pending = pendingUpload ?: return@LaunchedEffect
@@ -217,6 +251,50 @@ private class Words(val zh: Boolean) {
                                         modifier = Modifier.testTag("open-upload")) { Text(t("Add a photo", "添加照片")) }
                                     OutlinedButton(onClick = { store.loadUploadHistory(1) }, enabled = !state.busy && state.uploadHistory?.busy != true,
                                         modifier = Modifier.testTag("open-upload-history")) { Text(t("Upload history", "上传记录")) }
+                                    if (batchQueue != null) OutlinedButton(onClick = {
+                                        batchPickerAccount = state.session?.account_id
+                                        pickBatch.launch(arrayOf("image/jpeg", "image/png", "video/mp4", "video/quicktime"))
+                                    }, enabled = !state.busy, modifier = Modifier.testTag("batch-pick")) { Text(t("Choose files", "选择文件")) }
+                                    if (batchQueue != null) OutlinedButton(onClick = { batchPickerAccount = state.session?.account_id; pickBatchFolder.launch(null) }, enabled = !state.busy, modifier = Modifier.testTag("batch-pick-folder")) { Text(t("Choose folder", "选择文件夹")) }
+                                }
+                                if (batchReview.isNotEmpty() || batchSkipped > 0) Card(Modifier.fillMaxWidth().testTag("batch-review")) {
+                                    Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                                        Text(t("Review uploads", "检查上传"), style = MaterialTheme.typography.titleMedium)
+                                        Text(t("${batchReview.size} files · ${batchReview.sumOf { it.bytes }} bytes", "${batchReview.size} 个文件 · ${batchReview.sumOf { it.bytes }} 字节"))
+                                        if (batchSkipped > 0) Text(t("$batchSkipped unsupported or unknown-size files were skipped.", "已跳过 $batchSkipped 个不支持或大小未知的文件。"), color = MaterialTheme.colorScheme.error)
+                                        if (!batchApproved && uploadNetwork(context) != UploadNetwork.UNMETERED) Text(t("This connection may incur data charges. Continue only after review.", "当前网络可能产生流量费用，请确认后继续。"))
+                                        Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                                            Button(onClick = { if (uploadNetwork(context) == UploadNetwork.UNMETERED || batchApproved) {
+                                                batchQueue!!.enqueue(batchReview); batchQueue!!.resume(); batchReview = emptyList(); batchSkipped = 0
+                                            } else batchApproved = true }, modifier = Modifier.testTag("batch-start")) { Text(if (batchApproved || uploadNetwork(context) == UploadNetwork.UNMETERED) t("Start", "开始") else t("Continue", "继续")) }
+                                            OutlinedButton(onClick = { batchReview = emptyList(); batchSkipped = 0 }, modifier = Modifier.testTag("batch-discard")) { Text(t("Discard", "放弃")) }
+                                        }
+                                    }
+                                }
+                                if (batchItems.isNotEmpty()) Card(Modifier.fillMaxWidth().testTag("batch-queue")) {
+                                    Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                                        Text(t("Upload queue", "上传队列"), style = MaterialTheme.typography.titleMedium)
+                                        batchItems.forEach { item ->
+                                            val status = when (item.record.status) {
+                                                "needs_hash" -> t("needs_hash", "等待校验")
+                                                "queued" -> t("queued", "等待上传")
+                                                "uploading" -> t("uploading", "上传中")
+                                                "paused" -> t("paused", "已暂停")
+                                                "failed" -> t("failed", "上传中断")
+                                                "cancelling" -> t("cancelling", "正在取消")
+                                                "cancelled" -> t("cancelled", "已取消")
+                                                "complete" -> t("complete", "已收到，等待审核")
+                                                else -> t("unknown", "状态未知")
+                                            }
+                                            Text("${item.record.filename}: $status ${item.record.offset}/${item.record.bytes}", modifier = Modifier.testTag("batch-status-${item.record.localId}"))
+                                            Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                                                if (item.record.status == "uploading") OutlinedButton(onClick = { batchQueue!!.pause() }, modifier = Modifier.testTag("batch-pause")) { Text(t("Pause", "暂停")) }
+                                                if (item.record.status in setOf("paused", "failed", "queued", "needs_hash")) OutlinedButton(onClick = { batchQueue!!.resume(item.record.localId) }, modifier = Modifier.testTag("batch-resume")) { Text(t("Resume", "继续")) }
+                                                if (item.record.status == "failed") OutlinedButton(onClick = { batchQueue!!.retry(item.record.localId) }, modifier = Modifier.testTag("batch-retry")) { Text(t("Retry", "重试")) }
+                                                if (item.record.status !in setOf("complete", "cancelled")) OutlinedButton(onClick = { batchQueue!!.cancel(item.record.localId) }, modifier = Modifier.testTag("batch-cancel")) { Text(t("Cancel", "取消")) }
+                                            }
+                                        }
+                                    }
                                 }
                                 state.uploadHistory?.let { history ->
                                     Card(Modifier.fillMaxWidth().testTag("upload-history")) {

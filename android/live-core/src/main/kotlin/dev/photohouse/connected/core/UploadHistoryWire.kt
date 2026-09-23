@@ -5,7 +5,8 @@ import kotlinx.serialization.json.*
 /** Strict parser for the protected account-scoped upload history response. */
 object UploadHistoryWire {
     private const val PAGE_SIZE = 10
-    private const val MAX_BYTES = 25L * 1024 * 1024
+    private const val MAX_BYTES = 16L * 1024 * 1024 * 1024
+    private const val MAX_IMAGE_BYTES = 256L * 1024 * 1024
     private fun bad(): Nothing = throw ApiFailure(FailureKind.INVALID_RESPONSE)
     private fun check(ok: Boolean) { if (!ok) bad() }
     private fun JsonElement.obj(vararg keys: String): JsonObject =
@@ -43,8 +44,8 @@ object UploadHistoryWire {
                 check((state == "available") == (library != null))
                 UploadHistoryItem(item.getValue("asset_id").str(19).also { check(PhoneDiscoveryWire.validId(it)) },
                     item.getValue("created_at").long(0, 253402300799),
-                    item.getValue("bytes").long(1, MAX_BYTES),
-                    item.getValue("kind").str(8).also { check(it == "image") }, state, library)
+                    item.getValue("bytes").long(1, MAX_BYTES).also { bytes -> check(item.getValue("kind").str(8).let { kind -> kind == "image" && bytes <= MAX_IMAGE_BYTES || kind == "video" }) },
+                    item.getValue("kind").str(8), state, library)
             }
             check(items.map { it.assetId }.distinct().size == items.size)
             check(items.size.toLong() == minOf(PAGE_SIZE.toLong(), maxOf(0L, total.toLong() - (page - 1L) * PAGE_SIZE)))

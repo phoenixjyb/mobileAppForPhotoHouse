@@ -36,7 +36,7 @@ data class LiveState(
 )
 
 /** UI-dispatcher-confined; only the wire DTO module is shared with fixture code. */
-class ConnectedStore(private val api: PhotoHouseApi, private val scope: CoroutineScope, private val persistence: SessionPersistence? = null, private val uploadNetwork: () -> UploadNetwork = { UploadNetwork.UNKNOWN }, private val now: () -> Long = System::currentTimeMillis) {
+class ConnectedStore(private val api: PhotoHouseApi, private val scope: CoroutineScope, private val persistence: SessionPersistence? = null, private val uploadNetwork: () -> UploadNetwork = { UploadNetwork.UNKNOWN }, batchPersistence: UploadQueuePersistence? = null, batchSource: ((UploadQueueRecord) -> BatchUploadSource?)? = null, private val now: () -> Long = System::currentTimeMillis) {
     private val mutable = MutableStateFlow(LiveState())
     val state = mutable.asStateFlow()
     private val playbackProgress = PlaybackProgress()
@@ -51,6 +51,8 @@ class ConnectedStore(private val api: PhotoHouseApi, private val scope: Coroutin
     private val requests = mutableSetOf<Job>()
     private var retry: (() -> Unit)? = null
     private var uploadHistoryRequest = 0L
+    private val batchQueue = if (batchPersistence != null && batchSource != null) BatchUploadQueue(api, scope, batchPersistence, batchSource, valid = { usable() }, token = { token ?: throw ApiFailure(FailureKind.HTTP, 401) }) else null
+    val batchUploads get() = batchQueue
     val protectedNativeV2Enabled get() = api.protectedNativeV2Enabled
     val mediaFilterEnabled get() = api.mediaFilterEnabled
     val preparedBrowseEnabled get() = api.preparedBrowseEnabled
@@ -70,6 +72,7 @@ class ConnectedStore(private val api: PhotoHouseApi, private val scope: Coroutin
         requests.toList().forEach { it.cancel() }; requests.clear(); retry = null
         var storageFailed = false
         if (!keepIdentity) {
+            batchQueue?.detach()
             resumeLibrary = null
             playbackProgress.clear()
             storageFailed = runCatching { persistence?.clear() }.isFailure
@@ -142,6 +145,7 @@ class ConnectedStore(private val api: PhotoHouseApi, private val scope: Coroutin
             val expiresAt = issuedAt + response.expires_in * 1000
             if (now() >= expiresAt) { expire(); return@launch }
             token = credential; identity = session; deadline = expiresAt
+            batchQueue?.attach(session.account_id)
             armExpiry(credential)
             val saved = !remember || runCatching {
                 persistence?.save(RememberedSession(response.access_token, issuedAt, expiresAt))
@@ -754,7 +758,7 @@ class ConnectedStore(private val api: PhotoHouseApi, private val scope: Coroutin
     fun background() {
         // Retain only an internal selection hint; clear all private UI state.
         if (!state.value.covered) resumeLibrary = state.value.library
-        invalidate(keepIdentity = true, cover = true)
+        batchQueue?.pause(); invalidate(keepIdentity = true, cover = true)
     }
     fun foreground() {
         if (!state.value.covered || state.value.busy || coolingDown()) return
@@ -770,6 +774,7 @@ class ConnectedStore(private val api: PhotoHouseApi, private val scope: Coroutin
                 if (!active(generation)) return@launch
                 validateSession(session, identity?.account_id)
                 identity = session
+                batchQueue?.attach(session.account_id)
                 mutable.value = state.value.copy(session = session, covered = false, busy = false)
                 resumeLibrary = null
                 openPreferredLibrary(session, previousLibrary)
