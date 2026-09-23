@@ -5,6 +5,7 @@ import android.graphics.Canvas
 import android.view.WindowManager
 import androidx.activity.compose.setContent
 import androidx.compose.ui.test.*
+import androidx.compose.ui.graphics.asAndroidBitmap
 import androidx.compose.ui.test.junit4.createAndroidComposeRule
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import dev.photohouse.connected.core.*
@@ -69,12 +70,21 @@ class ConnectedUiTest {
         var photos = listOf(photo)
         var total = 1L
         var originalsAllowed = false
+        var uploadHistoryPages: Map<Int, UploadHistoryPage> = emptyMap()
         var memberships = listOf(Membership("synthetic-library", "approved", "viewer", 1, null, 0, true))
         override suspend fun login(phone: String, password: String) = SessionToken(86400, "T".repeat(43), "Bearer")
         override suspend fun register(phone: String, password: String, code: String): SessionToken { registrationCode = code; return login(phone, password) }
         override suspend fun session(token: Bearer) = Session("synthetic-account", "+12025550123", memberships)
         override suspend fun logout(token: Bearer) { }
         override suspend fun acceptInvitation(token: Bearer, code: String) { }
+        override suspend fun uploadHistory(token: Bearer, page: Int): UploadHistoryPage =
+            uploadHistoryPages[page] ?: UploadHistoryPage(page, 10, 0, emptyList())
+        var batchOffset = 0L
+        override suspend fun createUploadSession(token: Bearer, request: UploadSessionRequest) = UploadSession("c".repeat(32), request.bytes, batchOffset, 4194304, "uploading", null)
+        override suspend fun uploadSession(token: Bearer, uploadId: String) = UploadSession(uploadId, 4, batchOffset, 4194304, "uploading", null)
+        override suspend fun uploadChunk(token: Bearer, uploadId: String, offset: Long, chunk: ByteArray, sha256: String): UploadSession { batchOffset = offset + chunk.size; return UploadSession(uploadId, 4, batchOffset, 4194304, "uploading", null) }
+        override suspend fun completeUploadSession(token: Bearer, uploadId: String) = UploadSession(uploadId, 4, 4, 4194304, "complete", "902")
+        override suspend fun cancelUploadSession(token: Bearer, uploadId: String) = UploadSession(uploadId, 4, batchOffset, 4194304, "cancelled", null)
         override suspend fun gallery(token: Bearer, library: String, page: Int) = Gallery(library, page, 50, total, false, photos)
         var transientDetailFailures = 0
         override suspend fun detail(token: Bearer, library: String, assetId: String): Detail {
@@ -768,5 +778,62 @@ class ConnectedUiTest {
         rule.waitForIdle()
         awaitLibrary(store, "alpha")
         assertEquals("alpha", store.state.value.gallery?.library_id)
+    }
+
+    @Test fun uploadHistoryShowsStatesPagesTenPlusTwoAndOpensAvailableAsset() {
+        fun item(id: String, state: String, library: String? = if (state == "available") "synthetic-library" else null) =
+            UploadHistoryItem(id, 1760000000, 1234, "image", state, library)
+        val pageOne = listOf(item("1", "available"), item("2", "awaiting_review"), item("3", "unavailable")) +
+            (4..10).map { item(it.toString(), "awaiting_review") }
+        val pageTwo = listOf(item("11", "awaiting_review"), item("12", "unavailable"))
+        val api = SyntheticApi().apply {
+            protectedNativeV2Enabled = true; uploadEnabled = true
+            uploadHistoryPages = mapOf(
+                1 to UploadHistoryPage(1, 10, 12, pageOne),
+                2 to UploadHistoryPage(2, 10, 12, pageTwo),
+            )
+        }
+        val store = ConnectedStore(api, scope)
+        rule.runOnUiThread {
+            rule.activity.setContent { ConnectedApp(store) }
+            store.authenticate("+12025550123", "synthetic-password-only")
+        }
+        awaitLibrary(store)
+        click("Upload history")
+        reveal(hasTestTag("upload-history"))
+        rule.onAllNodesWithText("Awaiting review").onFirst().assertIsDisplayed()
+        rule.onNodeWithText("Unavailable").assertIsDisplayed()
+        val bitmap = rule.onRoot().captureToImage().asAndroidBitmap()
+        File(rule.activity.filesDir, "upload-history-phone.png").outputStream().use { bitmap.compress(Bitmap.CompressFormat.PNG, 100, it) }
+        bitmap.recycle()
+        click("简体中文"); reveal(hasTestTag("upload-history"))
+        rule.onNodeWithText("我的上传记录").assertIsDisplayed()
+        val chinese = rule.onRoot().captureToImage().asAndroidBitmap()
+        File(rule.activity.filesDir, "upload-history-phone-zh.png").outputStream().use { chinese.compress(Bitmap.CompressFormat.PNG, 100, it) }
+        chinese.recycle(); click("English")
+        assertEquals(10, store.state.value.uploadHistory?.items?.size)
+        clickTag("upload-history-next")
+        assertEquals(2, store.state.value.uploadHistory?.items?.size)
+        clickTag("upload-history-previous")
+        rule.waitUntil(5000) { store.state.value.uploadHistory?.page == 1 && store.state.value.uploadHistory?.busy == false }
+        reveal(hasTestTag("upload-history"))
+        rule.onNode(hasText("Open") and hasClickAction()).performClick()
+        rule.waitUntil(5000) { store.state.value.detail?.asset?.id == "1" }
+        assertEquals("synthetic-library", store.state.value.detail?.library_id)
+    }
+    @Test fun batchQueueReviewAndProgressRequiresExplicitResume() {
+        val api = SyntheticApi().apply { uploadEnabled = true; protectedNativeV2Enabled = true }
+        val source = BatchUploadSource("batch.jpg", 4, UploadKind.IMAGE, { java.io.ByteArrayInputStream(byteArrayOf(1, 2, 3, 4)) }, "content://batch")
+        val store = ConnectedStore(api, scope, batchPersistence = InMemoryUploadQueuePersistence(), batchSource = { source })
+        rule.runOnUiThread { rule.activity.setContent { ConnectedApp(store) }; store.authenticate("+12025550123", "synthetic-password-only") }
+        awaitLibrary(store)
+        val queue = requireNotNull(store.batchUploads); val id = queue.enqueue(listOf(source)).single()
+        rule.onNodeWithTag("batch-queue").assertIsDisplayed()
+        rule.onNodeWithTag("batch-status-$id").assertTextContains("needs_hash", substring = true)
+        rule.runOnUiThread { queue.resume(id) }
+        rule.waitUntil(5000) { runCatching { rule.onNodeWithTag("batch-status-$id").assertTextContains("complete", substring = true) }.isSuccess }
+        val bitmap = rule.onRoot().captureToImage().asAndroidBitmap()
+        File(rule.activity.filesDir, "batch-upload-queue-phone.png").outputStream().use { bitmap.compress(Bitmap.CompressFormat.PNG, 100, it) }
+        bitmap.recycle()
     }
 }

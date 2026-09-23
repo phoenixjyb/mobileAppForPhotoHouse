@@ -9,10 +9,11 @@ import androidx.activity.viewModels
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.ViewModelProvider
 import androidx.lifecycle.viewModelScope
+import android.net.Uri
 import dev.photohouse.connected.core.*
 
-class ConnectedViewModel(api: PhotoHouseApi?, persistence: SessionPersistence? = null, uploadNetwork: () -> UploadNetwork = { UploadNetwork.UNKNOWN }) : ViewModel() {
-    val store = api?.let { ConnectedStore(it, viewModelScope, persistence, uploadNetwork = uploadNetwork).also { store -> store.restoreSession() } }
+class ConnectedViewModel(api: PhotoHouseApi?, persistence: SessionPersistence? = null, uploadNetwork: () -> UploadNetwork = { UploadNetwork.UNKNOWN }, batchPersistence: UploadQueuePersistence? = null, batchSource: ((UploadQueueRecord) -> BatchUploadSource?)? = null) : ViewModel() {
+    val store = api?.let { ConnectedStore(it, viewModelScope, persistence, uploadNetwork = uploadNetwork, batchPersistence = batchPersistence, batchSource = batchSource).also { store -> store.restoreSession() } }
 }
 class MainActivity : ComponentActivity() {
     private val model by viewModels<ConnectedViewModel> {
@@ -30,7 +31,9 @@ class MainActivity : ComponentActivity() {
                     preparedBrowseEnabled = BuildConfig.PHOTOHOUSE_PREPARED_BROWSE_ENABLED,
                     uploadEnabled = BuildConfig.PHOTOHOUSE_UPLOAD_ENABLED) },
                     origin?.let { KeystoreSessionPersistence(applicationContext, BuildConfig.PHOTOHOUSE_ORIGIN) },
-                    uploadNetwork = { uploadNetwork(applicationContext) }) as T
+                    uploadNetwork = { uploadNetwork(applicationContext) },
+                    batchPersistence = origin?.let { KeystoreUploadQueuePersistence(applicationContext, BuildConfig.PHOTOHOUSE_ORIGIN) },
+                    batchSource = { record -> record.locator?.let { batchUploadSource(applicationContext, Uri.parse(it)) } }) as T
             }
         }
     }

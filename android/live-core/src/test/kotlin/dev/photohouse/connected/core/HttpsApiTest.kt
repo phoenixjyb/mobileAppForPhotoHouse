@@ -35,6 +35,19 @@ class HttpsApiTest {
     }
     private fun range(body: String = "abcd", header: String = "bytes 0-3/10") = MockResponse().setResponseCode(206)
         .setHeader("Content-Type", "video/mp4").setHeader("Content-Range", header).setBody(body)
+    @Test fun resumableSessionUsesExactRoutesOffsetsAndChunkHash() = runBlocking {
+        TlsFixture().use { f ->
+            val api = HttpsPhotoHouseApi(f.origin, f.client, protectedNativeV2Enabled = true, uploadEnabled = true)
+            val id = "a".repeat(32); val uploading = "{\"upload_id\":\"$id\",\"bytes\":4,\"offset\":0,\"chunk_bytes\":4194304,\"state\":\"uploading\",\"asset_id\":null}"
+            f.server.enqueue(json(uploading).setResponseCode(201)); f.server.enqueue(json(uploading)); f.server.enqueue(json(uploading).setResponseCode(200)); f.server.enqueue(json("{\"upload_id\":\"$id\",\"bytes\":4,\"offset\":4,\"chunk_bytes\":4194304,\"state\":\"complete\",\"asset_id\":\"901\"}")); f.server.enqueue(json("{\"upload_id\":\"$id\",\"bytes\":4,\"offset\":4,\"chunk_bytes\":4194304,\"state\":\"cancelled\",\"asset_id\":null}"))
+            val request = UploadSessionRequest("1".repeat(32), "2".repeat(32), "a.jpg", 4, "3".repeat(64), UploadKind.IMAGE)
+            api.createUploadSession(token, request); assertEquals("/upload-sessions", f.server.takeRequest().requestUrl!!.encodedPath)
+            api.uploadSession(token, id); assertEquals("GET", f.server.takeRequest().method)
+            api.uploadChunk(token, id, 0, byteArrayOf(1, 2, 3, 4), "4".repeat(64)); val chunkRequest = f.server.takeRequest(); assertEquals("PUT", chunkRequest.method); assertEquals("0", chunkRequest.getHeader("Upload-Offset")); assertEquals("4".repeat(64), chunkRequest.getHeader("X-Chunk-SHA256"))
+            api.completeUploadSession(token, id); assertEquals("/upload-sessions/$id/complete", f.server.takeRequest().requestUrl!!.encodedPath)
+            api.cancelUploadSession(token, id); assertEquals("DELETE", f.server.takeRequest().method)
+        }
+    }
     @Test fun preparedBrowseSendsOnlyTheOptInScopedFilter() = runBlocking {
         TlsFixture().use { f ->
             val disabled = HttpsPhotoHouseApi(f.origin, f.client, protectedNativeV2Enabled = true, mediaFilterEnabled = true)
@@ -313,6 +326,21 @@ class HttpsApiTest {
         TlsFixture().use { f ->
             assertEquals(FailureKind.INVALID_INPUT, failure { f.api.register("+12025550123", password, "x".repeat(3000)) }.kind)
             assertEquals(0, f.server.requestCount)
+        }
+    }
+    @Test fun uploadHistoryUsesProtectedBearerAndStrictPageContract() = runBlocking {
+        TlsFixture().use { f ->
+            val api = HttpsPhotoHouseApi(f.origin, f.client, protectedNativeV2Enabled = true, uploadEnabled = true)
+            f.server.enqueue(json("""{"page":1,"page_size":10,"total":1,"items":[{"asset_id":"901","created_at":1760000000,"bytes":1234,"kind":"image","state":"available","library_id":"family"}]}"""))
+            val page = api.uploadHistory(token, 1)
+            assertEquals("901", page.items.single().assetId)
+            val request = f.server.takeRequest()
+            assertEquals("/uploads?page=1", request.path)
+            assertEquals("Bearer " + "T".repeat(43), request.getHeader("Authorization"))
+            for (status in listOf(403, 404, 503)) {
+                f.server.enqueue(MockResponse().setResponseCode(status))
+                assertEquals(status, failure { api.uploadHistory(token, 1) }.status)
+            }
         }
     }
     @Test fun originAdmissionAndOpaqueTokenValidation() {

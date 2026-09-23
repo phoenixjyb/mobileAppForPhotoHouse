@@ -30,6 +30,18 @@ interface PhotoHouseApi {
     suspend fun uploadPhoto(token: Bearer, source: UploadSource, batch: String,
                             onProgress: (Long) -> Unit = {}): UploadReceipt =
         throw ApiFailure(FailureKind.INVALID_INPUT)
+    suspend fun uploadHistory(token: Bearer, page: Int = 1): UploadHistoryPage =
+        throw ApiFailure(FailureKind.INVALID_INPUT)
+    suspend fun createUploadSession(token: Bearer, request: UploadSessionRequest): UploadSession =
+        throw ApiFailure(FailureKind.INVALID_INPUT)
+    suspend fun uploadSession(token: Bearer, uploadId: String): UploadSession =
+        throw ApiFailure(FailureKind.INVALID_INPUT)
+    suspend fun uploadChunk(token: Bearer, uploadId: String, offset: Long, chunk: ByteArray, sha256: String): UploadSession =
+        throw ApiFailure(FailureKind.INVALID_INPUT)
+    suspend fun completeUploadSession(token: Bearer, uploadId: String): UploadSession =
+        throw ApiFailure(FailureKind.INVALID_INPUT)
+    suspend fun cancelUploadSession(token: Bearer, uploadId: String): UploadSession =
+        throw ApiFailure(FailureKind.INVALID_INPUT)
     val mediaFilterEnabled: Boolean get() = false
     val preparedBrowseEnabled: Boolean get() = false
     val preparedVideoEnabled: Boolean get() = false
@@ -76,6 +88,21 @@ data class UploadReceipt(
     val kind: String, val width: Int, val height: Int, val sha256: String,
     val bytes: Long, val tasksEnqueued: Int
 )
+
+data class UploadHistoryItem(
+    val assetId: String, val createdAt: Long, val bytes: Long,
+    val kind: String, val state: String, val libraryId: String?
+)
+
+data class UploadHistoryPage(
+    val page: Int, val pageSize: Int, val total: Int,
+    val items: List<UploadHistoryItem>
+)
+
+enum class UploadKind { IMAGE, VIDEO }
+data class UploadSessionRequest(val requestId: String, val batch: String, val filename: String, val bytes: Long, val sha256: String, val kind: UploadKind)
+data class UploadSession(val uploadId: String, val bytes: Long, val offset: Long, val chunkBytes: Int, val state: String, val assetId: String?)
+data class BatchUploadSource(val filename: String, val bytes: Long, val kind: UploadKind, val open: () -> InputStream, val locator: String? = null)
 
 object Admission {
     /** Form convenience only; wire callers still require an explicit international number. */

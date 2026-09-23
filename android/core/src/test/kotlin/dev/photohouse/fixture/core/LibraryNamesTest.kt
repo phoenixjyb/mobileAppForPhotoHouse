@@ -12,6 +12,10 @@ class LibraryNamesTest {
         assertEquals("文档", LibraryNames.display("documents", true))
         assertEquals("家庭", LibraryNames.display("family-a", true))
         assertEquals("Family", LibraryNames.display("family", false))
+        assertEquals("Home Renovation", LibraryNames.english("home-renovation"))
+        assertEquals("装修", LibraryNames.chinese("home-renovation"))
+        assertEquals("Expense Receipts", LibraryNames.english("expense-receipts"))
+        assertEquals("报销单", LibraryNames.chinese("expense-receipts"))
     }
 
     @Test fun unknownIdsRemainUnchanged() {

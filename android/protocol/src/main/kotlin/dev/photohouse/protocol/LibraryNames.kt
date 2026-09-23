@@ -10,6 +10,8 @@ object LibraryNames {
         "chuan-work" to Name("Chuan’s Work", "曹川的工作"),
         "scenery" to Name("Scenery", "风景"),
         "concerts" to Name("Concerts", "音乐会"),
+        "home-renovation" to Name("Home Renovation", "装修"),
+        "expense-receipts" to Name("Expense Receipts", "报销单"),
         "family-a" to Name("Family", "家庭"),
         "family" to Name("Family", "家庭"),
     )
